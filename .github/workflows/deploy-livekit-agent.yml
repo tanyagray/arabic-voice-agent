@@ -37,7 +37,6 @@ jobs:
         run: |
           lk agent deploy . \
             --project arabic-voice-agent \
-            --id ${{ vars.LIVEKIT_AGENT_ID }} \
             --livekit-url ${{ vars.LIVEKIT_URL }} \
             --api-key ${{ vars.LIVEKIT_API_KEY }} \
             --api-secret ${{ secrets.LIVEKIT_API_SECRET }} \
