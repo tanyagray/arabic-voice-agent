@@ -35,7 +35,7 @@ jobs:
 
       - name: Deploy to LiveKit Cloud
         run: |
-          lk agent deploy \
+          lk agent deploy . \
             --project arabic-voice-agent
             --livekit-url ${{ vars.LIVEKIT_URL }}
             --api-key ${{ vars.LIVEKIT_API_KEY }}
