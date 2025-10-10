@@ -12,6 +12,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    defaults:
+      run:
+        working-directory: livekit-agent
 
     steps:
       - name: Checkout code
@@ -23,7 +26,6 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: livekit-agent
         run: |
           pip install -r requirements.txt
 
@@ -36,7 +38,6 @@ jobs:
           LIVEKIT_URL: ${{ vars.LIVEKIT_URL }}
           LIVEKIT_API_KEY: ${{ vars.LIVEKIT_API_KEY }}
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
-        working-directory: livekit-agent
         run: |
           lk agent deploy ${{ vars.LIVEKIT_AGENT_ID }}
 
