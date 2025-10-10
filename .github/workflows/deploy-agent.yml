@@ -1,4 +1,4 @@
-name: Deploy Agent to Render
+name: Deploy Agent to LiveKit Cloud
 
 on:
   push:
@@ -16,17 +16,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Render
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install LiveKit CLI
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
-            -d '{"clearCache":"clear"}'
+          curl -sSL https://get.livekit.io/cli | bash
+
+      - name: Deploy to LiveKit Cloud
+        env:
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+        working-directory: livekit-agent
+        run: |
+          lk deploy \
+            --name arabic-voice-agent \
+            --api-key $LIVEKIT_API_KEY \
+            --api-secret $LIVEKIT_API_SECRET \
+            --url $LIVEKIT_URL
 
       - name: Notify deployment
         run: |
-          echo "Agent deployed to Render successfully!"
+          echo "Agent deployed to LiveKit Cloud successfully!"
