@@ -1,4 +1,4 @@
-name: Deploy Agent to LiveKit Cloud
+name: Deploy LiveKit Agent
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'livekit-agent/**'
-      - '.github/workflows/deploy-agent.yml'
+      - '.github/workflows/deploy-livekit-agent.yml'
 
 jobs:
   deploy:
