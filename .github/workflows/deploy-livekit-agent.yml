@@ -22,9 +22,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install LiveKit CLI
+      - name: Install dependencies
+        working-directory: livekit-agent
         run: |
-          curl -sSL https://get.livekit.io/cli | bash
+          pip install -r requirements.txt
 
       - name: Deploy to LiveKit Cloud
         env:
@@ -33,11 +34,7 @@ jobs:
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
         working-directory: livekit-agent
         run: |
-          lk deploy \
-            --name arabic-voice-agent \
-            --api-key $LIVEKIT_API_KEY \
-            --api-secret $LIVEKIT_API_SECRET \
-            --url $LIVEKIT_URL
+          python -m livekit.agents.cli deploy
 
       - name: Notify deployment
         run: |
