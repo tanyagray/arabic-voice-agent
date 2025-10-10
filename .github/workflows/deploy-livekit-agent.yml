@@ -27,6 +27,10 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Install LiveKit CLI
+        run: |
+          curl -sSL https://get.livekit.io/cli | bash
+
       - name: Deploy to LiveKit Cloud
         env:
           LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
@@ -34,7 +38,7 @@ jobs:
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
         working-directory: livekit-agent
         run: |
-          python -m livekit.agents.cli deploy
+          lk agent deploy
 
       - name: Notify deployment
         run: |
