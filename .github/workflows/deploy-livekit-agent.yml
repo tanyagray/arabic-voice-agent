@@ -40,6 +40,7 @@ jobs:
             --livekit-url ${{ vars.LIVEKIT_URL }}
             --api-key ${{ vars.LIVEKIT_API_KEY }}
             --api-secret ${{ secrets.LIVEKIT_API_SECRET }}
+            --verbose
 
       - name: Notify deployment
         run: |
