@@ -75,3 +75,6 @@ mobile-app/ios/Runner/GeneratedPluginRegistrant.*
 # Supabase
 supabase/.branches
 supabase/.temp
+
+# Task runner
+.task/
