@@ -17,15 +17,30 @@ jobs:
         working-directory: livekit-agent
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Deploy LiveKit Cloud Agent
-        uses: livekit/deploy-action@main
-        env:
-          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
-          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
-          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
-          SECRET_LIST: ${{ secrets.SECRET_LIST }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          OPERATION: deploy
-          WORKING_DIRECTORY: livekit-agent
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Install LiveKit CLI
+        run: |
+          curl -sSL https://get.livekit.io/cli | bash
+
+      - name: Deploy to LiveKit Cloud
+        run: |
+          lk agent deploy \
+            --project arabic-voice-agent
+            --livekit-url ${{ vars.LIVEKIT_URL }}
+            --api-key ${{ vars.LIVEKIT_API_KEY }}
+            --api-secret ${{ secrets.LIVEKIT_API_SECRET }}
+
+      - name: Notify deployment
+        run: |
+          echo "Agent deployed to LiveKit Cloud successfully!"
