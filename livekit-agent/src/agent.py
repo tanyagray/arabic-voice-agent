@@ -4,20 +4,17 @@ Handles voice conversations with Deepgram (STT), OpenAI (LLM), and ElevenLabs (T
 """
 
 import logging
-import asyncio
 from datetime import datetime
 from typing import Optional
 
-from livekit import rtc
 from livekit.agents import (
-    AutoSubscribe,
-    JobContext,
-    WorkerOptions,
-    cli,
-    llm,
     Agent,
+    AgentSession,
+    JobContext,
+    noise_cancellation,
+    RoomInputOptions,
 )
-from livekit.plugins import deepgram, elevenlabs, openai
+from livekit.plugins import deepgram, elevenlabs, openai, silero
 
 from src.config import (
     get_system_prompt,
@@ -45,6 +42,7 @@ class ArabicVoiceAgent:
         self.conversation_id: Optional[str] = None
         self.user_id: Optional[str] = None
         self.start_time: Optional[datetime] = None
+        self.session: Optional[AgentSession] = None
 
     async def entrypoint(self, ctx: JobContext):
         """
@@ -79,42 +77,48 @@ class ArabicVoiceAgent:
                 )
 
         # Connect to the room
-        await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-
-        # Initialize plugins
-        stt = deepgram.STT(
-            api_key=DEEPGRAM_API_KEY,
-            **DEEPGRAM_CONFIG
-        )
-
-        llm_instance = openai.LLM(
-            api_key=OPENAI_API_KEY,
-            model=OPENAI_CONFIG["model"],
-        )
-
-        tts = elevenlabs.TTS(
-            api_key=ELEVENLABS_API_KEY,
-            **ELEVENLABS_CONFIG
-        )
+        await ctx.connect()
 
         # Create the agent with system prompt
         system_prompt = get_system_prompt(ARABIC_DIALECT)
+        agent = Agent(instructions=system_prompt)
 
-        # The Agent is automatically created by the JobContext
-        # We just need to configure it
-        ctx.agent.instructions = system_prompt
-        ctx.agent.llm = llm_instance
-        ctx.agent.stt = stt
-        ctx.agent.tts = tts
+        # Create the agent session with all components
+        self.session = AgentSession(
+            vad=silero.VAD.load(),
+            stt=deepgram.STT(
+                api_key=DEEPGRAM_API_KEY,
+                **DEEPGRAM_CONFIG
+            ),
+            llm=openai.LLM(
+                api_key=OPENAI_API_KEY,
+                model=OPENAI_CONFIG["model"],
+            ),
+            tts=elevenlabs.TTS(
+                api_key=ELEVENLABS_API_KEY,
+                **ELEVENLABS_CONFIG
+            ),
+        )
 
-        # Set up function calling (optional - can be enabled later)
-        # ctx.agent.update_tools(self.user_tools.get_function_definitions())
+        # Start the session
+        await self.session.start(
+            agent=agent,
+            room=ctx.room,
+            room_input_options=RoomInputOptions(
+                noise_cancellation=noise_cancellation.BVC(),
+            )
+        )
 
-        # TODO: Implement message saving with new Agent API
-        # The new Agent API doesn't expose chat_ctx the same way
-        # Will need to use event listeners for message tracking
+        # Generate initial greeting
+        await self.session.generate_reply(
+            instructions="Greet the user warmly in a mix of Arabic and English, introduce yourself as their Arabic tutor, and ask how they're doing today."
+        )
 
-        # End conversation
+        # Wait for the session to complete
+        # The session will continue until the user disconnects
+        # We can add event listeners here if needed for tracking
+
+        # End conversation when session completes
         if self.conversation_id and self.start_time:
             duration = int((datetime.utcnow() - self.start_time).total_seconds())
             await self.db.end_conversation(self.conversation_id, duration)
@@ -128,15 +132,3 @@ class ArabicVoiceAgent:
                 )
 
         logger.info(f"Agent finished for room: {ctx.room.name}")
-
-
-# async def request_fnc(req) -> None:
-#     """
-#     Handle function call requests from the LLM
-#     (Currently disabled - can be enabled by uncommenting assistant.register_functions above)
-#
-#     Args:
-#         req: Function call request from LLM
-#     """
-#     logger.info(f"Function call: {req.function_info.name} with args: {req.arguments}")
-#     # Implementation would go here when function calling is enabled
