@@ -38,7 +38,7 @@ jobs:
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
         working-directory: livekit-agent
         run: |
-          lk agent deploy
+          lk agent deploy ${{ vars.LIVEKIT_AGENT_ID }}
 
       - name: Notify deployment
         run: |
