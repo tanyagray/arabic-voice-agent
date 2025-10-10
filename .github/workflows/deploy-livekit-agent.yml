@@ -34,12 +34,12 @@ jobs:
           curl -sSL https://get.livekit.io/cli | bash
 
       - name: Deploy to LiveKit Cloud
-        env:
-          LIVEKIT_URL: ${{ vars.LIVEKIT_URL }}
-          LIVEKIT_API_KEY: ${{ vars.LIVEKIT_API_KEY }}
-          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
         run: |
-          lk agent deploy ${{ vars.LIVEKIT_AGENT_ID }}
+          lk agent deploy \
+            --project arabic-voice-agent
+            --livekit-url ${{ vars.LIVEKIT_URL }}
+            --api-key ${{ vars.LIVEKIT_API_KEY }}
+            --api-secret ${{ secrets.LIVEKIT_API_SECRET }}
 
       - name: Notify deployment
         run: |
