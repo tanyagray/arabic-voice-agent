@@ -15,6 +15,7 @@ from livekit.agents import (
     WorkerOptions,
     cli,
     llm,
+    Agent,
 )
 from livekit.plugins import deepgram, elevenlabs, openai
 
@@ -96,41 +97,22 @@ class ArabicVoiceAgent:
             **ELEVENLABS_CONFIG
         )
 
-        # Create the assistant with system prompt
+        # Create the agent with system prompt
         system_prompt = get_system_prompt(ARABIC_DIALECT)
 
-        assistant = llm.AssistantLLM(
-            llm=llm_instance,
-            stt=stt,
-            tts=tts,
-            system_message=system_prompt,
-            temperature=OPENAI_CONFIG["temperature"],
-            max_tokens=OPENAI_CONFIG["max_tokens"],
-        )
+        # The Agent is automatically created by the JobContext
+        # We just need to configure it
+        ctx.agent.instructions = system_prompt
+        ctx.agent.llm = llm_instance
+        ctx.agent.stt = stt
+        ctx.agent.tts = tts
 
         # Set up function calling (optional - can be enabled later)
-        # assistant.register_functions(self.user_tools.get_function_definitions())
+        # ctx.agent.update_tools(self.user_tools.get_function_definitions())
 
-        # Start the conversation
-        chat_ctx = assistant.start(ctx.room)
-
-        # Save messages to database
-        async def save_messages():
-            """Background task to save conversation messages"""
-            async for msg in chat_ctx.chat_ctx:
-                if self.conversation_id and msg.role in ["user", "assistant"]:
-                    await self.db.save_message(
-                        conversation_id=self.conversation_id,
-                        role=msg.role,
-                        content=msg.content,
-                    )
-                    logger.debug(f"Saved {msg.role} message to database")
-
-        # Run message saving in background
-        asyncio.create_task(save_messages())
-
-        # Wait for conversation to end
-        await chat_ctx.aclose()
+        # TODO: Implement message saving with new Agent API
+        # The new Agent API doesn't expose chat_ctx the same way
+        # Will need to use event listeners for message tracking
 
         # End conversation
         if self.conversation_id and self.start_time:
@@ -148,13 +130,13 @@ class ArabicVoiceAgent:
         logger.info(f"Agent finished for room: {ctx.room.name}")
 
 
-async def request_fnc(req: llm.FunctionCallRequest) -> None:
-    """
-    Handle function call requests from the LLM
-    (Currently disabled - can be enabled by uncommenting assistant.register_functions above)
-
-    Args:
-        req: Function call request from LLM
-    """
-    logger.info(f"Function call: {req.function_name} with args: {req.arguments}")
-    # Implementation would go here when function calling is enabled
+# async def request_fnc(req) -> None:
+#     """
+#     Handle function call requests from the LLM
+#     (Currently disabled - can be enabled by uncommenting assistant.register_functions above)
+#
+#     Args:
+#         req: Function call request from LLM
+#     """
+#     logger.info(f"Function call: {req.function_info.name} with args: {req.arguments}")
+#     # Implementation would go here when function calling is enabled

@@ -128,7 +128,7 @@ DEEPGRAM_CONFIG = {
     "language": "ar",  # Arabic
     "smart_format": True,
     "interim_results": True,
-    "endpointing": 300,  # ms of silence before finalizing
+    "endpointing_ms": 300,  # ms of silence before finalizing
 }
 
 
@@ -137,11 +137,9 @@ DEEPGRAM_CONFIG = {
 # =============================================================================
 
 ELEVENLABS_CONFIG = {
-    "model_id": "eleven_multilingual_v2",  # Supports Arabic + English code-switching
+    "model": "eleven_multilingual_v2",  # Supports Arabic + English code-switching
     "voice_id": ELEVENLABS_VOICE_ID,
-    "stability": 0.5,
-    "similarity_boost": 0.75,
-    "optimize_streaming_latency": 2,
+    "streaming_latency": 2,
 }
 
 
