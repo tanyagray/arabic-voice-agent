@@ -129,8 +129,8 @@ supabase db lint
 1. **Create Background Worker**:
    - New + → Background Worker
    - Connect GitHub repo
-   - Build Command: `pip install -r apps/agent/requirements.txt`
-   - Start Command: `cd apps/agent && python src/main.py start`
+   - Build Command: `pip install -r livekit-agent/requirements.txt`
+   - Start Command: `cd livekit-agent && python src/main.py start`
 
 2. **Configure Environment**:
    - Python Version: 3.11
@@ -409,7 +409,7 @@ Adjust based on actual usage patterns.
 
 ### Updating the Agent
 
-1. Make changes to `apps/agent/`
+1. Make changes to `livekit-agent/`
 2. Test locally
 3. Commit and push to `main`
 4. Render auto-deploys

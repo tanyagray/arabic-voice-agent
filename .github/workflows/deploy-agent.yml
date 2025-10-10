@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'apps/agent/**'
+      - 'livekit-agent/**'
       - '.github/workflows/deploy-agent.yml'
 
 jobs:

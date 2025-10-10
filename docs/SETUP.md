@@ -227,7 +227,7 @@ LIVEKIT_URL=wss://your-project.livekit.cloud
 ### Python Agent
 
 ```bash
-cd apps/agent
+cd livekit-agent
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -247,7 +247,7 @@ flutter pub get
 ### Start the Agent
 
 ```bash
-cd apps/agent
+cd livekit-agent
 source venv/bin/activate
 python src/main.py start
 ```
@@ -302,7 +302,7 @@ Select your device/emulator when prompted.
 
 - Read [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment
 - Read [ARCHITECTURE.md](ARCHITECTURE.md) for system overview
-- Customize system prompt in `apps/agent/src/config.py`
+- Customize system prompt in `livekit-agent/src/config.py`
 
 ## Support
 

@@ -17,8 +17,8 @@ A multilingual voice and text chat application for Arabic language learning, sup
 ```
 arabic-voice-agent/
 ├── apps/
-│   ├── mobile/          # Flutter app (iOS + Android)
-│   └── agent/           # LiveKit Python agent
+│   └── mobile/          # Flutter app (iOS + Android)
+├── livekit-agent/       # LiveKit Python agent
 ├── supabase/            # Database migrations & config
 ├── docs/                # Documentation
 └── .github/             # CI/CD workflows
@@ -48,7 +48,7 @@ See [docs/SETUP.md](docs/SETUP.md) for detailed setup instructions.
 
 **Agent:**
 ```bash
-cd apps/agent
+cd livekit-agent
 python -m venv venv
 source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 pip install -r requirements.txt
