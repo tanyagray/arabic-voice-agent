@@ -16,8 +16,7 @@ A multilingual voice and text chat application for Arabic language learning, sup
 
 ```
 arabic-voice-agent/
-├── apps/
-│   └── mobile/          # Flutter app (iOS + Android)
+├── mobile-app/          # Flutter app (iOS + Android)
 ├── livekit-agent/       # LiveKit Python agent
 ├── supabase/            # Database migrations & config
 ├── docs/                # Documentation
@@ -57,7 +56,7 @@ python src/main.py
 
 **Mobile App:**
 ```bash
-cd apps/mobile
+cd mobile-app
 flutter pub get
 flutter run
 ```

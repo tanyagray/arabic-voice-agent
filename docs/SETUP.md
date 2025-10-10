@@ -209,11 +209,11 @@ AGENT_LOG_LEVEL=INFO
 ### Mobile App `.env`
 
 ```bash
-cd apps/mobile
+cd mobile-app
 cp .env.example .env
 ```
 
-Edit `apps/mobile/.env`:
+Edit `mobile-app/.env`:
 ```env
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
@@ -236,7 +236,7 @@ pip install -r requirements.txt
 ### Flutter App
 
 ```bash
-cd apps/mobile
+cd mobile-app
 flutter pub get
 ```
 
@@ -255,7 +255,7 @@ python src/main.py start
 ### Run the Mobile App
 
 ```bash
-cd apps/mobile
+cd mobile-app
 flutter run
 ```
 

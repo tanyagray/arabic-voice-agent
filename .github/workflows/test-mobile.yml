@@ -6,7 +6,7 @@ on:
       - main
       - develop
     paths:
-      - 'apps/mobile/**'
+      - 'mobile-app/**'
       - '.github/workflows/test-mobile.yml'
   pull_request:
     branches:
@@ -28,19 +28,19 @@ jobs:
           channel: 'stable'
 
       - name: Install dependencies
-        working-directory: apps/mobile
+        working-directory: mobile-app
         run: flutter pub get
 
       - name: Run analyzer
-        working-directory: apps/mobile
+        working-directory: mobile-app
         run: flutter analyze
 
       - name: Run tests
-        working-directory: apps/mobile
+        working-directory: mobile-app
         run: flutter test
 
       - name: Build APK (Android)
-        working-directory: apps/mobile
+        working-directory: mobile-app
         run: flutter build apk --debug
 
       - name: Notify success

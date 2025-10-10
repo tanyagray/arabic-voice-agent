@@ -157,7 +157,7 @@ render logs -s your-service-name
 #### 1. Prepare for Release
 
 ```bash
-cd apps/mobile
+cd mobile-app
 
 # Update version in pubspec.yaml
 version: 1.0.0+1
@@ -198,7 +198,7 @@ flutter build ios --release
 #### 1. Prepare for Release
 
 ```bash
-cd apps/mobile
+cd mobile-app
 
 # Generate signing key
 keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
@@ -417,7 +417,7 @@ Adjust based on actual usage patterns.
 
 ### Updating Mobile Apps
 
-1. Make changes to `apps/mobile/`
+1. Make changes to `mobile-app/`
 2. Increment version in `pubspec.yaml`
 3. Build and test
 4. Submit to App Store/Google Play
