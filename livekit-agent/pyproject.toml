@@ -3,9 +3,10 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-starter-python"
+name = "arabic-voice-agent"
 version = "1.0.0"
-description = "Simple voice AI assistant built with LiveKit Agents for Python"
+description = "Arabic voice AI assistant built with LiveKit Agents for Python"
+readme = "README.md"
 requires-python = "==3.10.*"
 
 dependencies = [

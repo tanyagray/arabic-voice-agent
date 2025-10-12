@@ -23,24 +23,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.10"
+
+      - name: Install Task and LiveKit CLI
+        run: brew install go-task livekit-cli
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Install LiveKit CLI
-        run: |
-          curl -sSL https://get.livekit.io/cli | bash
+        run: task install
 
       - name: Deploy to LiveKit Cloud
-        run: |
-          lk agent deploy . \
-            --project arabic-voice-agent \
-            --url ${{ vars.LIVEKIT_URL }} \
-            --api-key ${{ vars.LIVEKIT_API_KEY }} \
-            --api-secret ${{ secrets.LIVEKIT_API_SECRET }} \
-            --verbose
+        env:
+          LIVEKIT_URL: ${{ vars.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ vars.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+        run: task deploy
 
       - name: Notify deployment
         run: |

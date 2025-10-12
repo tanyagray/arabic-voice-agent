@@ -61,3 +61,7 @@ tasks:
     interactive: true
     cmds:
       - "uv run src/agent.py dev"
+  deploy:
+    desc: "Deploy agent to LiveKit cloud"
+    cmds:
+      - "lk agent deploy"
