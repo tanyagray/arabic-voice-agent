@@ -1,132 +1,114 @@
-# Arabic Voice Agent
+<a href="https://livekit.io/">
+  <img src="./.github/assets/livekit-mark.png" alt="LiveKit logo" width="100" height="100">
+</a>
 
-LiveKit-based voice agent for Arabic language tutoring with support for multiple dialects.
+# LiveKit Agents Starter - Python
 
-## Features
+A complete starter project for building voice AI apps with [LiveKit Agents for Python](https://github.com/livekit/agents) and [LiveKit Cloud](https://cloud.livekit.io/).
 
-- **Multi-dialect support**: MSA, Iraqi, Egyptian, or mixed
-- **Real-time voice**: Deepgram STT + ElevenLabs TTS
-- **Smart LLM**: OpenAI GPT-4o with Arabic expertise
-- **Database integration**: Saves conversations to Supabase
-- **Function calling**: Can query user data (optional)
-- **Fresh context**: Each session starts clean
+The starter project includes:
 
-## Setup
+- A simple voice AI assistant, ready for extension and customization
+- A voice AI pipeline with [models](https://docs.livekit.io/agents/models) from OpenAI, Cartesia, and AssemblyAI served through LiveKit Cloud
+  - Easily integrate your preferred [LLM](https://docs.livekit.io/agents/models/llm/), [STT](https://docs.livekit.io/agents/models/stt/), and [TTS](https://docs.livekit.io/agents/models/tts/) instead, or swap to a realtime model like the [OpenAI Realtime API](https://docs.livekit.io/agents/models/realtime/openai)
+- Eval suite based on the LiveKit Agents [testing & evaluation framework](https://docs.livekit.io/agents/build/testing/)
+- [LiveKit Turn Detector](https://docs.livekit.io/agents/build/turns/turn-detector/) for contextually-aware speaker detection, with multilingual support
+- [Background voice cancellation](https://docs.livekit.io/home/cloud/noise-cancellation/)
+- Integrated [metrics and logging](https://docs.livekit.io/agents/build/metrics/)
+- A Dockerfile ready for [production deployment](https://docs.livekit.io/agents/ops/deployment/)
 
-### Prerequisites
+This starter app is compatible with any [custom web/mobile frontend](https://docs.livekit.io/agents/start/frontend/) or [SIP-based telephony](https://docs.livekit.io/agents/start/telephony/).
 
-- Python 3.11+
-- LiveKit Cloud account
-- API keys for: OpenAI, ElevenLabs, Deepgram, Supabase
+## Dev Setup
 
-### Installation
+Clone the repository and install dependencies to a virtual environment:
 
-1. **Create virtual environment**:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-   ```
+```console
+cd agent-starter-python
+uv sync
+```
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+Sign up for [LiveKit Cloud](https://cloud.livekit.io/) then set up the environment by copying `.env.example` to `.env.local` and filling in the required keys:
 
-3. **Configure environment**:
-   Copy `.env.example` to `.env` and fill in your API keys.
+- `LIVEKIT_URL`
+- `LIVEKIT_API_KEY`
+- `LIVEKIT_API_SECRET`
 
-### Running Locally
+You can load the LiveKit environment automatically using the [LiveKit CLI](https://docs.livekit.io/home/cli/cli-setup):
 
 ```bash
-python src/main.py start
+lk cloud auth
+lk app env -w -d .env.local
 ```
 
-The agent will connect to LiveKit and wait for room assignments.
+## Run the agent
 
-## Configuration
+Before your first run, you must download certain models such as [Silero VAD](https://docs.livekit.io/agents/build/turns/vad/) and the [LiveKit turn detector](https://docs.livekit.io/agents/build/turns/turn-detector/):
 
-### Dialect Selection
-
-Set the `ARABIC_DIALECT` environment variable:
-
-- `msa` - Modern Standard Arabic
-- `iraqi` - Iraqi dialect
-- `egyptian` - Egyptian dialect
-- `mixed` - All dialects + English (default)
-
-### Editing System Prompt
-
-Edit the system prompt in `src/config.py:23-42` to customize the agent's personality and teaching approach.
-
-### ElevenLabs Voice
-
-Set your preferred voice ID in `.env`:
-```bash
-ELEVENLABS_VOICE_ID=your-voice-id-here
+```console
+uv run python src/agent.py download-files
 ```
 
-Browse voices at: https://elevenlabs.io/voice-library
+Next, run this command to speak to your agent directly in your terminal:
 
-## Deployment
-
-### Render (Background Worker)
-
-1. Create a new **Background Worker** on Render
-2. Connect your GitHub repository
-3. Set build command: `pip install -r apps/agent/requirements.txt`
-4. Set start command: `cd apps/agent && python src/main.py start`
-5. Add all environment variables from `.env`
-6. Deploy
-
-### LiveKit Webhook
-
-Configure LiveKit to trigger the agent on room creation:
-1. Go to LiveKit Cloud dashboard
-2. Add webhook URL: `https://your-render-app.onrender.com/webhook`
-3. Enable "Room Created" event
-
-## Database Schema
-
-The agent saves data to Supabase:
-
-- **conversations**: Metadata about each voice session
-- **messages**: Individual messages (user and assistant)
-- **user_analytics**: Usage events
-
-## Function Calling
-
-The agent can call functions to:
-- Get user preferences
-- Retrieve conversation history summary
-
-To enable, uncomment line in `src/agent.py:125`:
-```python
-assistant.register_functions(self.user_tools.get_function_definitions())
+```console
+uv run python src/agent.py console
 ```
 
-## Logging
+To run the agent for use with a frontend or telephony, use the `dev` command:
 
-Set log level via `AGENT_LOG_LEVEL` environment variable:
-- `DEBUG` - Verbose logging
-- `INFO` - Standard logging (default)
-- `WARNING` - Warnings only
-- `ERROR` - Errors only
+```console
+uv run python src/agent.py dev
+```
 
-## Troubleshooting
+In production, use the `start` command:
 
-**Agent not starting**:
-- Check all API keys are set
-- Verify Supabase connection
-- Check LiveKit URL format
+```console
+uv run python src/agent.py start
+```
 
-**Poor voice quality**:
-- Adjust ElevenLabs stability/similarity in `src/config.py`
-- Try different voice IDs
+## Frontend & Telephony
 
-**Wrong dialect**:
-- Verify `ARABIC_DIALECT` environment variable
-- Check system prompt in `src/config.py`
+Get started quickly with our pre-built frontend starter apps, or add telephony support:
+
+| Platform | Link | Description |
+|----------|----------|-------------|
+| **Web** | [`livekit-examples/agent-starter-react`](https://github.com/livekit-examples/agent-starter-react) | Web voice AI assistant with React & Next.js |
+| **iOS/macOS** | [`livekit-examples/agent-starter-swift`](https://github.com/livekit-examples/agent-starter-swift) | Native iOS, macOS, and visionOS voice AI assistant |
+| **Flutter** | [`livekit-examples/agent-starter-flutter`](https://github.com/livekit-examples/agent-starter-flutter) | Cross-platform voice AI assistant app |
+| **React Native** | [`livekit-examples/agent-starter-react-native`](https://github.com/livekit-examples/voice-assistant-react-native) | Native mobile app with React Native & Expo |
+| **Android** | [`livekit-examples/agent-starter-android`](https://github.com/livekit-examples/agent-starter-android) | Native Android app with Kotlin & Jetpack Compose |
+| **Web Embed** | [`livekit-examples/agent-starter-embed`](https://github.com/livekit-examples/agent-starter-embed) | Voice AI widget for any website |
+| **Telephony** | [📚 Documentation](https://docs.livekit.io/agents/start/telephony/) | Add inbound or outbound calling to your agent |
+
+For advanced customization, see the [complete frontend guide](https://docs.livekit.io/agents/start/frontend/).
+
+## Tests and evals
+
+This project includes a complete suite of evals, based on the LiveKit Agents [testing & evaluation framework](https://docs.livekit.io/agents/build/testing/). To run them, use `pytest`.
+
+```console
+uv run pytest
+```
+
+## Using this template repo for your own project
+
+Once you've started your own project based on this repo, you should:
+
+1. **Check in your `uv.lock`**: This file is currently untracked for the template, but you should commit it to your repository for reproducible builds and proper configuration management. (The same applies to `livekit.toml`, if you run your agents in LiveKit Cloud)
+
+2. **Remove the git tracking test**: Delete the "Check files not tracked in git" step from `.github/workflows/tests.yml` since you'll now want this file to be tracked. These are just there for development purposes in the template repo itself.
+
+3. **Add your own repository secrets**: You must [add secrets](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-what-your-workflow-does/using-secrets-in-github-actions) for `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` so that the tests can run in CI.
+
+## Deploying to production
+
+This project is production-ready and includes a working `Dockerfile`. To deploy it to LiveKit Cloud or another environment, see the [deploying to production](https://docs.livekit.io/agents/ops/deployment/) guide.
+
+## Self-hosted LiveKit
+
+You can also self-host LiveKit instead of using LiveKit Cloud. See the [self-hosting](https://docs.livekit.io/home/self-hosting/) guide for more information. If you choose to self-host, you'll need to also use [model plugins](https://docs.livekit.io/agents/models/#plugins) instead of LiveKit Inference and will need to remove the [LiveKit Cloud noise cancellation](https://docs.livekit.io/home/cloud/noise-cancellation/) plugin.
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
