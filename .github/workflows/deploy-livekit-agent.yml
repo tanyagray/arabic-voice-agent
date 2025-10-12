@@ -20,6 +20,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug environment variables
+        run: |
+          echo "Checking if variables are set..."
+          echo "LIVEKIT_URL: ${{ vars.LIVEKIT_URL != '' && 'SET' || 'EMPTY' }}"
+          echo "LIVEKIT_API_KEY: ${{ vars.LIVEKIT_API_KEY != '' && 'SET' || 'EMPTY' }}"
+          echo "LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET != '' && 'SET' || 'EMPTY' }}"
+        env:
+          LIVEKIT_URL: ${{ vars.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ vars.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+
+      - name: Check env var lengths
+        run: |
+          echo "LIVEKIT_URL length: ${#LIVEKIT_URL}"
+          echo "LIVEKIT_API_KEY length: ${#LIVEKIT_API_KEY}"
+          echo "LIVEKIT_API_SECRET length: ${#LIVEKIT_API_SECRET}"
+          if [ -z "$LIVEKIT_URL" ]; then echo "ERROR: LIVEKIT_URL is empty"; fi
+          if [ -z "$LIVEKIT_API_KEY" ]; then echo "ERROR: LIVEKIT_API_KEY is empty"; fi
+          if [ -z "$LIVEKIT_API_SECRET" ]; then echo "ERROR: LIVEKIT_API_SECRET is empty"; fi
+        env:
+          LIVEKIT_URL: ${{ vars.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ vars.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+
       - name: Deploy LiveKit Cloud Agent
         uses: livekit/deploy-action@main
         env:
