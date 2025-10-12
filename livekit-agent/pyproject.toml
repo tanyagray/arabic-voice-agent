@@ -7,7 +7,7 @@ name = "arabic-voice-agent"
 version = "1.0.0"
 description = "Arabic voice AI assistant built with LiveKit Agents for Python"
 readme = "README.md"
-requires-python = "==3.10.*"
+requires-python = "==3.13.*"
 
 dependencies = [
     "livekit-agents[silero,turn-detector]~=1.2",
@@ -43,4 +43,5 @@ ignore = ["E501"]  # Line too long (handled by formatter)
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
 
