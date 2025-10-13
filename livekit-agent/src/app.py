@@ -14,7 +14,7 @@ from livekit.agents import (
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from agents import Assistant
-from tts import ArabicFemale
+from tts import get_arabic_female_tts
 
 logger = logging.getLogger("agent")
 
@@ -42,7 +42,7 @@ async def entrypoint(ctx: JobContext):
         llm="openai/gpt-4.1-mini",
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
-        tts=ArabicFemale,
+        tts=get_arabic_female_tts(),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),
