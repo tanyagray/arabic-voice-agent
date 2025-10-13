@@ -1,11 +1,15 @@
 from livekit.agents import Agent
+from livekit.plugins import openai
 from llm.instructions import INSTRUCTIONS
+from tts import get_arabic_female_tts
 
 
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
             instructions=INSTRUCTIONS,
+            llm=openai.LLM(model="gpt-4o-mini"),
+            tts=get_arabic_female_tts(),
         )
 
     # To add tools, use the @function_tool decorator.
