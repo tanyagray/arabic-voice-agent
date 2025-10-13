@@ -1,0 +1,42 @@
+version: '3'
+
+tasks:
+  install:
+    desc: Install dependencies using uv
+    cmds:
+      - uv sync
+
+  dev:
+    desc: Run the FastAPI server in development mode with hot reload
+    deps: [install]
+    cmds:
+      - uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+  start:
+    desc: Run the FastAPI server in production mode
+    deps: [install]
+    cmds:
+      - uv run uvicorn main:app --host 0.0.0.0 --port 8000
+
+  test:
+    desc: Test the API endpoints
+    cmds:
+      - |
+        echo "Testing /health endpoint..."
+        curl -s http://localhost:8000/health | jq .
+        echo ""
+        echo "Testing /livekit/token POST endpoint..."
+        curl -s -X POST http://localhost:8000/livekit/token \
+          -H "Content-Type: application/json" \
+          -d '{
+            "room_name": "test-room",
+            "participant_identity": "test-user-123",
+            "participant_name": "Test User"
+          }' | jq .
+
+  clean:
+    desc: Clean up generated files and cache
+    cmds:
+      - rm -rf __pycache__
+      - rm -rf .pytest_cache
+      - rm -rf *.pyc
