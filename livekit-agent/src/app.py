@@ -14,6 +14,7 @@ from livekit.agents import (
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from agents import Assistant
+from llm import get_openai_gpt_4o_mini
 from tts import get_arabic_female_tts
 
 logger = logging.getLogger("agent")
@@ -39,7 +40,7 @@ async def entrypoint(ctx: JobContext):
         stt="assemblyai/universal-streaming:en",
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all available models at https://docs.livekit.io/agents/models/llm/
-        llm="openai/gpt-4o-mini",
+        llm=get_openai_gpt_4o_mini(),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
         tts=get_arabic_female_tts(),
