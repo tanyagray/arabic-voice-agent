@@ -68,7 +68,12 @@ async def entrypoint(ctx: JobContext):
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
         tts=elevenlabs.TTS(
             voice_id="aCChyB4P5WEomwRsOKRh",
-            model="eleven_multilingual_v2"
+            model="eleven_multilingual_v2",
+            voice_settings=elevenlabs.VoiceSettings(
+                speed=0.8,
+                stability=0.5,
+                similarity_boost=0.75
+            )
         ),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
