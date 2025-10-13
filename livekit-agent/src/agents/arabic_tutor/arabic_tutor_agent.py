@@ -119,6 +119,24 @@ class ArabicTutorAgent(Agent):
             async for chunk in stream:
                 yield chunk
 
+    async def transcription_node(
+        self,
+        text: AsyncIterable[str],
+        model_settings: ModelSettings
+    ):
+        """
+        Override transcription node to add only spoken_response to transcript.
+
+        This processes the structured output and yields only the spoken response text
+        for the transcript, excluding the JSON structure and word-level details.
+        """
+        # Process structured output and pass only spoken response to transcript
+        return Agent.default.transcription_node(
+            self,
+            process_structured_output(text),
+            model_settings
+        )
+
     async def tts_node(
         self,
         text: AsyncIterable[str],
