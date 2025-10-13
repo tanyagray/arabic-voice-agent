@@ -11,9 +11,10 @@ from livekit.agents import (
     cli,
     metrics
 )
-from livekit.plugins import noise_cancellation, silero, elevenlabs
+from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from agents import Assistant
+from tts import ArabicFemale
 
 logger = logging.getLogger("agent")
 
@@ -41,16 +42,7 @@ async def entrypoint(ctx: JobContext):
         llm="openai/gpt-4.1-mini",
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
-        tts=elevenlabs.TTS(
-            voice_id="cgSgspJ2msm6clMCkdW9",
-            model="eleven_multilingual_v2",
-            language="ar",
-            voice_settings=elevenlabs.VoiceSettings(
-                speed=0.8,
-                stability=0.5,
-                similarity_boost=0.75
-            )
-        ),
+        tts=ArabicFemale,
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),
