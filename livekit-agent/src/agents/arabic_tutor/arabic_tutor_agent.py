@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field
 
 from livekit.agents import Agent, ChatContext, ModelSettings
 from llm import get_openai_gpt_4o_mini
-from llm.instructions import INSTRUCTIONS
 from tts import get_arabic_female_tts
+from .arabic_tutor_instructions import INSTRUCTIONS
 
 logger = logging.getLogger(__name__)
 
