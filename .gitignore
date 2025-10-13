@@ -1,3 +1,5 @@
+# Root-level patterns applicable to entire project
+
 # Environment variables
 .env
 .env.local
@@ -5,64 +7,7 @@
 .env.*
 !.env.example
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-venv/
-ENV/
-env/
-.venv
-KMS
-.pytest_cache
-.ruff_cache
-
-# Flutter/Dart
-mobile-app/.dart_tool/
-mobile-app/.flutter-plugins
-mobile-app/.flutter-plugins-dependencies
-mobile-app/.packages
-mobile-app/build/
-mobile-app/ios/Pods/
-mobile-app/ios/.symlinks/
-mobile-app/ios/Flutter/Flutter.framework
-mobile-app/ios/Flutter/Flutter.podspec
-mobile-app/.fvm/
-
-# Android
-mobile-app/android/.gradle
-mobile-app/android/gradle
-mobile-app/android/gradlew
-mobile-app/android/gradlew.bat
-mobile-app/android/local.properties
-mobile-app/android/captures/
-mobile-app/android/.externalNativeBuild
-mobile-app/android/.cxx
-
-# iOS
-mobile-app/ios/Podfile.lock
-mobile-app/ios/.symlinks/
-mobile-app/ios/Flutter/Generated.xcconfig
-mobile-app/ios/Runner/GeneratedPluginRegistrant.*
-
-# IDEs
+# IDEs and editors
 .vscode/
 .idea/
 *.swp
@@ -76,10 +21,6 @@ mobile-app/ios/Runner/GeneratedPluginRegistrant.*
 # Temporary files
 *.tmp
 *.temp
-
-# Supabase
-supabase/.branches
-supabase/.temp
 
 # Task runner
 .task/
