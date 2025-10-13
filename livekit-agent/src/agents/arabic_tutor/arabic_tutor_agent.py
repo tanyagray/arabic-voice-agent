@@ -89,7 +89,9 @@ async def process_structured_output(
         yield accumulated_text
 
 
-class Assistant(Agent):
+class ArabicTutorAgent(Agent):
+    """Arabic language tutor agent with structured output for word-level learning."""
+
     def __init__(self) -> None:
         super().__init__(
             instructions=INSTRUCTIONS,

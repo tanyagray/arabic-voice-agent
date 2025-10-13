@@ -1,3 +1,6 @@
-from .assistant import Assistant
+from .arabic_tutor import ArabicTutorAgent
 
-__all__ = ["Assistant"]
+# Maintain backward compatibility alias
+Assistant = ArabicTutorAgent
+
+__all__ = ["ArabicTutorAgent", "Assistant"]
