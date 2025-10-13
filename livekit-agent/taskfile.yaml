@@ -5,7 +5,7 @@ vars:
   INDENT: 4
   REL_PATH: "{{ relPath .USER_WORKING_DIR .ROOT_DIR }}"
   VENV_DIR: ".venv"
-  PYTHON_MAIN: '{{ joinPath "./src" "agent.py" }}'
+  PYTHON_MAIN: '{{ joinPath "./src" "app.py" }}'
 
 tasks:
   post_create:
@@ -56,11 +56,11 @@ tasks:
     interactive: true
     desc: "Run agent in console mode for terminal interaction"
     cmds:
-      - "uv run src/agent.py console"
+      - "uv run src/app.py console"
   dev:
     interactive: true
     cmds:
-      - "uv run src/agent.py dev"
+      - "uv run src/app.py dev"
   deploy:
     desc: "Deploy agent to LiveKit cloud"
     cmds:

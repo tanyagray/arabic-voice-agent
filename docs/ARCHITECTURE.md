@@ -179,7 +179,7 @@ user_analytics (
 ```python
 Agent Entry Point (main.py)
     │
-    ├─► LiveKit Connection (agent.py)
+    ├─► LiveKit Connection (app.py)
     │     │
     │     ├─► Speech-to-Text (Deepgram)
     │     ├─► LLM Processing (OpenAI)
