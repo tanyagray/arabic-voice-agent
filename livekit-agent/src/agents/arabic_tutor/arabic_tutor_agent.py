@@ -10,31 +10,8 @@ from .arabic_tutor_instructions import INSTRUCTIONS
 logger = logging.getLogger(__name__)
 
 
-class ArabicWord(BaseModel):
-    """Model for individual Arabic word/phrase with translations."""
-
-    arabic_word: Annotated[
-        str,
-        Field(
-            description="The Arabic word or phrase with complete harakaat (vocalization marks)"
-        )
-    ]
-    arabic_transliteration: Annotated[
-        str,
-        Field(
-            description="Romanized transliteration of the Arabic word for pronunciation guidance"
-        )
-    ]
-    english_meaning: Annotated[
-        str,
-        Field(
-            description="English translation/meaning of the Arabic word or phrase"
-        )
-    ]
-
-
 class ArabicResponseModel(BaseModel):
-    """Structured output format for Arabic voice responses with word-level details."""
+    """Structured output format for Arabic voice responses."""
 
     spoken_response: Annotated[
         str,
@@ -42,27 +19,19 @@ class ArabicResponseModel(BaseModel):
             description="The complete Arabic response text with full harakaat (vocalization marks) to be spoken"
         )
     ]
-    arabic_words: Annotated[
-        list[ArabicWord],
-        Field(
-            description="List of all Arabic words/phrases used in the spoken response with transliterations and meanings"
-        )
-    ]
 
 
 async def process_structured_output(
-    text: AsyncIterable[str],
-    callback=None
+    text: AsyncIterable[str]
 ) -> AsyncIterable[str]:
     """
     Process structured output stream from LLM.
 
-    This function accumulates the JSON response, parses it, extracts the word-level
-    information via the callback, and yields only the spoken response text for TTS synthesis.
+    This function accumulates the JSON response, parses it, and yields only
+    the spoken response text for TTS synthesis.
 
     Args:
         text: Async iterable of text chunks from LLM
-        callback: Optional callback function to process the full structured response
 
     Yields:
         Spoken response text chunks for TTS
@@ -76,10 +45,6 @@ async def process_structured_output(
         # Parse the accumulated JSON response into our Pydantic model
         parsed_response = ArabicResponseModel.model_validate_json(accumulated_text)
 
-        # Call the callback with the full structured response if provided
-        if callback:
-            callback(parsed_response)
-
         # Yield only the spoken response text for TTS synthesis
         yield parsed_response.spoken_response
 
@@ -90,7 +55,7 @@ async def process_structured_output(
 
 
 class ArabicTutorAgent(Agent):
-    """Arabic language tutor agent with structured output for word-level learning."""
+    """Arabic language tutor agent with structured output for Arabic responses."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -145,28 +110,13 @@ class ArabicTutorAgent(Agent):
         """
         Override TTS node to process structured output.
 
-        This extracts word-level information from the structured output and logs it,
-        while only synthesizing the spoken response text.
+        This extracts the spoken response from the structured output and
+        synthesizes only that text.
         """
-        def on_output_processed(resp: ArabicResponseModel):
-            """Process and log word-level details from structured response."""
-            try:
-                # Log the word-level information for educational purposes
-                if resp.arabic_words:
-                    logger.info(f"Arabic words in response: {len(resp.arabic_words)} words/phrases")
-                    for word in resp.arabic_words:
-                        logger.debug(
-                            f"Word: {word.arabic_word} | "
-                            f"Transliteration: {word.arabic_transliteration} | "
-                            f"Meaning: {word.english_meaning}"
-                        )
-            except Exception as e:
-                logger.error(f"Failed to process word-level information: {e}")
-
         # Process structured output and pass only response text to TTS
         return Agent.default.tts_node(
             self,
-            process_structured_output(text, callback=on_output_processed),
+            process_structured_output(text),
             model_settings
         )
 
