@@ -14,6 +14,7 @@ from livekit.agents import (
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from agents import ArabicTutorAgent
+from stt.soniox import get_soniox_stt
 
 logger = logging.getLogger("agent")
 
@@ -31,11 +32,11 @@ async def entrypoint(ctx: JobContext):
         "room": ctx.room.name,
     }
 
-    # Set up a voice AI pipeline using OpenAI, Cartesia, AssemblyAI, and the LiveKit turn detector
+    # Set up a voice AI pipeline using Soniox STT with Arabic/English language identification
     session = AgentSession(
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all available models at https://docs.livekit.io/agents/models/stt/
-        stt="assemblyai/universal-streaming:en",
+        stt=get_soniox_stt(),
         # LLM and TTS are now configured in the Assistant class
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns

@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = "==3.13.*"
 
 dependencies = [
-    "livekit-agents[silero,turn-detector,openai,elevenlabs]~=1.2",
+    "livekit-agents[silero,turn-detector,openai,elevenlabs,soniox]~=1.2",
     "livekit-plugins-noise-cancellation~=0.2",
     "python-dotenv",
 ]
