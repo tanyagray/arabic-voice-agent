@@ -10,13 +10,14 @@ export function Hero() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
+        <div className="flex flex-col md:flex-row gap-12 items-stretch min-h-[600px]">
           {/* Heading - Left Side */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
+            className="flex-1 flex items-center"
           >
             <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
               Master Arabic with
@@ -27,7 +28,9 @@ export function Hero() {
           </motion.div>
 
           {/* Voice Agent Widget - Right Side */}
-          <LiveDemoWidget />
+          <div className="flex-1 flex items-stretch">
+            <LiveDemoWidget />
+          </div>
         </div>
       </div>
     </div>
