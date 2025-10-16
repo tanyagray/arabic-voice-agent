@@ -6,6 +6,7 @@ from livekit.agents import Agent, ChatContext, ModelSettings
 from llm import get_openai_gpt_4o_mini
 from tts import get_arabic_female_tts
 from .arabic_tutor_instructions import INSTRUCTIONS
+from chat_context import get_initial_chat_context
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ class ArabicTutorAgent(Agent):
     def __init__(self) -> None:
         super().__init__(
             instructions=INSTRUCTIONS,
+            chat_ctx=get_initial_chat_context(),
             llm=get_openai_gpt_4o_mini(),
             tts=get_arabic_female_tts(),
         )

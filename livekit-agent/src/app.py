@@ -5,6 +5,7 @@ from livekit.agents import (
     AgentSession,
     JobContext,
     JobProcess,
+    ChatContext,
     MetricsCollectedEvent,
     RoomInputOptions,
     WorkerOptions,
