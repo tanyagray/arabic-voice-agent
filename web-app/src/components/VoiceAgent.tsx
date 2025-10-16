@@ -5,8 +5,9 @@ import {
   useVoiceAssistant,
   BarVisualizer,
   RoomAudioRenderer,
-  VoiceAssistantControlBar,
+  useLocalParticipant,
 } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 
 interface VoiceAgentProps {
   onActiveChange: (active: boolean) => void;
@@ -60,88 +61,63 @@ export function VoiceAgent({ onActiveChange }: VoiceAgentProps) {
 
   if (!token || !wsUrl) {
     return (
-      <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
-        <div className="text-center">
-          <motion.div
-            className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-accent-400 to-accent-600 rounded-full flex items-center justify-center"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <svg
-              className="w-12 h-12 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              />
-            </svg>
-          </motion.div>
-
-          <h2 className="text-2xl font-bold text-white mb-4">
-            Try it Now - Start Speaking Arabic!
-          </h2>
-
-          <p className="text-white/80 mb-8 max-w-md mx-auto">
-            Click the button below to start a voice conversation with your AI Arabic tutor.
-            Practice any dialect or mix English and Arabic naturally.
-          </p>
-
-          <motion.button
-            onClick={generateToken}
-            disabled={isLoading}
-            className="bg-gradient-to-r from-accent-500 to-accent-600 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                Connecting...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Start Conversation
-              </span>
-            )}
-          </motion.button>
-
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-4 bg-red-500/20 border border-red-500/50 text-white px-4 py-2 rounded-lg"
-            >
-              {error}
-            </motion.div>
+      <div className="flex flex-col items-center">
+        <motion.button
+          onClick={generateToken}
+          disabled={isLoading}
+          className="bg-gradient-to-br from-accent-400 to-accent-600 text-white px-6 py-3 rounded-full font-semibold text-sm shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {isLoading ? (
+            <>
+              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              Connecting...
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                />
+              </svg>
+              Talk Now
+            </>
           )}
-        </div>
+        </motion.button>
+
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 bg-red-500/20 border border-red-500/50 text-white px-4 py-2 rounded-lg"
+          >
+            {error}
+          </motion.div>
+        )}
       </div>
     );
   }
@@ -154,7 +130,6 @@ export function VoiceAgent({ onActiveChange }: VoiceAgentProps) {
       audio={true}
       video={false}
       onDisconnected={handleDisconnect}
-      className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl"
     >
       <VoiceAgentUI onDisconnect={handleDisconnect} />
     </LiveKitRoom>
@@ -163,6 +138,16 @@ export function VoiceAgent({ onActiveChange }: VoiceAgentProps) {
 
 function VoiceAgentUI({ onDisconnect }: { onDisconnect: () => void }) {
   const { state, audioTrack } = useVoiceAssistant();
+  const { localParticipant } = useLocalParticipant();
+  const [isMicMuted, setIsMicMuted] = useState(false);
+
+  const toggleMicrophone = useCallback(async () => {
+    if (localParticipant) {
+      const enabled = localParticipant.isMicrophoneEnabled;
+      await localParticipant.setMicrophoneEnabled(!enabled);
+      setIsMicMuted(enabled);
+    }
+  }, [localParticipant]);
 
   return (
     <div className="space-y-6">
@@ -237,19 +222,58 @@ function VoiceAgentUI({ onDisconnect }: { onDisconnect: () => void }) {
         </div>
       )}
 
-      {/* Controls */}
-      <div className="flex justify-center">
-        <VoiceAssistantControlBar controls={{ leave: false }} />
-      </div>
-
-      {/* Disconnect button */}
-      <div className="text-center pt-4">
-        <button
-          onClick={onDisconnect}
-          className="text-white/70 hover:text-white underline text-sm transition-colors"
+      {/* Control buttons */}
+      <div className="flex justify-center gap-4">
+        <motion.button
+          onClick={toggleMicrophone}
+          className={`${
+            isMicMuted
+              ? 'bg-gray-500 hover:bg-gray-600'
+              : 'bg-accent-500 hover:bg-accent-600'
+          } text-white px-6 py-3 rounded-full font-semibold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          End Conversation
-        </button>
+          {isMicMuted ? (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+              />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+              />
+            </svg>
+          )}
+          {isMicMuted ? 'Unmute' : 'Mute'}
+        </motion.button>
+
+        <motion.button
+          onClick={onDisconnect}
+          className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-full font-semibold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+            <path d="M16.707 3.293a1 1 0 010 1.414L15.414 6l1.293 1.293a1 1 0 01-1.414 1.414L14 7.414l-1.293 1.293a1 1 0 11-1.414-1.414L12.586 6l-1.293-1.293a1 1 0 011.414-1.414L14 4.586l1.293-1.293a1 1 0 011.414 0z" />
+          </svg>
+          End Call
+        </motion.button>
       </div>
     </div>
   );
