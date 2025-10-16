@@ -4,20 +4,24 @@ A multilingual voice and text chat application for Arabic language learning, sup
 
 ## 🏗️ Architecture
 
+- **Web App**: React + Vite marketing website with embedded voice demo
 - **Mobile Apps**: Flutter (iOS + Android)
 - **Voice Infrastructure**: LiveKit Cloud
 - **Agent Backend**: Python (deployed on Render)
+- **Web API**: FastAPI (LiveKit token generation)
 - **LLM**: OpenAI GPT-4o
 - **Text-to-Speech**: ElevenLabs (Multilingual v2)
-- **Speech-to-Text**: Deepgram
+- **Speech-to-Text**: Soniox (Arabic/English language identification)
 - **Auth & Database**: Supabase (PostgreSQL + Google OAuth)
 
 ## 📁 Monorepo Structure
 
 ```
 arabic-voice-agent/
-├── mobile-app/          # Flutter app (iOS + Android)
+├── web-app/             # Marketing website (React + Vite)
+├── flutter-app/         # Flutter app (iOS + Android)
 ├── livekit-agent/       # LiveKit Python agent
+├── web-api/             # FastAPI token server
 ├── supabase/            # Database migrations & config
 ├── docs/                # Documentation
 └── .github/             # CI/CD workflows
@@ -45,6 +49,19 @@ See [docs/SETUP.md](docs/SETUP.md) for detailed setup instructions.
 
 ### Running Locally
 
+**Web App:**
+```bash
+cd web-app
+npm install
+npm run dev
+```
+
+**Web API (required for web app):**
+```bash
+cd web-api
+# Follow web-api README for setup
+```
+
 **Agent:**
 ```bash
 cd livekit-agent
@@ -56,7 +73,7 @@ python src/main.py
 
 **Mobile App:**
 ```bash
-cd mobile-app
+cd flutter-app
 flutter pub get
 flutter run
 ```
