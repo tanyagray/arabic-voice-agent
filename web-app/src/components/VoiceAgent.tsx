@@ -7,7 +7,6 @@ import {
   RoomAudioRenderer,
   useLocalParticipant,
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
 
 interface VoiceAgentProps {
   onActiveChange: (active: boolean) => void;
