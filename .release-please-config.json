@@ -1,0 +1,19 @@
+{
+  "packages": {
+    "livekit-agent": {
+      "release-type": "python",
+      "package-name": "arabic-voice-agent",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        "pyproject.toml"
+      ]
+    }
+  },
+  "bootstrap-sha": "d81f10d",
+  "release-search-depth": 100,
+  "pull-request-title-pattern": "chore: release${component} ${version}",
+  "pull-request-header": ":robot: Release pull request",
+  "separate-pull-requests": false,
+  "tag-separator": "/",
+  "include-component-in-tag": true
+}
