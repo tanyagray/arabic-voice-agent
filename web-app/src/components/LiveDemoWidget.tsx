@@ -3,9 +3,11 @@ import {
   LiveKitRoom,
   BarVisualizer,
   RoomAudioRenderer,
+  useRoomContext,
 } from '@livekit/components-react';
 import { useLiveKitConnection } from '../hooks/useLiveKitConnection';
 import { useLiveKitRoom } from '../hooks/useLiveKitRoom';
+import { useTranscriptionsWithParticipants } from '../hooks/useTranscriptionsWithParticipants';
 
 export function LiveDemoWidget() {
   const { token, wsUrl, error, isLoading, connect, disconnect } = useLiveKitConnection();
@@ -49,6 +51,7 @@ function ConnectButton({ onConnect, isLoading, error }: ConnectButtonProps) {
   return (
     <div className="flex flex-col items-center">
       <motion.button
+        type="button"
         onClick={onConnect}
         disabled={isLoading}
         className="bg-gradient-to-br from-accent-400 to-accent-600 text-white px-6 py-3 rounded-full font-semibold text-sm shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
@@ -114,10 +117,33 @@ interface RoomUIProps {
 
 function RoomUI({ onDisconnect }: RoomUIProps) {
   const { state, audioTrack, isMicMuted, toggleMicrophone } = useLiveKitRoom();
+  const transcriptions = useTranscriptionsWithParticipants();
 
   return (
     <div className="space-y-6">
       <RoomAudioRenderer />
+
+      {/* Transcript */}
+      {transcriptions && transcriptions.length > 0 && (
+        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 max-h-48 overflow-y-auto">
+          <h3 className="text-white font-semibold text-sm mb-2">Transcript</h3>
+          <div className="space-y-2">
+            {transcriptions.map((transcription, index) => {
+              // Check if this is from the user (identity starts with 'web-')
+              const isUser = transcription.participantIdentity.startsWith('web-');
+
+              return (
+                <div key={index} className="text-sm">
+                  <span className="text-accent-300 font-medium">
+                    {isUser ? 'You' : 'Agent'}:
+                  </span>
+                  <span className="text-white/90 ml-2">{transcription.text}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Status indicator */}
       <div className="text-center">
@@ -191,6 +217,7 @@ function RoomUI({ onDisconnect }: RoomUIProps) {
       {/* Control buttons */}
       <div className="flex justify-center gap-4">
         <motion.button
+          type="button"
           onClick={toggleMicrophone}
           className={`${
             isMicMuted
@@ -229,6 +256,7 @@ function RoomUI({ onDisconnect }: RoomUIProps) {
         </motion.button>
 
         <motion.button
+          type="button"
           onClick={onDisconnect}
           className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-full font-semibold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
           whileHover={{ scale: 1.05 }}
