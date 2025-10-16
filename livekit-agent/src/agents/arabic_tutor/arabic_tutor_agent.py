@@ -66,6 +66,12 @@ class ArabicTutorAgent(Agent):
             tts=get_arabic_female_tts(),
         )
 
+    async def on_enter(self) -> None:
+        await self.session.generate_reply(instructions="Greet the user by name and ask what they'd like to talk about today.")
+
+    async def on_exit(self) -> None:
+        await self.session.generate_reply(instructions="Say goodbye to the user.")
+
     async def llm_node(
         self,
         chat_ctx: ChatContext,
