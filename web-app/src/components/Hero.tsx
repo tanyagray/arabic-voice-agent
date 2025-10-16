@@ -1,10 +1,7 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { VoiceAgent } from './VoiceAgent';
+import { LiveDemoWidget } from './LiveDemoWidget';
 
 export function Hero() {
-  const [, setIsAgentActive] = useState(false);
-
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Animated gradient background */}
@@ -30,16 +27,7 @@ export function Hero() {
           </motion.div>
 
           {/* Voice Agent Widget - Right Side */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex justify-center md:justify-end"
-          >
-            <VoiceAgent
-              onActiveChange={setIsAgentActive}
-            />
-          </motion.div>
+          <LiveDemoWidget />
         </div>
       </div>
     </div>
