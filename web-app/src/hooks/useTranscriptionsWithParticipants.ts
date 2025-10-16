@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRoomContext } from '@livekit/components-react';
-import { RoomEvent, TranscriptionSegment } from 'livekit-client';
+import { RoomEvent, type TranscriptionSegment, type Participant } from 'livekit-client';
 
 interface TranscriptionEntry {
   text: string;
@@ -15,14 +15,18 @@ export function useTranscriptionsWithParticipants() {
   useEffect(() => {
     if (!room) return;
 
-    const handleTranscription = (segments: TranscriptionSegment[], participantIdentity?: string) => {
-      const newEntries = segments.map(segment => ({
-        text: segment.final ? segment.final : segment.text,
-        participantIdentity: participantIdentity || 'unknown',
-        timestamp: Date.now(),
-      }));
+    const handleTranscription = (segments: TranscriptionSegment[], participant?: Participant) => {
+      const newEntries = segments
+        .filter(segment => segment.final) // Only process final segments
+        .map(segment => ({
+          text: segment.text,
+          participantIdentity: participant?.identity || 'unknown',
+          timestamp: Date.now(),
+        }));
 
-      setTranscriptions(prev => [...prev, ...newEntries]);
+      if (newEntries.length > 0) {
+        setTranscriptions(prev => [...prev, ...newEntries]);
+      }
     };
 
     room.on(RoomEvent.TranscriptionReceived, handleTranscription);
