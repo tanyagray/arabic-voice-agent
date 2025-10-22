@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface UseLiveKitConnectionReturn {
   token: string;
@@ -53,6 +53,11 @@ export function useLiveKitConnection(): UseLiveKitConnectionReturn {
     setWsUrl('');
     setError('');
   }, []);
+
+  // Auto-connect on mount
+  useEffect(() => {
+    connect();
+  }, [connect]);
 
   return {
     token,

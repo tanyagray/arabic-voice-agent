@@ -1,15 +1,5 @@
 import { motion } from 'framer-motion';
-
-interface TranscriptSegment {
-  text: string;
-  participantIdentity: string;
-  timestamp: number;
-  type: 'chat' | 'transcription';
-}
-
-interface TranscriptProps {
-  transcriptions: TranscriptSegment[];
-}
+import { useTranscriptionsWithParticipants } from '../hooks/useTranscriptionsWithParticipants';
 
 interface TranscriptBubbleProps {
   text: string;
@@ -56,7 +46,9 @@ function TranscriptBubble({ text, isUser, type, timestamp, index }: TranscriptBu
   );
 }
 
-export function Transcript({ transcriptions }: TranscriptProps) {
+export function Transcript() {
+  const transcriptions = useTranscriptionsWithParticipants();
+
   if (!transcriptions || transcriptions.length === 0) {
     return null;
   }

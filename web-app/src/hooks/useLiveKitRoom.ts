@@ -6,6 +6,7 @@ interface UseLiveKitRoomReturn {
   audioTrack: any;
   isMicMuted: boolean;
   toggleMicrophone: () => Promise<void>;
+  setMicrophoneEnabled: (enabled: boolean) => Promise<void>;
 }
 
 export function useLiveKitRoom(): UseLiveKitRoomReturn {
@@ -21,10 +22,18 @@ export function useLiveKitRoom(): UseLiveKitRoomReturn {
     }
   }, [localParticipant]);
 
+  const setMicrophoneEnabled = useCallback(async (enabled: boolean) => {
+    if (localParticipant) {
+      await localParticipant.setMicrophoneEnabled(enabled);
+      setIsMicMuted(!enabled);
+    }
+  }, [localParticipant]);
+
   return {
     state,
     audioTrack,
     isMicMuted,
     toggleMicrophone,
+    setMicrophoneEnabled,
   };
 }

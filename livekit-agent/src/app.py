@@ -8,6 +8,7 @@ from livekit.agents import (
     ChatContext,
     MetricsCollectedEvent,
     RoomInputOptions,
+    RoomOutputOptions,
     WorkerOptions,
     cli,
     metrics
@@ -88,7 +89,11 @@ async def entrypoint(ctx: JobContext):
         room_input_options=RoomInputOptions(
             # For telephony applications, use `BVCTelephony` for best results
             noise_cancellation=noise_cancellation.BVC(),
+            audio_enabled=True,
         ),
+        room_output_options=RoomOutputOptions(
+            audio_enabled=True,
+        )
     )
 
     # Join the room and connect to the user

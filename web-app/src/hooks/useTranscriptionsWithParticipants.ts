@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useRoomContext } from '@livekit/components-react';
-import { RoomEvent, type TranscriptionSegment, type Participant, type ChatMessage, type RemoteParticipant, type LocalParticipant } from 'livekit-client';
+import { useState, useEffect, useMemo } from 'react';
+import { useRoomContext, useChat } from '@livekit/components-react';
+import { RoomEvent, type TranscriptionSegment, type Participant } from 'livekit-client';
 
 interface TranscriptionEntry {
   text: string;
@@ -12,6 +12,7 @@ interface TranscriptionEntry {
 export function useTranscriptionsWithParticipants() {
   const [transcriptions, setTranscriptions] = useState<TranscriptionEntry[]>([]);
   const room = useRoomContext();
+  const { chatMessages } = useChat();
 
   useEffect(() => {
     if (!room) return;
@@ -32,29 +33,27 @@ export function useTranscriptionsWithParticipants() {
       }
     };
 
-    // Handle chat messages (text sent via useChat)
-    const handleChatMessage = (message: ChatMessage, participant?: RemoteParticipant | LocalParticipant) => {
-      console.log('Chat message received:', message, 'from:', participant?.identity);
-
-      const chatEntry: TranscriptionEntry = {
-        text: message.message,
-        participantIdentity: participant?.identity || 'unknown',
-        timestamp: message.timestamp,
-        type: 'chat',
-      };
-
-      setTranscriptions(prev => [...prev, chatEntry]);
-    };
-
-    // Listen to both events
+    // Listen to transcription events
     room.on(RoomEvent.TranscriptionReceived, handleTranscription);
-    room.on(RoomEvent.ChatMessage, handleChatMessage);
 
     return () => {
       room.off(RoomEvent.TranscriptionReceived, handleTranscription);
-      room.off(RoomEvent.ChatMessage, handleChatMessage);
     };
   }, [room]);
 
-  return transcriptions;
+  // Merge transcriptions with chat messages
+  const allMessages = useMemo(() => {
+    // Convert chat messages to TranscriptionEntry format
+    const chatEntries: TranscriptionEntry[] = chatMessages.map(msg => ({
+      text: msg.message,
+      participantIdentity: msg.from?.identity || 'unknown',
+      timestamp: msg.timestamp,
+      type: 'chat' as const,
+    }));
+
+    // Combine and sort by timestamp
+    return [...transcriptions, ...chatEntries].sort((a, b) => a.timestamp - b.timestamp);
+  }, [transcriptions, chatMessages]);
+
+  return allMessages;
 }
