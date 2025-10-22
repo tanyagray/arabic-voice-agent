@@ -1,8 +1,0 @@
-# Supabase specific ignores
-
-# Supabase local development
-.branches/
-.temp/
-
-# Supabase CLI generated files
-.env.local
