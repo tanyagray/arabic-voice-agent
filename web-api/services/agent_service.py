@@ -1,8 +1,8 @@
 """Agent service for managing agent business logic."""
 
-from agents import Agent, Runner, SQLiteSession
+from agents import Runner, SQLiteSession
 
-agent = Agent(name="Assistant", instructions="You are a helpful assistant")
+from agent.arabic.arabic_agent import agent
 
 
 async def run_agent(session: SQLiteSession, user_message: str) -> str:
