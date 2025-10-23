@@ -50,13 +50,16 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
+    # Retrieve the user info
+    user_info = user_service.get_user_info(session_id)
+    if not user_info:
+        raise HTTPException(status_code=404, detail=f"User Info for session '{session_id}' not found")
+
+    # Accept the connection
     await websocket.accept()
 
     while True:
         user_message = await websocket.receive_text()
-
-        # Retrieve the user info
-        user_info = user_service.get_user_info(session_id)
 
         # Run the agent with the session and user message
         response = await agent_service.run_agent(session, user_message, context=user_info)
