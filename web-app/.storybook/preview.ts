@@ -14,6 +14,9 @@ const preview: Preview = {
         order: ['Pages', 'Components', 'Atoms'],
       },
     },
+    backgrounds: {
+      default: 'dark',
+    },
   },
 };
 
