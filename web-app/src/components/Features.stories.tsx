@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Features } from './Features';
 
 const meta = {
-  title: 'Pages/Features',
+  title: 'Components/Features',
   component: Features,
   parameters: {
     layout: 'fullscreen',
