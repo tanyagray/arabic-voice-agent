@@ -1,15 +1,7 @@
-import { Hero } from './components/Hero';
-import { Features } from './components/Features';
-import { Footer } from './components/Footer';
+import { HomePage } from './pages/HomePage';
 
 function App() {
-  return (
-    <div className="min-h-screen">
-      <Hero />
-      <Features />
-      <Footer />
-    </div>
-  );
+  return <HomePage />;
 }
 
 export default App;
