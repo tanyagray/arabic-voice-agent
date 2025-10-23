@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from '@livekit/components-react';
 import { useState, type FormEvent } from 'react';
 import { useLiveKitRoom } from '../../hooks/useLiveKitRoom';
+import { BsSend, BsPencil } from 'react-icons/bs';
 
 interface TextInputProps {
   isActive: boolean;
@@ -55,14 +56,7 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-              />
-            </svg>
+            <BsSend className="w-5 h-5" />
           </motion.button>
         </motion.form>
       ) : (
@@ -76,14 +70,7 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-            />
-          </svg>
+          <BsPencil className="w-5 h-5" />
         </motion.button>
       )}
     </AnimatePresence>

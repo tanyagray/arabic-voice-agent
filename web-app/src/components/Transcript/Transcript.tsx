@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useTranscriptionsWithParticipants } from '../../hooks/useTranscriptionsWithParticipants';
+import { BsPlus, BsMic } from 'react-icons/bs';
 
 interface TranscriptBubbleProps {
   text: string;
@@ -26,18 +27,9 @@ function TranscriptBubble({ text, isUser, type, timestamp, index }: TranscriptBu
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium opacity-70">{isUser ? 'You' : 'Agent'}</span>
           {type === 'chat' ? (
-            <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <BsPlus className="w-4 h-4 opacity-70" />
           ) : (
-            <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              />
-            </svg>
+            <BsMic className="w-4 h-4 opacity-70" />
           )}
         </div>
         <p className="text-lg leading-relaxed">{text}</p>

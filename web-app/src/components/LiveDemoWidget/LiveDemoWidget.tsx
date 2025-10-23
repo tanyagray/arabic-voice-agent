@@ -9,6 +9,7 @@ import { useLiveKitRoom } from '../../hooks/useLiveKitRoom';
 import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
+import { BsArrowRepeat } from 'react-icons/bs';
 
 export function LiveDemoWidget() {
   const { token, wsUrl, error, isLoading, disconnect } = useLiveKitConnection();
@@ -24,22 +25,7 @@ export function LiveDemoWidget() {
         <div className="flex flex-col items-center justify-center gap-4">
           {isLoading && (
             <div className="flex items-center gap-2 text-white">
-              <svg className="animate-spin h-8 w-8" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
+              <BsArrowRepeat className="animate-spin h-8 w-8" />
               <span className="text-lg">Connecting...</span>
             </div>
           )}
