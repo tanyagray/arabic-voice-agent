@@ -5,7 +5,6 @@ from livekit.agents import (
     AgentSession,
     JobContext,
     JobProcess,
-    ChatContext,
     MetricsCollectedEvent,
     RoomInputOptions,
     RoomOutputOptions,
@@ -49,16 +48,6 @@ async def entrypoint(ctx: JobContext):
         preemptive_generation=True,
     )
 
-    # To use a realtime model instead of a voice pipeline, use the following session setup instead.
-    # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
-    # 1. Install livekit-agents[openai]
-    # 2. Set OPENAI_API_KEY in .env.local
-    # 3. Add `from livekit.plugins import openai` to the top of this file
-    # 4. Use the following session setup instead of the version above
-    # session = AgentSession(
-    #     llm=openai.realtime.RealtimeModel(voice="marin")
-    # )
-
     # Metrics collection, to measure pipeline performance
     # For more information, see https://docs.livekit.io/agents/build/metrics/
     usage_collector = metrics.UsageCollector()
@@ -73,14 +62,6 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"Usage: {summary}")
 
     ctx.add_shutdown_callback(log_usage)
-
-    # # Add a virtual avatar to the session, if desired
-    # # For other providers, see https://docs.livekit.io/agents/models/avatar/
-    # avatar = hedra.AvatarSession(
-    #   avatar_id="...",  # See https://docs.livekit.io/agents/models/avatar/plugins/hedra
-    # )
-    # # Start the avatar and wait for it to join
-    # await avatar.start(session, room=ctx.room)
 
     # Start the session, which initializes the voice pipeline and warms up the models
     await session.start(
