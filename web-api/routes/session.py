@@ -1,6 +1,6 @@
 """Session management routes and models."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket
 from pydantic import BaseModel, Field
 
 from services import session_service, agent_service, user_service
@@ -40,6 +40,28 @@ async def create_session_endpoint():
     session = session_service.create_session()
 
     return SessionResponse(session_id=session)
+
+
+@router.websocket("/{session_id}")
+async def open_session_websocket(websocket: WebSocket, session_id: str):
+  
+    # Retrieve the session
+    session = session_service.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+
+    await websocket.accept()
+
+    while True:
+        user_message = await websocket.receive_text()
+
+        # Retrieve the user info
+        user_info = user_service.get_user_info(session_id)
+
+        # Run the agent with the session and user message
+        response = await agent_service.run_agent(session, user_message, context=user_info)
+
+        await websocket.send_text(response)
 
 
 @router.post("/{session_id}/chat", response_model=TextResponse)
