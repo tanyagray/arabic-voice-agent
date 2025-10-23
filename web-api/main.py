@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from livekit_routes import router as livekit_router
+from routes.livekit import router as livekit_router
 
 # Load environment variables from .env file in the same directory as this script
 # Use override=True to ensure this .env takes precedence over parent directory .env files
