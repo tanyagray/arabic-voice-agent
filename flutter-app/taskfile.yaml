@@ -14,3 +14,9 @@ tasks:
       - echo -e "    flutter pub get"
       - echo -e "    flutter run"
       - echo -e "\nFor more help view your project's README.md file or join our Slack community at https://livekit.io/join-slack."
+
+  build_android:
+    desc: "Build Android App Bundle"
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - flutter build appbundle
