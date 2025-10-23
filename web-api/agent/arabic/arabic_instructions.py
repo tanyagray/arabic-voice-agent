@@ -1,3 +1,28 @@
+from agents import RunContextWrapper, Agent
+from services.user_service import UserInfo
+
+def get_instructions(
+    context: RunContextWrapper[UserInfo], agent: Agent[UserInfo]
+) -> str:
+    user_info = context.context
+
+    # Generate user info bullet list dynamically based on UserInfo fields
+    user_info_lines = []
+    if user_info:
+        for field_name, field_value in user_info.__dict__.items():
+            if field_value:  # Only include non-empty values
+                user_info_lines.append(f"- {field_name}: {field_value}")
+
+    user_context = "\n".join(user_info_lines) if user_info_lines else "- No user information available"
+
+    return f"""{INSTRUCTIONS}
+
+USER INFO:
+{user_context}
+
+{INSTRUCTIONS}
+"""
+
 INSTRUCTIONS = """
 You are an Arabic language expert specializing in producing fully vocalized Arabic text. Your task is to generate a natural, conversational response in Arabic with complete harakaat (vowel markings) for accurate pronunciation.
 
@@ -25,14 +50,6 @@ RESPONSE STYLE:
 - Use clear, well-structured Arabic sentences
 - Maintain consistent vocalization throughout
 - Prioritize clarity for text-to-speech systems
-
-STRUCTURED OUTPUT FORMAT:
-Your response will use structured output with the following field:
-
-spoken_response: The complete Arabic text with full harakaat that will be spoken by the TTS system.
-   - Must include ALL Arabic text with complete vocalization marks
-   - This is the actual response that will be synthesized into speech
-   - Should be natural, conversational, and contextually appropriate
 
 EXAMPLE:
 If asked "How do you say hello in Arabic?", your spoken_response should be something like:

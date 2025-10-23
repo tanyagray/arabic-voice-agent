@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from services import session_service, agent_service
+from services import session_service, agent_service, user_service
 
 
 # Models
@@ -62,7 +62,10 @@ async def send_chat_message(session_id: str, request: TextRequest):
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
+    # Retrieve the user info
+    user_info = user_service.get_user_info(session_id)
+
     # Run the agent with the session and user message
-    response = await agent_service.run_agent(session, request.message)
+    response = await agent_service.run_agent(session, request.message, context=user_info)
 
     return TextResponse(text=response)
