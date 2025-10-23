@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from '@livekit/components-react';
 import { useState, type FormEvent } from 'react';
-import { useLiveKitRoom } from '../hooks/useLiveKitRoom';
+import { useLiveKitRoom } from '../../hooks/useLiveKitRoom';
 
 interface TextInputProps {
   isActive: boolean;

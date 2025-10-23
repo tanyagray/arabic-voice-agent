@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLiveKitRoom } from '../hooks/useLiveKitRoom';
+import { useLiveKitRoom } from '../../hooks/useLiveKitRoom';
 
 interface AudioInputProps {
   isActive: boolean;

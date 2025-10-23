@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useTranscriptionsWithParticipants } from '../hooks/useTranscriptionsWithParticipants';
+import { useTranscriptionsWithParticipants } from '../../hooks/useTranscriptionsWithParticipants';
 
 interface TranscriptBubbleProps {
   text: string;

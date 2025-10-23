@@ -4,11 +4,11 @@ import {
   RoomAudioRenderer,
 } from '@livekit/components-react';
 import { useState } from 'react';
-import { useLiveKitConnection } from '../hooks/useLiveKitConnection';
-import { useLiveKitRoom } from '../hooks/useLiveKitRoom';
-import { Transcript } from './Transcript';
-import { TextInput } from './TextInput';
-import { AudioInput } from './AudioInput';
+import { useLiveKitConnection } from '../../hooks/useLiveKitConnection';
+import { useLiveKitRoom } from '../../hooks/useLiveKitRoom';
+import { Transcript } from '../Transcript/Transcript';
+import { TextInput } from '../TextInput/TextInput';
+import { AudioInput } from '../AudioInput/AudioInput';
 
 export function LiveDemoWidget() {
   const { token, wsUrl, error, isLoading, disconnect } = useLiveKitConnection();

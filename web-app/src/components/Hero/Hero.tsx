@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { LiveDemoWidget } from './LiveDemoWidget';
+import { LiveDemoWidget } from '../LiveDemoWidget/LiveDemoWidget';
 
 export function Hero() {
   return (
