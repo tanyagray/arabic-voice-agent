@@ -24,7 +24,7 @@ function LiveDemoWidgetContent() {
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.8, delay: 0.2 }}
-      className="flex flex-col w-full h-full border border-red-500"
+      className="flex flex-col w-full h-full"
     >
       {connectionState === 'disconnected' || connectionState === 'error' ? (
         <>
