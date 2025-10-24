@@ -5,7 +5,7 @@ const meta = {
   title: 'Components/LiveDemoWidget',
   component: LiveDemoWidget,
   parameters: {
-    layout: 'centered',
+    layout: 'fullscreen',
     backgrounds: {
       default: 'dark',
       values: [
@@ -13,9 +13,18 @@ const meta = {
       ],
     },
   },
+  decorators: [
+    (Story) => (
+      <div style={{ width: '100vw', height: '100vh', padding: '2rem' }}>
+        <Story />
+      </div>
+    ),
+  ],
 } satisfies Meta<typeof LiveDemoWidget>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+// Note: LiveDemoWidget now creates its own SessionContext internally
+// To see it work, ensure VITE_API_URL is set to point to your running API
 export const Default: Story = {};

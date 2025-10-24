@@ -1,16 +1,16 @@
 import { motion } from 'framer-motion';
+import { forwardRef, type HTMLAttributes } from 'react';
 import { useTranscriptionsWithParticipants } from '../../hooks/useTranscriptionsWithParticipants';
 import { BsPlus, BsMic } from 'react-icons/bs';
 
 interface TranscriptBubbleProps {
   text: string;
   isUser: boolean;
-  type: 'chat' | 'transcription';
   timestamp: number;
   index: number;
 }
 
-function TranscriptBubble({ text, isUser, type, timestamp, index }: TranscriptBubbleProps) {
+function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubbleProps) {
   return (
     <motion.div
       key={`${timestamp}-${index}`}
@@ -26,7 +26,8 @@ function TranscriptBubble({ text, isUser, type, timestamp, index }: TranscriptBu
       >
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium opacity-70">{isUser ? 'You' : 'Agent'}</span>
-          {type === 'chat' ? (
+          {/* Show chat icon for user messages, mic icon for agent (since agent uses voice) */}
+          {isUser ? (
             <BsPlus className="w-4 h-4 opacity-70" />
           ) : (
             <BsMic className="w-4 h-4 opacity-70" />
@@ -38,36 +39,42 @@ function TranscriptBubble({ text, isUser, type, timestamp, index }: TranscriptBu
   );
 }
 
-export function Transcript() {
-  const transcriptions = useTranscriptionsWithParticipants();
+export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+  ({ className = '', style, ...props }, ref) => {
+    const transcriptions = useTranscriptionsWithParticipants();
 
-  if (!transcriptions || transcriptions.length === 0) {
-    return null;
-  }
+    if (!transcriptions || transcriptions.length === 0) {
+      return null;
+    }
 
-  return (
-    <div
-      className="relative flex-1 min-h-0 overflow-hidden"
-      style={{
-        maskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
-      }}
-    >
-      <div className="bottom-0 left-0 right-0 space-y-3 px-2 pb-2">
-        {transcriptions.map((transcription, index) => {
-          const isUser = transcription.participantIdentity.startsWith('web-');
-          return (
-            <TranscriptBubble
-              key={`${transcription.timestamp}-${index}`}
-              text={transcription.text}
-              isUser={isUser}
-              type={transcription.type}
-              timestamp={transcription.timestamp}
-              index={index}
-            />
-          );
-        })}
+    return (
+      <div
+        ref={ref}
+        className={`relative flex flex-col overflow-hidden ${className}`}
+        style={{
+          maskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
+          ...style,
+        }}
+        {...props}
+      >
+        <div className="flex flex-col flex-1 overflow-y-auto space-y-3 px-2 pb-2">
+          {transcriptions.map((transcription, index) => {
+            const isUser = transcription.type === 'user';
+            return (
+              <TranscriptBubble
+                key={`${transcription.timestamp}-${index}`}
+                text={transcription.text}
+                isUser={isUser}
+                timestamp={transcription.timestamp}
+                index={index}
+              />
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
+);
+
+Transcript.displayName = 'Transcript';

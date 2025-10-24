@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLiveKitRoom } from '../../hooks/useLiveKitRoom';
+import { useAudioRecording } from '../../hooks/useAudioRecording';
+import { useAgentState } from '../../hooks/useAgentState';
 import { BsMic, BsVolumeMute, BsArrowRepeat } from 'react-icons/bs';
 
 interface AudioInputProps {
@@ -9,27 +10,35 @@ interface AudioInputProps {
   state: string;
 }
 
-export function AudioInput({ isActive, onActivate, onDeactivate, state }: AudioInputProps) {
-  const { isMicMuted, setMicrophoneEnabled } = useLiveKitRoom();
+export function AudioInput({ isActive, onActivate, onDeactivate }: AudioInputProps) {
+  const { isRecording, startRecording, stopRecording } = useAudioRecording();
+  const agentState = useAgentState();
 
-  const handleToggleToAudio = () => {
+  // Use agent state from hook instead of prop
+  const state = agentState;
+
+  const handleToggleToAudio = async () => {
     onActivate();
-    // Explicitly enable microphone when switching to audio mode
-    setMicrophoneEnabled(true);
+    // Start recording when switching to audio mode
+    await startRecording();
   };
 
-  const handleMuteToggle = () => {
-    if (isMicMuted) {
-      // Unmuting - enable microphone
-      setMicrophoneEnabled(true);
+  const handleMuteToggle = async () => {
+    if (!isRecording) {
+      // Start recording
+      await startRecording();
     } else {
-      // Muting - disable microphone and switch to text mode
-      setMicrophoneEnabled(false);
+      // Stop recording and switch to text mode
+      const audioBlob = await stopRecording();
+      // TODO: Convert audio to text and send to chat
+      // For now, we'll need to implement speech-to-text
+      console.log('Audio recorded:', audioBlob);
       onDeactivate();
     }
   };
 
   const isTextMode = !isActive;
+  const isMicMuted = !isRecording;
 
   // Determine button style based on state
   const getButtonStyle = () => {

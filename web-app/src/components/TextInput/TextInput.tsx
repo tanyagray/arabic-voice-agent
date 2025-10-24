@@ -1,7 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useChat } from '@livekit/components-react';
 import { useState, type FormEvent } from 'react';
-import { useLiveKitRoom } from '../../hooks/useLiveKitRoom';
+import { useSessionContext } from '../../contexts/SessionContext';
 import { BsSend, BsPencil } from 'react-icons/bs';
 
 interface TextInputProps {
@@ -10,21 +9,24 @@ interface TextInputProps {
 }
 
 export function TextInput({ isActive, onActivate }: TextInputProps) {
-  const { send, isSending } = useChat();
-  const { setMicrophoneEnabled } = useLiveKitRoom();
+  const { sendMessage } = useSessionContext();
   const [textMessage, setTextMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   const handleToggleToText = () => {
     onActivate();
-    // Explicitly disable microphone when switching to text mode
-    setMicrophoneEnabled(false);
   };
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (textMessage.trim() && !isSending) {
-      await send(textMessage);
-      setTextMessage('');
+      setIsSending(true);
+      try {
+        sendMessage(textMessage);
+        setTextMessage('');
+      } finally {
+        setIsSending(false);
+      }
     }
   };
 
