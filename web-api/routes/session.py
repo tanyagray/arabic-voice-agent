@@ -39,7 +39,7 @@ async def create_session():
     """
     session_id = session_service.create_session()
 
-    return SessionResponse(session_id)
+    return SessionResponse(session_id=session_id)
 
 
 @router.websocket("/{session_id}")
