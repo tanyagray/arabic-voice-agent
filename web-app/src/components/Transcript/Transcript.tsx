@@ -43,10 +43,6 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
   ({ className = '', style, ...props }, ref) => {
     const transcriptions = useTranscriptionsWithParticipants();
 
-    if (!transcriptions || transcriptions.length === 0) {
-      return null;
-    }
-
     return (
       <div
         ref={ref}
@@ -58,20 +54,22 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
         }}
         {...props}
       >
-        <div className="absolute bottom-0 left-0 right-0 flex flex-col space-y-3 pr-2 pb-2">
-          {transcriptions.map((transcription, index) => {
-            const isUser = transcription.type === 'user';
-            return (
-              <TranscriptBubble
-                key={`${transcription.timestamp}-${index}`}
-                text={transcription.text}
-                isUser={isUser}
-                timestamp={transcription.timestamp}
-                index={index}
-              />
-            );
-          })}
-        </div>
+        {transcriptions && transcriptions.length > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 flex flex-col space-y-3 pr-2 pb-2">
+            {transcriptions.map((transcription, index) => {
+              const isUser = transcription.type === 'user';
+              return (
+                <TranscriptBubble
+                  key={`${transcription.timestamp}-${index}`}
+                  text={transcription.text}
+                  isUser={isUser}
+                  timestamp={transcription.timestamp}
+                  index={index}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
