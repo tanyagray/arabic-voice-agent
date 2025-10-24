@@ -27,7 +27,7 @@ router = APIRouter(prefix="/session", tags=["Session"])
 
 
 @router.post("", response_model=SessionResponse)
-async def create_session_endpoint():
+async def create_session():
     """
     Generate a new session ID.
 
@@ -37,9 +37,9 @@ async def create_session_endpoint():
     Returns:
         SessionResponse with the generated session ID
     """
-    session = session_service.create_session()
+    session_id = session_service.create_session()
 
-    return SessionResponse(session_id=session)
+    return SessionResponse(session_id)
 
 
 @router.websocket("/{session_id}")
@@ -54,7 +54,7 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
     user_info = user_service.get_user_info(session_id)
     if not user_info:
         raise HTTPException(status_code=404, detail=f"User Info for session '{session_id}' not found")
-
+    
     # Accept the connection
     await websocket.accept()
 
