@@ -50,7 +50,7 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
     return (
       <div
         ref={ref}
-        className={`relative flex flex-col overflow-hidden ${className}`}
+        className={`relative overflow-hidden ${className}`}
         style={{
           maskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
@@ -58,7 +58,7 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
         }}
         {...props}
       >
-        <div className="flex flex-col flex-1 overflow-y-auto space-y-3 px-2 pb-2">
+        <div className="absolute bottom-0 left-0 right-0 flex flex-col space-y-3 px-2 pb-2">
           {transcriptions.map((transcription, index) => {
             const isUser = transcription.type === 'user';
             return (
