@@ -14,8 +14,8 @@ export function Hero() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
-        <div className="flex flex-col md:flex-row gap-12 items-center justify-center min-h-[600px]">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full h-full">
+        <div className="flex flex-col md:flex-row gap-12 items-center justify-center h-full">
           {/* Heading - Initially Centered, Then Moves Left */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -35,19 +35,28 @@ export function Hero() {
               </span>
             </h1>
 
-            {/* Chat Now Button - Only visible when demo is hidden */}
-            {!showDemo && (
-              <motion.button
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 0.5 }}
-                onClick={() => setShowDemo(true)}
-                className="mt-8 px-8 py-4 bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 text-lg"
+            {/* Buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+              className="mt-8 flex items-center gap-4"
+            >
+              <button
+                className="px-8 py-4 bg-white hover:bg-gray-100 text-primary-600 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 text-lg"
               >
-                Chat Now
-                <BsArrowRight className="text-xl" />
-              </motion.button>
-            )}
+                Sign Up
+              </button>
+              {!showDemo && (
+                <button
+                  onClick={() => setShowDemo(true)}
+                  className="px-8 py-4 bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 text-lg"
+                >
+                  Chat Now
+                  <BsArrowRight className="text-xl" />
+                </button>
+              )}
+            </motion.div>
           </motion.div>
 
           {/* Voice Agent Widget - Fades in after heading moves */}
