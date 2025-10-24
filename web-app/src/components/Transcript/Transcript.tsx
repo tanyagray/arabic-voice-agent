@@ -58,7 +58,7 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
         }}
         {...props}
       >
-        <div className="absolute bottom-0 left-0 right-0 flex flex-col space-y-3 px-2 pb-2">
+        <div className="absolute bottom-0 left-0 right-0 flex flex-col space-y-3 pr-2 pb-2">
           {transcriptions.map((transcription, index) => {
             const isUser = transcription.type === 'user';
             return (
