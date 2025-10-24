@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
 import { useAudioRecording } from '../../hooks/useAudioRecording';
 import { useAgentState } from '../../hooks/useAgentState';
 import { BsMic, BsVolumeMute, BsArrowRepeat } from 'react-icons/bs';
@@ -16,6 +17,13 @@ export function AudioInput({ isActive, onActivate, onDeactivate }: AudioInputPro
 
   // Use agent state from hook instead of prop
   const state = agentState;
+
+  // Stop recording and release microphone when switching to text mode
+  useEffect(() => {
+    if (!isActive && isRecording) {
+      stopRecording();
+    }
+  }, [isActive, isRecording, stopRecording]);
 
   const handleToggleToAudio = async () => {
     onActivate();
