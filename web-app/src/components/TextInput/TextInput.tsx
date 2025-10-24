@@ -36,7 +36,7 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
         <motion.form
           key="text-input"
           initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 'auto', opacity: 1 }}
+          animate={{ width: '100%', opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ duration: 0.3 }}
           onSubmit={handleSendMessage}
@@ -48,7 +48,7 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
             onChange={(e) => setTextMessage(e.target.value)}
             placeholder="Type a message..."
             disabled={isSending}
-            className="bg-white/10 text-white placeholder-white/50 px-4 py-3 rounded-full border border-white/20 focus:outline-none focus:border-accent-400 transition-all disabled:opacity-50"
+            className="flex-1 bg-white/10 text-white placeholder-white/50 px-4 py-3 rounded-full border border-white/20 focus:outline-none focus:border-accent-400 transition-all disabled:opacity-50"
             autoFocus
           />
           <motion.button
