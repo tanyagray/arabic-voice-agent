@@ -19,7 +19,7 @@ export function LiveDemoWidget() {
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.8, delay: 0.2 }}
-      className="flex flex-col justify-center w-full h-full"
+      className="flex flex-col w-full h-full"
     >
       {!token || !wsUrl ? (
         <div className="flex flex-col items-center justify-center gap-4">
@@ -62,7 +62,7 @@ function RoomUI() {
   const [inputMode, setInputMode] = useState<InputMode>('text');
 
   return (
-    <div className="flex flex-col h-full gap-6">
+    <div className="flex flex-col flex-1 gap-6">
       <RoomAudioRenderer />
 
       {/* Transcript */}

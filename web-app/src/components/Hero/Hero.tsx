@@ -1,7 +1,11 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { BsArrowRight } from 'react-icons/bs';
 import { LiveDemoWidget } from '../LiveDemoWidget/LiveDemoWidget';
 
 export function Hero() {
+  const [showDemo, setShowDemo] = useState(false);
+
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Animated gradient background */}
@@ -11,26 +15,55 @@ export function Hero() {
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
-        <div className="flex flex-col md:flex-row gap-12 items-stretch min-h-[600px]">
-          {/* Heading - Left Side */}
+        <div className="flex flex-col md:flex-row gap-12 items-center justify-center min-h-[600px]">
+          {/* Heading - Initially Centered, Then Moves Left */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-            className="flex-1 flex items-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{ duration: 0.8, ease: 'easeInOut' }}
+            className={`flex flex-col ${showDemo ? 'flex-1 items-start justify-center' : 'max-w-3xl items-center justify-center text-center'}`}
           >
-            <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
-              Master Arabic with
-              <span className="block bg-gradient-to-r from-accent-300 to-accent-500 bg-clip-text text-transparent">
-                AI-Powered Conversations
+            <h1 className="font-bold text-white leading-tight">
+              <span className="block text-5xl md:text-7xl">
+                Master Arabic
+              </span>
+              <span className="block text-3xl md:text-5xl mt-2 bg-gradient-to-r from-accent-300 to-accent-500 bg-clip-text text-transparent">
+                with AI-Powered Conversations
               </span>
             </h1>
+
+            {/* Chat Now Button - Only visible when demo is hidden */}
+            {!showDemo && (
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+                onClick={() => setShowDemo(true)}
+                className="mt-8 px-8 py-4 bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 text-lg"
+              >
+                Chat Now
+                <BsArrowRight className="text-xl" />
+              </motion.button>
+            )}
           </motion.div>
 
-          {/* Voice Agent Widget - Right Side */}
-          <div className="flex-1 flex items-stretch">
-            <LiveDemoWidget />
-          </div>
+          {/* Voice Agent Widget - Fades in after heading moves */}
+          <AnimatePresence>
+            {showDemo && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="flex-1 flex items-stretch self-stretch"
+              >
+                <LiveDemoWidget />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
