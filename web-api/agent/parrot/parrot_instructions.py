@@ -1,17 +1,18 @@
 from agents import RunContextWrapper, Agent
-from services.user_service import UserInfo
+from services.context_service import AppContext
 
 def get_instructions(
-    context: RunContextWrapper[UserInfo], agent: Agent[UserInfo]
+    context: RunContextWrapper[AppContext], agent: Agent[AppContext]
 ) -> str:
-    user_info = context.context
+    app_context = context.context
 
-    # Generate user info bullet list dynamically based on UserInfo fields
+    # Generate user info bullet list dynamically based on AppContext fields
     user_info_lines = []
-    if user_info:
-        for field_name, field_value in user_info.__dict__.items():
-            if field_value:  # Only include non-empty values
-                user_info_lines.append(f"- {field_name}: {field_value}")
+    if app_context and app_context.user:
+        if app_context.user.user_id:
+            user_info_lines.append(f"- id: {app_context.user.user_id}")
+        if app_context.user.user_name:
+            user_info_lines.append(f"- name: {app_context.user.user_name}")
 
     user_context = "\n".join(user_info_lines) if user_info_lines else "- No user information available"
 

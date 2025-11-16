@@ -4,6 +4,7 @@ import uuid
 from typing import Dict, Optional
 from fastapi import WebSocket
 from agents import SQLiteSession
+from services.context_service import create_context, delete_context
 
 # In-memory session storage indexed by session_id
 _sessions: Dict[str, SQLiteSession] = {}
@@ -15,6 +16,7 @@ _websockets: Dict[str, WebSocket] = {}
 def create_session() -> str:
     """
     Create a new session and store it.
+    Also creates an associated context for the session.
 
     Returns:
         str: The generated session ID (UUID)
@@ -26,6 +28,13 @@ def create_session() -> str:
 
     # Store session indexed by session_id
     _sessions[session_id] = session
+
+    # Create context for this session
+    create_context(
+        session_id=session_id,
+        user_id=session_id,  # Using session_id as user_id for now
+        user_name="User"     # Placeholder user name
+    )
 
     return session_id
 
@@ -46,6 +55,7 @@ def get_session(session_id: str) -> Optional[SQLiteSession]:
 def delete_session(session_id: str) -> bool:
     """
     Delete a session by its ID.
+    Also deletes the associated context.
 
     Args:
         session_id: The session ID to delete
@@ -55,6 +65,8 @@ def delete_session(session_id: str) -> bool:
     """
     if session_id in _sessions:
         del _sessions[session_id]
+        # Also delete the associated context
+        delete_context(session_id)
         return True
     return False
 

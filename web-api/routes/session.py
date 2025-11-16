@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, WebSocket
 from pydantic import BaseModel, Field
 
-from services import session_service, agent_service, user_service
+from services import session_service, agent_service, context_service
 
 
 # Models
@@ -50,10 +50,10 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
-    # Retrieve the user info
-    user_info = user_service.get_user_info(session_id)
-    if not user_info:
-        raise HTTPException(status_code=404, detail=f"User Info for session '{session_id}' not found")
+    # Retrieve the application context
+    app_context = context_service.get_context(session_id)
+    if not app_context:
+        raise HTTPException(status_code=404, detail=f"Context for session '{session_id}' not found")
 
     # Accept the connection
     await websocket.accept()
@@ -66,9 +66,16 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
             user_message = await websocket.receive_text()
 
             # Run the agent with the session and user message
-            response = await agent_service.run_agent(session, user_message, context=user_info)
+            response = await agent_service.run_agent(session, user_message, context=app_context)
 
+            # Send the response on the websocket
             await websocket.send_text(response)
+
+            # Send the context on the websocket
+            await websocket.send_json({
+                "kind": "context",
+                "data": app_context.model_dump(mode='json')
+            })
     finally:
         # Unregister the WebSocket connection when it closes
         session_service.unregister_websocket(session_id)
@@ -87,18 +94,20 @@ async def send_chat_message(session_id: str, request: TextRequest):
         TextResponse with the agent's response
 
     Raises:
-        HTTPException: 404 if session not found
+        HTTPException: 404 if session or context not found
     """
     # Retrieve the session
     session = session_service.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
-    # Retrieve the user info
-    user_info = user_service.get_user_info(session_id)
+    # Retrieve the application context
+    app_context = context_service.get_context(session_id)
+    if not app_context:
+        raise HTTPException(status_code=404, detail=f"Context for session '{session_id}' not found")
 
     # Run the agent with the session and user message
-    response = await agent_service.run_agent(session, request.message, context=user_info)
+    response = await agent_service.run_agent(session, request.message, context=app_context)
 
     return TextResponse(text=response)
 
