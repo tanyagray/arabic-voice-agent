@@ -69,13 +69,19 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
             print(f"[WebSocket] Before agent run - active_tool: {app_context.agent.active_tool}")
 
             # Run the agent with the session and user message
-            response = await agent_service.run_agent(session, user_message, context=app_context)
+            text_response = await agent_service.run_agent(session, user_message, context=app_context)
 
             # Log context state after agent runs
             print(f"[WebSocket] After agent run - active_tool: {app_context.agent.active_tool}")
 
             # Send the response on the websocket
-            await websocket.send_text(response)
+            await websocket.send_json({
+                "kind": "transcript",
+                "data": {
+                    "source": "tutor",
+                    "text": text_response
+                }
+            })
 
             # Retrieve the latest context state before sending
             updated_context = context_service.get_context(session_id)

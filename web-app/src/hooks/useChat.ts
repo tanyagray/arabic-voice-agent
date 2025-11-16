@@ -38,13 +38,28 @@ export function useChat(sessionId: string | null): UseChatReturn {
 
       ws.onmessage = (event) => {
         console.log('WebSocket message received:', event.data);
-        const agentMessage: Message = {
-          text: event.data,
-          participantIdentity: 'agent',
-          timestamp: Date.now(),
-          type: 'agent',
-        };
-        setMessages((prev) => [...prev, agentMessage]);
+
+        // Parse the JSON message
+        try {
+          const message = JSON.parse(event.data);
+
+          // Handle transcript messages
+          if (message.kind === 'transcript') {
+            const agentMessage: Message = {
+              text: message.data.text,
+              participantIdentity: message.data.source || 'agent',
+              timestamp: Date.now(),
+              type: 'agent',
+            };
+            setMessages((prev) => [...prev, agentMessage]);
+          }
+          // Handle context messages (ignore for now, but can be used for state updates)
+          else if (message.kind === 'context') {
+            console.log('Context update received:', message.data);
+          }
+        } catch (err) {
+          console.error('Error parsing WebSocket message:', err);
+        }
       };
 
       ws.onerror = (event) => {
