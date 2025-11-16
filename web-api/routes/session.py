@@ -50,11 +50,6 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
-    # Retrieve the application context
-    app_context = context_service.get_context(session_id)
-    if not app_context:
-        raise HTTPException(status_code=404, detail=f"Context for session '{session_id}' not found")
-
     # Accept the connection
     await websocket.accept()
 
@@ -62,7 +57,7 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
     websocket_service.register_websocket(session_id, websocket)
 
     try:
-        await agent_service.start_realtime_agent(websocket, session, session_id, app_context)
+        await agent_service.start_realtime_agent(websocket, session_id)
     finally:
         # Unregister the WebSocket connection when it closes
         websocket_service.unregister_websocket(session_id)
@@ -81,20 +76,15 @@ async def send_chat_message(session_id: str, request: TextRequest):
         TextResponse with the agent's response
 
     Raises:
-        HTTPException: 404 if session or context not found
+        HTTPException: 404 if session not found
     """
-    # Retrieve the session
+    # Verify the session exists
     session = session_service.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
-    # Retrieve the application context
-    app_context = context_service.get_context(session_id)
-    if not app_context:
-        raise HTTPException(status_code=404, detail=f"Context for session '{session_id}' not found")
-
-    # Run the agent with the session and user message
-    response = await agent_service.run_agent(session, request.message, context=app_context)
+    # Generate the agent response
+    response = await agent_service.generate_agent_response(session_id, request.message)
 
     return TextResponse(text=response)
 
