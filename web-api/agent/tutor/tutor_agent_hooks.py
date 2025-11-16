@@ -1,21 +1,21 @@
-"""Arabic agent lifecycle hooks for tracking tool usage and state changes."""
+"""Tutor agent lifecycle hooks for tracking tool usage and state changes."""
 
 from agents import AgentHooks, RunContextWrapper, Agent, Tool
 
 from services.context_service import AppContext
 
 
-class ArabicAgentHooks(AgentHooks):
+class TutorAgentHooks(AgentHooks):
     """
-    Custom agent hooks for the Arabic tutor agent.
+    Custom agent hooks for the tutor agent.
 
     This hooks class automatically updates the active_tool property in
     AppContext whenever a tool starts or ends, and logs all state changes
-    specific to the Arabic learning experience.
+    specific to the learning experience.
     """
 
     def __init__(self):
-        """Initialize the Arabic agent hooks."""
+        """Initialize the tutor agent hooks."""
         self.event_counter = 0
 
     async def on_start(
@@ -24,7 +24,7 @@ class ArabicAgentHooks(AgentHooks):
         agent: Agent[AppContext],
     ) -> None:
         """
-        Called when the Arabic agent starts execution.
+        Called when the tutor agent starts execution.
 
         Args:
             context: The run context wrapper containing AppContext
@@ -32,7 +32,7 @@ class ArabicAgentHooks(AgentHooks):
         """
         self.event_counter += 1
         print(
-            f"[Arabic Assistant] Agent '{agent.name}' started "
+            f"[Tutor Assistant] Agent '{agent.name}' started "
             f"(event #{self.event_counter})"
         )
 
@@ -57,7 +57,7 @@ class ArabicAgentHooks(AgentHooks):
         """
         self.event_counter += 1
         print(
-            f"[Arabic Assistant] Agent '{agent.name}' started tool '{tool.name}' "
+            f"[Tutor Assistant] Agent '{agent.name}' started tool '{tool.name}' "
             f"(event #{self.event_counter})"
         )
 
@@ -85,7 +85,7 @@ class ArabicAgentHooks(AgentHooks):
         """
         self.event_counter += 1
         print(
-            f"[Arabic Assistant] Agent '{agent.name}' ended tool '{tool.name}' "
+            f"[Tutor Assistant] Agent '{agent.name}' ended tool '{tool.name}' "
             f"with result length {len(result)} chars (event #{self.event_counter})"
         )
 
@@ -110,7 +110,7 @@ class ArabicAgentHooks(AgentHooks):
         """
         self.event_counter += 1
         print(
-            f"[Arabic Assistant] Agent '{agent.name}' completed "
+            f"[Tutor Assistant] Agent '{agent.name}' completed "
             f"with output length {len(output)} chars (event #{self.event_counter})"
         )
 
@@ -133,7 +133,7 @@ class ArabicAgentHooks(AgentHooks):
         """
         self.event_counter += 1
         print(
-            f"[Arabic Assistant] Handoff from '{from_agent.name}' to '{to_agent.name}' "
+            f"[Tutor Assistant] Handoff from '{from_agent.name}' to '{to_agent.name}' "
             f"(event #{self.event_counter})"
         )
 

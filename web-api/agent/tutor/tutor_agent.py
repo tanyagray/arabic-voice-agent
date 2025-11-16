@@ -1,10 +1,10 @@
-"""Arabic agent definition and configuration."""
+"""Tutor agent definition and configuration."""
 
 from agents import Agent
 
 from agent.parrot.parrot_agent import agent as parrot_agent
-from .arabic_agent_hooks import ArabicAgentHooks
-from .arabic_instructions import get_instructions
+from .tutor_agent_hooks import TutorAgentHooks
+from .tutor_instructions import get_instructions
 
 agent = Agent(
     name="Assistant",
@@ -15,5 +15,5 @@ agent = Agent(
             tool_description="Play the Parrot translation game - translate the user's word or phrase to the opposite language (English to Arabic or Arabic to English)",
         )
     ],
-    hooks=ArabicAgentHooks(),
+    hooks=TutorAgentHooks(),
 )
