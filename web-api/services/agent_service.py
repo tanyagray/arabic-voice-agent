@@ -3,7 +3,7 @@
 from typing import Optional
 from agents import Runner, SQLiteSession
 
-from agent.arabic.arabic_agent import agent
+from agent.agents_config import assistant_agent as agent
 from .user_service import UserInfo
 
 
