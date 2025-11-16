@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, WebSocket
 from pydantic import BaseModel, Field
 
-from services import session_service, agent_service, context_service
+from services import session_service, agent_service, context_service, websocket_service
 
 
 # Models
@@ -59,7 +59,7 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
     await websocket.accept()
 
     # Register the WebSocket connection
-    session_service.register_websocket(session_id, websocket)
+    websocket_service.register_websocket(session_id, websocket)
 
     try:
         while True:
@@ -95,7 +95,7 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
                 })
     finally:
         # Unregister the WebSocket connection when it closes
-        session_service.unregister_websocket(session_id)
+        websocket_service.unregister_websocket(session_id)
 
 
 @router.post("/{session_id}/chat", response_model=TextResponse)
@@ -149,7 +149,7 @@ async def send_test_event(session_id: str):
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
     # Retrieve the WebSocket connection
-    websocket = session_service.get_websocket(session_id)
+    websocket = websocket_service.get_websocket(session_id)
     if not websocket:
         raise HTTPException(
             status_code=404,
