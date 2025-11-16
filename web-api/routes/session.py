@@ -44,7 +44,7 @@ async def create_session():
 
 @router.websocket("/{session_id}")
 async def open_session_websocket(websocket: WebSocket, session_id: str):
-  
+
     # Retrieve the session
     session = session_service.get_session(session_id)
     if not session:
@@ -54,17 +54,24 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
     user_info = user_service.get_user_info(session_id)
     if not user_info:
         raise HTTPException(status_code=404, detail=f"User Info for session '{session_id}' not found")
-    
+
     # Accept the connection
     await websocket.accept()
 
-    while True:
-        user_message = await websocket.receive_text()
+    # Register the WebSocket connection
+    session_service.register_websocket(session_id, websocket)
 
-        # Run the agent with the session and user message
-        response = await agent_service.run_agent(session, user_message, context=user_info)
+    try:
+        while True:
+            user_message = await websocket.receive_text()
 
-        await websocket.send_text(response)
+            # Run the agent with the session and user message
+            response = await agent_service.run_agent(session, user_message, context=user_info)
+
+            await websocket.send_text(response)
+    finally:
+        # Unregister the WebSocket connection when it closes
+        session_service.unregister_websocket(session_id)
 
 
 @router.post("/{session_id}/chat", response_model=TextResponse)
@@ -94,3 +101,36 @@ async def send_chat_message(session_id: str, request: TextRequest):
     response = await agent_service.run_agent(session, request.message, context=user_info)
 
     return TextResponse(text=response)
+
+
+@router.post("/{session_id}/event")
+async def send_test_event(session_id: str):
+    """
+    Send a test event message to the WebSocket for a specific session.
+
+    Args:
+        session_id: The session ID to send the event to
+
+    Returns:
+        dict: Success message
+
+    Raises:
+        HTTPException: 404 if session or WebSocket connection not found
+    """
+    # Retrieve the session
+    session = session_service.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+
+    # Retrieve the WebSocket connection
+    websocket = session_service.get_websocket(session_id)
+    if not websocket:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No active WebSocket connection for session '{session_id}'"
+        )
+
+    # Send the test event
+    await websocket.send_text("TEST EVENT")
+
+    return {"message": "Test event sent successfully"}
