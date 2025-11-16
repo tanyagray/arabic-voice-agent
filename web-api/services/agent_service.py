@@ -6,6 +6,7 @@ from fastapi import WebSocket
 
 from agent.tutor.tutor_agent import agent
 from .context_service import AppContext, get_context
+from .websocket_service import Message, send_message
 
 
 async def run_agent(session: SQLiteSession, user_message: str, context: Optional[AppContext] = None) -> str:
@@ -50,19 +51,25 @@ async def start_realtime_agent(
         text_response = await run_agent(session, user_message, context=app_context)
 
         # Send the response on the websocket
-        await websocket.send_json({
-            "kind": "transcript",
-            "data": {
-                "source": "tutor",
-                "text": text_response
-            }
-        })
+        await send_message(
+            session_id,
+            Message(
+                kind="transcript",
+                data={
+                    "source": "tutor",
+                    "text": text_response
+                }
+            )
+        )
 
         # Retrieve the latest context state before sending
         updated_context = get_context(session_id)
         if updated_context:
             # Send the updated context on the websocket
-            await websocket.send_json({
-                "kind": "context",
-                "data": updated_context.model_dump(mode='json')
-            })
+            await send_message(
+                session_id,
+                Message(
+                    kind="context",
+                    data=updated_context.model_dump(mode='json')
+                )
+            )
