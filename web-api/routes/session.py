@@ -62,37 +62,7 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
     websocket_service.register_websocket(session_id, websocket)
 
     try:
-        while True:
-            user_message = await websocket.receive_text()
-
-            # Log context state before agent runs
-            print(f"[WebSocket] Before agent run - active_tool: {app_context.agent.active_tool}")
-
-            # Run the agent with the session and user message
-            text_response = await agent_service.run_agent(session, user_message, context=app_context)
-
-            # Log context state after agent runs
-            print(f"[WebSocket] After agent run - active_tool: {app_context.agent.active_tool}")
-
-            # Send the response on the websocket
-            await websocket.send_json({
-                "kind": "transcript",
-                "data": {
-                    "source": "tutor",
-                    "text": text_response
-                }
-            })
-
-            # Retrieve the latest context state before sending
-            updated_context = context_service.get_context(session_id)
-            if updated_context:
-                print(f"[WebSocket] Retrieved context - active_tool: {updated_context.agent.active_tool}")
-                print(f"[WebSocket] Same object? {app_context is updated_context}")
-                # Send the updated context on the websocket
-                await websocket.send_json({
-                    "kind": "context",
-                    "data": updated_context.model_dump(mode='json')
-                })
+        await agent_service.start_realtime_agent(websocket, session, session_id, app_context)
     finally:
         # Unregister the WebSocket connection when it closes
         websocket_service.unregister_websocket(session_id)
