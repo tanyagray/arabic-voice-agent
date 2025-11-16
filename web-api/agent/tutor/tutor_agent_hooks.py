@@ -75,7 +75,8 @@ class TutorAgentHooks(AgentHooks):
         """
         Called when a tool finishes execution.
 
-        Clears the active_tool property in AppContext and logs the change.
+        Logs the tool completion but keeps the active_tool set so it can be
+        visible in the context when sent to the client.
 
         Args:
             context: The run context wrapper containing AppContext
@@ -89,9 +90,9 @@ class TutorAgentHooks(AgentHooks):
             f"with result length {len(result)} chars (event #{self.event_counter})"
         )
 
-        # Clear the active tool in the context (tool execution complete)
+        # Keep the active tool set instead of clearing it
+        # This allows the context to show which tool was last used
         if context.context:
-            context.context.set_active_tool(None)
             context.context.log_state("After Tool End")
 
     async def on_end(

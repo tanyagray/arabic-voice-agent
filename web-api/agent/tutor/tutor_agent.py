@@ -11,8 +11,8 @@ agent = Agent(
     instructions=get_instructions,
     tools=[
         parrot_agent.as_tool(
-            tool_name="play_parrot_game",
-            tool_description="Play the Parrot translation game - translate the user's word or phrase to the opposite language (English to Arabic or Arabic to English)",
+            tool_name="parrot_game",
+            tool_description="Use this tool when the user wants to play the parrot game or practice translations. The parrot game translates words/phrases between English and Arabic (whichever direction is opposite to the input language).",
         )
     ],
     hooks=TutorAgentHooks(),
