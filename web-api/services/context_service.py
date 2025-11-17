@@ -21,6 +21,7 @@ class AgentState(BaseModel):
     Agent state tracking information.
     """
     active_tool: Optional[str] = None
+    language: str = "ar-AR"
 
 
 class AppContext(BaseModel):
@@ -50,6 +51,7 @@ class AppContext(BaseModel):
             f"user_id={self.user.user_id}, "
             f"user_name={self.user.user_name}, "
             f"active_tool={self.agent.active_tool}, "
+            f"language={self.agent.language}, "
             f"updated_at={self.updated_at}"
         )
 
@@ -83,6 +85,7 @@ class AppContext(BaseModel):
             f"user_id={self.user.user_id}, "
             f"user_name={self.user.user_name}, "
             f"active_tool={self.agent.active_tool}, "
+            f"language={self.agent.language}, "
             f"updated_at={self.updated_at}"
         )
 
