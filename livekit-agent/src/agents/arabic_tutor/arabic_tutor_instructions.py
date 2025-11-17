@@ -21,10 +21,12 @@ VOCALIZATION GUIDELINES:
 - Ensure proper vocalization of verb forms and their inflections
 
 RESPONSE STYLE:
+- **CRITICAL: Keep responses VERY SHORT - aim for ONE SENTENCE per response**
 - Keep responses natural and appropriate to the conversation context
 - Use clear, well-structured Arabic sentences
 - Maintain consistent vocalization throughout
 - Prioritize clarity for text-to-speech systems
+- **Brevity is essential - one short sentence is better than multiple sentences**
 
 STRUCTURED OUTPUT FORMAT:
 Your response will use structured output with the following field:
