@@ -72,6 +72,23 @@ class AppContext(BaseModel):
             f"active_tool={self.agent.active_tool}"
         )
 
+    def set_language(self, language: str) -> None:
+        """
+        Update the language and log the state change.
+
+        Args:
+            language: The language code to set (e.g., 'ar-AR', 'es-MX', 'ru-RU', 'mi-NZ')
+        """
+        previous_language = self.agent.language
+        self.agent.language = language
+        self.updated_at = datetime.now()
+        print(
+            f"[AppContext Language Change] "
+            f"session_id={self.session_id}, "
+            f"previous_language={previous_language}, "
+            f"language={self.agent.language}"
+        )
+
     def log_state(self, event: str = "State") -> None:
         """
         Log the current context state.
