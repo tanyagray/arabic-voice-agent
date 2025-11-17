@@ -52,13 +52,14 @@ async def upload_audio_file(audio_bytes: bytes, filename: str) -> str:
         return data["id"]
 
 
-async def create_transcription(file_id: str, session_id: str) -> str:
+async def create_transcription(file_id: str, session_id: str, target_language: str = "ar") -> str:
     """
     Create an async transcription job with Soniox.
 
     Args:
         file_id: Soniox file ID from upload_audio_file
         session_id: Application session ID for webhook callback
+        target_language: Target language code (e.g., 'ar', 'es', 'ru', 'mi') for language hints
 
     Returns:
         transcription_id: Soniox transcription job identifier
@@ -71,6 +72,9 @@ async def create_transcription(file_id: str, session_id: str) -> str:
 
     webhook_url = f"{WEBHOOK_BASE_URL}/webhooks/soniox"
 
+    # Always include English plus the target language for bilingual conversations
+    language_hints = [target_language, "en"] if target_language != "en" else ["en"]
+
     async with httpx.AsyncClient() as client:
         response = await client.post(
             f"{SONIOX_API_URL}/v1/transcriptions",
@@ -82,7 +86,7 @@ async def create_transcription(file_id: str, session_id: str) -> str:
                 "model": "stt-async-preview",
                 "file_id": file_id,
                 "webhook_url": webhook_url,
-                "language_hints": ["ar", "en"],
+                "language_hints": language_hints,
                 "enable_language_identification": True,
             },
             timeout=30.0,

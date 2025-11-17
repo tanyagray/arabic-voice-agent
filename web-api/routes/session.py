@@ -163,8 +163,15 @@ async def upload_audio(session_id: str, file: UploadFile = File(...)):
         # Upload to Soniox Files API
         file_id = await soniox_service.upload_audio_file(audio_bytes, file.filename or "recording.webm")
 
-        # Create transcription job with webhook callback
-        transcription_id = await soniox_service.create_transcription(file_id, session_id)
+        # Get the target language from session context
+        context = context_service.get_context(session_id)
+        target_language = "ar"  # Default to Arabic
+        if context and context.agent.language:
+            # Extract language code from locale (e.g., "ar-AR" -> "ar", "es-MX" -> "es")
+            target_language = context.agent.language.split("-")[0]
+
+        # Create transcription job with webhook callback and language hints
+        transcription_id = await soniox_service.create_transcription(file_id, session_id, target_language)
 
         return AudioUploadResponse(
             transcription_id=transcription_id,
