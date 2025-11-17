@@ -66,7 +66,7 @@ async def generate_agent_followup(session_id: str) -> str:
     # Add a system message to the history to trigger the followup
     system_message = {
         "role": "system",
-        "content": "user has not responded, sending a followup message"
+        "content": "making the user feel comfortable by continuing the conversation"
     }
 
     # Define a callback that uses the provided input (system message) as-is
