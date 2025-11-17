@@ -7,7 +7,7 @@ from .tutor_agent_hooks import TutorAgentHooks
 from .tutor_instructions import get_instructions
 
 agent = Agent(
-    name="Assistant",
+    name="Tutor",
     instructions=get_instructions,
     tools=[
         parrot_agent.as_tool(
