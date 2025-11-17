@@ -74,13 +74,9 @@ function RoomUI() {
       {/* Transcript - fills available space */}
       <Transcript className="flex-1 min-h-0" />
 
-      {/* Audio Toggle */}
-      <div className="flex justify-center flex-shrink-0">
-        <AudioToggle />
-      </div>
-
       {/* Control buttons */}
       <div className="flex justify-center gap-4 items-center flex-shrink-0">
+        <AudioToggle />
         <TextInput
           isActive={inputMode === 'text'}
           onActivate={() => setInputMode('text')}
