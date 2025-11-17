@@ -1,0 +1,48 @@
+.audio-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audio-toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.audio-toggle-button:hover:not(:disabled) {
+  background-color: #f5f5f5;
+  border-color: #999;
+}
+
+.audio-toggle-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.audio-toggle-button.enabled {
+  background-color: #e8f5e9;
+  border-color: #4caf50;
+  color: #2e7d32;
+}
+
+.audio-toggle-button.enabled:hover:not(:disabled) {
+  background-color: #c8e6c9;
+}
+
+.audio-toggle-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.audio-toggle-text {
+  user-select: none;
+}

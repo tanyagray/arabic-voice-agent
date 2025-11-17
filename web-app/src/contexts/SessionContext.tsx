@@ -12,6 +12,10 @@ interface SessionContextValue {
   uploadAudio: (audioBlob: Blob) => Promise<void>;
   connectionState: ConnectionState;
   chatError: string | null;
+  audioEnabled: boolean;
+  isUpdatingContext: boolean;
+  toggleAudioEnabled: () => Promise<void>;
+  setAudioEnabled: (enabled: boolean) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -21,7 +25,15 @@ interface SessionProviderProps {
 }
 
 export function SessionProvider({ children }: SessionProviderProps) {
-  const { sessionId, isCreating, error: sessionError } = useSession();
+  const {
+    sessionId,
+    isCreating,
+    error: sessionError,
+    audioEnabled,
+    isUpdatingContext,
+    toggleAudioEnabled,
+    setAudioEnabled,
+  } = useSession();
   const { messages, sendMessage, uploadAudio, connectionState, error: chatError } = useChat(sessionId);
 
   const value: SessionContextValue = {
@@ -33,6 +45,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
     uploadAudio,
     connectionState,
     chatError,
+    audioEnabled,
+    isUpdatingContext,
+    toggleAudioEnabled,
+    setAudioEnabled,
   };
 
   return (

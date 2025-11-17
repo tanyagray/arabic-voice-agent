@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Message, ConnectionState } from '../types/chat';
+import type {
+  Message,
+  ConnectionState,
+  WebSocketMessage,
+  AudioMessageData,
+  TranscriptMessageData
+} from '../types/chat';
 
 interface UseChatReturn {
   messages: Message[];
@@ -15,6 +21,57 @@ export function useChat(sessionId: string | null): UseChatReturn {
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Function to play audio from base64 data
+  const playAudioMessage = useCallback((audioDataBase64: string, format: string) => {
+    try {
+      // Stop any currently playing audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+
+      // Decode base64 to binary
+      const binaryString = atob(audioDataBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Create blob with appropriate MIME type
+      const mimeType = format === 'mp3' ? 'audio/mpeg' : `audio/${format}`;
+      const audioBlob = new Blob([bytes], { type: mimeType });
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Create and play audio element
+      const audio = new Audio(audioUrl);
+      currentAudioRef.current = audio;
+
+      // Clean up object URL when audio finishes
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        currentAudioRef.current = null;
+      };
+
+      // Clean up on error
+      audio.onerror = (err) => {
+        console.error('Error playing audio:', err);
+        URL.revokeObjectURL(audioUrl);
+        currentAudioRef.current = null;
+      };
+
+      // Auto-play the audio
+      audio.play().catch((err) => {
+        console.error('Error auto-playing audio:', err);
+        URL.revokeObjectURL(audioUrl);
+      });
+
+      console.log('Audio playback started');
+    } catch (err) {
+      console.error('Error processing audio message:', err);
+    }
+  }, []);
 
   const connect = useCallback(() => {
     if (!sessionId) return;
@@ -42,20 +99,27 @@ export function useChat(sessionId: string | null): UseChatReturn {
 
         // Parse the JSON message
         try {
-          const message = JSON.parse(event.data);
+          const message: WebSocketMessage = JSON.parse(event.data);
 
           // Handle transcript messages
           if (message.kind === 'transcript') {
-            const source = message.data.source || 'agent';
+            const data = message.data as TranscriptMessageData;
+            const source = data.source || 'agent';
             const messageType = source === 'user' ? 'user' : 'agent';
 
             const transcriptMessage: Message = {
-              text: message.data.text,
+              text: data.text,
               participantIdentity: source,
               timestamp: Date.now(),
               type: messageType,
             };
             setMessages((prev) => [...prev, transcriptMessage]);
+          }
+          // Handle audio messages
+          else if (message.kind === 'audio') {
+            console.log('Audio message received');
+            const audioData = message.data as AudioMessageData;
+            playAudioMessage(audioData.audio_data, audioData.format);
           }
           // Handle context messages (ignore for now, but can be used for state updates)
           else if (message.kind === 'context') {
@@ -158,6 +222,11 @@ export function useChat(sessionId: string | null): UseChatReturn {
       }
       if (wsRef.current) {
         wsRef.current.close();
+      }
+      // Stop any playing audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
     };
   }, [sessionId, connect]);

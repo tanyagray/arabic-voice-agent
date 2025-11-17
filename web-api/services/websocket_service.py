@@ -65,3 +65,23 @@ async def send_message(session_id: str, message: Message) -> None:
         raise ValueError(f"No WebSocket connection found for session: {session_id}")
 
     await websocket.send_json(message.model_dump())
+
+
+async def send_audio_message(
+    session_id: str, audio_data_base64: str, format: str = "mp3"
+) -> None:
+    """
+    Send an audio message to a WebSocket connection.
+
+    Args:
+        session_id: The session ID to send the audio to
+        audio_data_base64: Base64 encoded audio data
+        format: Audio format (default: "mp3")
+
+    Raises:
+        ValueError: If no WebSocket connection exists for the session
+    """
+    message = Message(
+        kind="audio", data={"audio_data": audio_data_base64, "format": format}
+    )
+    await send_message(session_id, message)

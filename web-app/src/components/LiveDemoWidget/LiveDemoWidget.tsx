@@ -4,6 +4,7 @@ import { SessionProvider, useSessionContext } from '../../contexts/SessionContex
 import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
+import { AudioToggle } from '../AudioToggle';
 import { BsArrowRepeat } from 'react-icons/bs';
 
 export function LiveDemoWidget() {
@@ -72,6 +73,11 @@ function RoomUI() {
     <div className="flex flex-col flex-1 gap-6 min-h-0">
       {/* Transcript - fills available space */}
       <Transcript className="flex-1 min-h-0" />
+
+      {/* Audio Toggle */}
+      <div className="flex justify-center flex-shrink-0">
+        <AudioToggle />
+      </div>
 
       {/* Control buttons */}
       <div className="flex justify-center gap-4 items-center flex-shrink-0">

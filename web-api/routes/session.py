@@ -28,6 +28,20 @@ class AudioUploadResponse(BaseModel):
     status: str = Field(..., description="Processing status")
 
 
+class UpdateContextRequest(BaseModel):
+    """Request model for updating session context."""
+    audio_enabled: bool | None = Field(None, description="Enable/disable audio responses")
+    language: str | None = Field(None, description="Language code (e.g., 'ar-AR', 'es-MX')")
+
+
+class ContextResponse(BaseModel):
+    """Response model for context updates."""
+    session_id: str
+    audio_enabled: bool
+    language: str
+    active_tool: str | None
+
+
 # Router
 router = APIRouter(prefix="/session", tags=["Session"])
 
@@ -126,6 +140,81 @@ async def send_test_event(session_id: str):
     await websocket.send_text("TEST EVENT")
 
     return {"message": "Test event sent successfully"}
+
+
+@router.patch("/{session_id}/context", response_model=ContextResponse)
+async def update_context(session_id: str, request: UpdateContextRequest):
+    """
+    Update session context settings (audio, language, etc.).
+
+    Args:
+        session_id: The session ID to update
+        request: UpdateContextRequest with fields to update
+
+    Returns:
+        ContextResponse with updated context state
+
+    Raises:
+        HTTPException: 404 if session or context not found
+    """
+    # Verify the session exists
+    session = session_service.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+
+    # Get the context
+    context = context_service.get_context(session_id)
+    if not context:
+        raise HTTPException(status_code=404, detail=f"Context not found for session '{session_id}'")
+
+    # Update audio_enabled if provided
+    if request.audio_enabled is not None:
+        context.set_audio_enabled(request.audio_enabled)
+
+    # Update language if provided
+    if request.language is not None:
+        context.set_language(request.language)
+
+    # Return updated context
+    return ContextResponse(
+        session_id=context.session_id,
+        audio_enabled=context.agent.audio_enabled,
+        language=context.agent.language,
+        active_tool=context.agent.active_tool
+    )
+
+
+@router.get("/{session_id}/context", response_model=ContextResponse)
+async def get_context(session_id: str):
+    """
+    Get current session context settings.
+
+    Args:
+        session_id: The session ID to get context for
+
+    Returns:
+        ContextResponse with current context state
+
+    Raises:
+        HTTPException: 404 if session or context not found
+    """
+    # Verify the session exists
+    session = session_service.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+
+    # Get the context
+    context = context_service.get_context(session_id)
+    if not context:
+        raise HTTPException(status_code=404, detail=f"Context not found for session '{session_id}'")
+
+    # Return current context
+    return ContextResponse(
+        session_id=context.session_id,
+        audio_enabled=context.agent.audio_enabled,
+        language=context.agent.language,
+        active_tool=context.agent.active_tool
+    )
 
 
 @router.post("/{session_id}/audio", response_model=AudioUploadResponse)

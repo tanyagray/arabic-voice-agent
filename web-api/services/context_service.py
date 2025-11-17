@@ -22,6 +22,7 @@ class AgentState(BaseModel):
     """
     active_tool: Optional[str] = None
     language: str = "ar-AR"
+    audio_enabled: bool = False
 
 
 class AppContext(BaseModel):
@@ -52,6 +53,7 @@ class AppContext(BaseModel):
             f"user_name={self.user.user_name}, "
             f"active_tool={self.agent.active_tool}, "
             f"language={self.agent.language}, "
+            f"audio_enabled={self.agent.audio_enabled}, "
             f"updated_at={self.updated_at}"
         )
 
@@ -89,6 +91,23 @@ class AppContext(BaseModel):
             f"language={self.agent.language}"
         )
 
+    def set_audio_enabled(self, enabled: bool) -> None:
+        """
+        Update the audio enabled state and log the state change.
+
+        Args:
+            enabled: Whether audio responses should be generated
+        """
+        previous_state = self.agent.audio_enabled
+        self.agent.audio_enabled = enabled
+        self.updated_at = datetime.now()
+        print(
+            f"[AppContext Audio State Change] "
+            f"session_id={self.session_id}, "
+            f"previous_state={previous_state}, "
+            f"audio_enabled={self.agent.audio_enabled}"
+        )
+
     def log_state(self, event: str = "State") -> None:
         """
         Log the current context state.
@@ -103,6 +122,7 @@ class AppContext(BaseModel):
             f"user_name={self.user.user_name}, "
             f"active_tool={self.agent.active_tool}, "
             f"language={self.agent.language}, "
+            f"audio_enabled={self.agent.audio_enabled}, "
             f"updated_at={self.updated_at}"
         )
 

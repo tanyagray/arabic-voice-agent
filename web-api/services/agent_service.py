@@ -7,7 +7,8 @@ from fastapi import WebSocket
 from agent.tutor.tutor_agent import agent
 from .context_service import get_context
 from .session_service import get_session
-from .websocket_service import Message, send_message
+from .websocket_service import Message, send_message, send_audio_message
+from .tts_service import get_tts_service
 
 
 async def generate_agent_response(session_id: str, user_message: str) -> str:
@@ -105,7 +106,7 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None) -
     else:
         text_response = await generate_agent_followup(session_id)
 
-    # Send the response on the websocket
+    # Send the text response on the websocket
     await send_message(
         session_id,
         Message(
@@ -116,6 +117,27 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None) -
             }
         )
     )
+
+    # Check if audio is enabled and generate audio if so
+    context = get_context(session_id)
+    if context and context.agent.audio_enabled:
+        try:
+            # Get TTS service and generate audio
+            tts_service = get_tts_service()
+            audio_bytes = await tts_service.generate_audio(
+                text_response, context.agent.language
+            )
+
+            if audio_bytes:
+                # Encode audio to base64 and send via websocket
+                audio_base64 = tts_service.encode_audio_base64(audio_bytes)
+                await send_audio_message(session_id, audio_base64, format="mp3")
+                print(f"[Agent] Sent audio response for session {session_id}")
+            else:
+                print(f"[Agent] Failed to generate audio for session {session_id}")
+        except Exception as e:
+            print(f"[Agent] Error generating audio: {e}")
+            # Continue even if audio generation fails - user still has text
 
     # Retrieve the latest context state before sending
     updated_context = get_context(session_id)
