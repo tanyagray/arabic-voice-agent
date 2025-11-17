@@ -4,6 +4,7 @@ import type { Message, ConnectionState } from '../types/chat';
 interface UseChatReturn {
   messages: Message[];
   sendMessage: (text: string) => void;
+  uploadAudio: (audioBlob: Blob) => Promise<void>;
   connectionState: ConnectionState;
   error: string | null;
 }
@@ -45,13 +46,16 @@ export function useChat(sessionId: string | null): UseChatReturn {
 
           // Handle transcript messages
           if (message.kind === 'transcript') {
-            const agentMessage: Message = {
+            const source = message.data.source || 'agent';
+            const messageType = source === 'user' ? 'user' : 'agent';
+
+            const transcriptMessage: Message = {
               text: message.data.text,
-              participantIdentity: message.data.source || 'agent',
+              participantIdentity: source,
               timestamp: Date.now(),
-              type: 'agent',
+              type: messageType,
             };
-            setMessages((prev) => [...prev, agentMessage]);
+            setMessages((prev) => [...prev, transcriptMessage]);
           }
           // Handle context messages (ignore for now, but can be used for state updates)
           else if (message.kind === 'context') {
@@ -106,6 +110,41 @@ export function useChat(sessionId: string | null): UseChatReturn {
     wsRef.current.send(text);
   }, []);
 
+  const uploadAudio = useCallback(async (audioBlob: Blob) => {
+    if (!sessionId) {
+      console.error('No session ID available');
+      setError('No active session');
+      return;
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+      // Create form data with audio file
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.webm');
+
+      // Upload to server
+      const response = await fetch(`${apiUrl}/session/${sessionId}/audio`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Audio uploaded successfully:', result);
+
+      // The transcription will be sent back via WebSocket when complete
+    } catch (err) {
+      console.error('Error uploading audio:', err);
+      setError(err instanceof Error ? err.message : 'Failed to upload audio');
+      throw err;
+    }
+  }, [sessionId]);
+
   // Connect when sessionId is available
   useEffect(() => {
     if (sessionId) {
@@ -126,6 +165,7 @@ export function useChat(sessionId: string | null): UseChatReturn {
   return {
     messages,
     sendMessage,
+    uploadAudio,
     connectionState,
     error,
   };

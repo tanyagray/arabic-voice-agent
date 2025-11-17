@@ -9,6 +9,7 @@ interface SessionContextValue {
   sessionError: string | null;
   messages: Message[];
   sendMessage: (text: string) => void;
+  uploadAudio: (audioBlob: Blob) => Promise<void>;
   connectionState: ConnectionState;
   chatError: string | null;
 }
@@ -21,7 +22,7 @@ interface SessionProviderProps {
 
 export function SessionProvider({ children }: SessionProviderProps) {
   const { sessionId, isCreating, error: sessionError } = useSession();
-  const { messages, sendMessage, connectionState, error: chatError } = useChat(sessionId);
+  const { messages, sendMessage, uploadAudio, connectionState, error: chatError } = useChat(sessionId);
 
   const value: SessionContextValue = {
     sessionId,
@@ -29,6 +30,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     sessionError,
     messages,
     sendMessage,
+    uploadAudio,
     connectionState,
     chatError,
   };

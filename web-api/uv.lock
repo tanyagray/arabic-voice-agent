@@ -1970,6 +1970,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "google-genai" },
+    { name = "httpx" },
     { name = "livekit-api" },
     { name = "openai-agents" },
     { name = "pydantic" },
@@ -1982,6 +1983,7 @@ dependencies = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115.5" },
     { name = "google-genai", specifier = ">=1.0.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "livekit-api", specifier = ">=1.0.7" },
     { name = "openai-agents", specifier = ">=0.4.1" },
     { name = "pydantic", specifier = ">=2.10.3" },

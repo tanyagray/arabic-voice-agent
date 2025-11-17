@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from routes.livekit import router as livekit_router
 from routes.session import router as session_router
 from routes.content import router as content_router
+from routes.webhooks import router as webhooks_router
 
 # Load environment variables from .env file in the same directory as this script
 # Use override=True to ensure this .env takes precedence over parent directory .env files
@@ -39,6 +40,7 @@ app.add_middleware(
 app.include_router(livekit_router)
 app.include_router(session_router)
 app.include_router(content_router)
+app.include_router(webhooks_router)
 
 
 @app.get("/")
