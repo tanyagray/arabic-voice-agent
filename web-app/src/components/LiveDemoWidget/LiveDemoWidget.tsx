@@ -84,7 +84,6 @@ function RoomUI() {
         <AudioInput
           isActive={inputMode === 'audio'}
           onActivate={() => setInputMode('audio')}
-          onDeactivate={() => setInputMode('text')}
           state="idle"
         />
       </div>

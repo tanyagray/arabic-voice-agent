@@ -3,16 +3,15 @@ import { useEffect, useState } from 'react';
 import { useAudioRecording } from '../../hooks/useAudioRecording';
 import { useAgentState } from '../../hooks/useAgentState';
 import { useSessionContext } from '../../contexts/SessionContext';
-import { BsMic, BsVolumeMute, BsArrowRepeat } from 'react-icons/bs';
+import { BsMic, BsArrowRepeat } from 'react-icons/bs';
 
 interface AudioInputProps {
   isActive: boolean;
   onActivate: () => void;
-  onDeactivate: () => void;
   state: string;
 }
 
-export function AudioInput({ isActive, onActivate, onDeactivate }: AudioInputProps) {
+export function AudioInput({ isActive, onActivate }: AudioInputProps) {
   const { isRecording, startRecording, stopRecording } = useAudioRecording();
   const { uploadAudio } = useSessionContext();
   const agentState = useAgentState();
@@ -56,7 +55,6 @@ export function AudioInput({ isActive, onActivate, onDeactivate }: AudioInputPro
   };
 
   const isTextMode = !isActive;
-  const isMicMuted = !isRecording;
 
   // Determine button style based on state
   const getButtonStyle = () => {

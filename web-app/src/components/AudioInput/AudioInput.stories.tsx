@@ -27,7 +27,6 @@ const meta = {
   },
   args: {
     onActivate: fn(),
-    onDeactivate: fn(),
   },
 } satisfies Meta<typeof AudioInput>;
 
