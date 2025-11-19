@@ -1,15 +1,15 @@
 # Arabic Voice Agent - Marketing Website
 
-A modern, single-page marketing website for the Arabic Voice Agent with integrated LiveKit voice conversation capabilities.
+A modern, single-page marketing website for the Arabic Voice Agent with voice conversation capabilities.
 
 ## Features
 
-- **Hero Section** with embedded LiveKit voice agent for instant conversations
+- **Hero Section** with voice demo for instant conversations
 - **Real-time Voice** interaction with AI Arabic tutor
 - **Modern Design** with Arabic-inspired gradient colors and smooth animations
 - **Responsive** layout optimized for all devices
 - **Feature Showcase** highlighting key capabilities
-- **LiveKit Integration** for ultra-low latency voice processing
+- **WebSocket-based** voice processing
 
 ## Tech Stack
 
@@ -18,14 +18,11 @@ A modern, single-page marketing website for the Arabic Voice Agent with integrat
 - **TypeScript** - Type safety
 - **TailwindCSS** - Utility-first styling
 - **Framer Motion** - Smooth animations
-- **LiveKit React Components** - Voice conversation UI
-- **LiveKit Client** - Real-time communication
 
 ## Prerequisites
 
 - Node.js 18+
-- Running instance of the `web-api` server (for LiveKit token generation)
-- LiveKit agent running (for voice conversations)
+- Running instance of the `web-api` server (for voice and chat functionality)
 
 ## Quick Start
 
@@ -59,18 +56,12 @@ The website will be available at `http://localhost:5173`
 
 ### 4. Start Required Services
 
-For the voice agent to work, you need:
+For the voice functionality to work, you need:
 
-1. **Web API Server** (for token generation):
+1. **Web API Server**:
    ```bash
    cd ../web-api
    # Follow the web-api README to start the server
-   ```
-
-2. **LiveKit Agent** (for voice processing):
-   ```bash
-   cd ../livekit-agent
-   # Follow the livekit-agent README to start the agent
    ```
 
 ## Project Structure
@@ -153,12 +144,12 @@ Each component is self-contained and can be customized independently:
 
 ## Troubleshooting
 
-### Voice Agent Not Connecting
+### Voice Not Working
 
 1. Ensure `web-api` server is running on the configured `VITE_API_URL`
-2. Check that LiveKit agent is running and connected to LiveKit Cloud
-3. Verify your browser has microphone permissions enabled
-4. Check browser console for error messages
+2. Verify your browser has microphone permissions enabled
+3. Check browser console for error messages
+4. Verify API keys are configured in the web-api
 
 ### CORS Errors
 

@@ -6,21 +6,20 @@ Complete guide to setting up the Arabic Voice Agent development environment.
 
 ### Required Software
 
-- **Python 3.11+** - for the LiveKit agent
+- **Python 3.11+** - for the Web API
 - **Flutter 3.24+** - for mobile apps
-- **Node.js 18+** - for Supabase CLI
+- **Node.js 18+** - for web app
 - **Git** - version control
 
 ### Required Accounts
 
 1. **Supabase** - https://supabase.com
-2. **LiveKit Cloud** - https://livekit.io
-3. **OpenAI** - https://platform.openai.com
-4. **ElevenLabs** - https://elevenlabs.io
-5. **Deepgram** - https://deepgram.com
-6. **Google Cloud Console** - for OAuth
-7. **Render** - https://render.com (for deployment)
-8. **GitHub** - for code hosting
+2. **OpenAI** - https://platform.openai.com
+3. **ElevenLabs** - https://elevenlabs.io
+4. **Soniox** - https://soniox.com
+5. **Google Cloud Console** - for OAuth
+6. **Render** - https://render.com (for deployment, optional)
+7. **GitHub** - for code hosting
 
 ---
 
@@ -41,11 +40,6 @@ cd arabic-voice-agent
 2. Click "New Project"
 3. Enter project details
 4. Wait for project to be created
-
-### Disable Edge Functions
-
-1. Go to Project Settings → Edge Functions
-2. Disable Edge Functions (as per requirements)
 
 ### Run Migrations
 
@@ -80,31 +74,7 @@ supabase db push
 
 ---
 
-## Step 3: LiveKit Cloud Setup
-
-### Create Project
-
-1. Go to https://cloud.livekit.io
-2. Create new project
-3. Note your project URL (e.g., `wss://your-project.livekit.cloud`)
-
-### Generate API Keys
-
-1. Go to Settings → Keys
-2. Create new API key
-3. Save:
-   - API Key
-   - API Secret
-
-### Configure Webhooks (Optional for production)
-
-1. Go to Settings → Webhooks
-2. Add webhook URL: `https://your-render-app.onrender.com/webhook`
-3. Enable "Room Created" event
-
----
-
-## Step 4: Get API Keys
+## Step 3: Get API Keys
 
 ### OpenAI
 
@@ -123,15 +93,15 @@ supabase db push
 2. Copy the Voice ID of your chosen voice
 3. Use multilingual v2 compatible voices
 
-### Deepgram
+### Soniox
 
-1. Go to https://console.deepgram.com
-2. Create new API key
+1. Go to https://soniox.com
+2. Create account and get API key
 3. Save the key
 
 ---
 
-## Step 5: Google OAuth Setup
+## Step 4: Google OAuth Setup
 
 ### Create OAuth Credentials
 
@@ -167,95 +137,97 @@ supabase db push
 
 ---
 
-## Step 6: Environment Configuration
+## Step 5: Environment Configuration
 
-### Root `.env` File
+### Web API `.env` File
 
 ```bash
+cd web-api
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `web-api/.env`:
 ```env
 # Supabase
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# LiveKit
-LIVEKIT_API_KEY=your-api-key
-LIVEKIT_API_SECRET=your-api-secret
-LIVEKIT_URL=wss://your-project.livekit.cloud
 
 # OpenAI
 OPENAI_API_KEY=sk-xxxxxxxx
 
 # ElevenLabs
-ELEVENLABS_API_KEY=your-key
-ELEVENLABS_VOICE_ID=your-voice-id
+ELEVEN_API_KEY=your-key
 
-# Deepgram
-DEEPGRAM_API_KEY=your-key
+# Soniox
+SONIOX_API_KEY=your-key
 
-# Google OAuth
+# Google OAuth (if needed)
 GOOGLE_CLIENT_ID=your-client-id
 GOOGLE_CLIENT_SECRET=your-client-secret
-
-# Agent Config
-ARABIC_DIALECT=mixed
-AGENT_LOG_LEVEL=INFO
 ```
 
-### Mobile App `.env`
+### Web App `.env` File
 
 ```bash
-cd mobile-app
+cd web-app
 cp .env.example .env
 ```
 
-Edit `mobile-app/.env`:
+Edit `web-app/.env`:
 ```env
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-LIVEKIT_URL=wss://your-project.livekit.cloud
+VITE_API_URL=http://localhost:8000
 ```
 
 ---
 
-## Step 7: Install Dependencies
+## Step 6: Install Dependencies
 
-### Python Agent
+### Web API
 
 ```bash
-cd livekit-agent
+cd web-api
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### Web App
+
+```bash
+cd web-app
+npm install
+```
+
 ### Flutter App
 
 ```bash
-cd mobile-app
+cd flutter-app
 flutter pub get
 ```
 
 ---
 
-## Step 8: Run Locally
+## Step 7: Run Locally
 
-### Start the Agent
+### Start the Web API
 
 ```bash
-cd livekit-agent
+cd web-api
 source venv/bin/activate
-python src/main.py start
+# Follow web-api README for startup command
+```
+
+### Start the Web App
+
+```bash
+cd web-app
+npm run dev
 ```
 
 ### Run the Mobile App
 
 ```bash
-cd mobile-app
+cd flutter-app
 flutter run
 ```
 
@@ -263,14 +235,14 @@ Select your device/emulator when prompted.
 
 ---
 
-## Step 9: Test the Setup
+## Step 8: Test the Setup
 
-1. Launch the app
+1. Launch the web app or mobile app
 2. Sign in with Google
 3. Start a text conversation
 4. Send a message
-5. Switch to voice mode
-6. Test voice call
+5. Switch to voice mode (if available)
+6. Test voice interaction
 
 ---
 
@@ -279,22 +251,22 @@ Select your device/emulator when prompted.
 ### Supabase Connection Failed
 - Verify URL and keys in `.env`
 - Check network connection
-- Ensure migrations are pushed
+- Ensure migrations are applied
 
 ### Google Sign-In Not Working
 - Verify OAuth credentials
 - Check SHA-1 fingerprint (Android)
 - Confirm redirect URLs in Supabase
 
-### Voice Call Not Connecting
-- Check LiveKit URL and keys
+### Voice Not Working
 - Verify microphone permissions
-- Ensure agent is running
+- Ensure Web API is running
+- Check API keys (Soniox, ElevenLabs)
 
-### Agent Crashes
+### Web API Errors
 - Check Python version (3.11+)
-- Verify all API keys are set
-- Check logs: `AGENT_LOG_LEVEL=DEBUG`
+- Verify all API keys are set in `.env`
+- Check logs for error details
 
 ---
 
@@ -302,12 +274,12 @@ Select your device/emulator when prompted.
 
 - Read [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment
 - Read [ARCHITECTURE.md](ARCHITECTURE.md) for system overview
-- Customize system prompt in `livekit-agent/src/config.py`
+- Explore the web-api directory for customization options
 
 ## Support
 
 For issues, check:
 - GitHub Issues
 - Supabase docs: https://supabase.com/docs
-- LiveKit docs: https://docs.livekit.io
+- FastAPI docs: https://fastapi.tiangolo.com
 - Flutter docs: https://docs.flutter.dev

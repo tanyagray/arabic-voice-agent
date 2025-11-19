@@ -4,11 +4,9 @@ A multilingual voice and text chat application for Arabic language learning, sup
 
 ## 🏗️ Architecture
 
-- **Web App**: React + Vite marketing website with embedded voice demo
+- **Web App**: React + Vite marketing website with voice demo
 - **Mobile Apps**: Flutter (iOS + Android)
-- **Voice Infrastructure**: LiveKit Cloud
-- **Agent Backend**: Python (deployed on Render)
-- **Web API**: FastAPI (LiveKit token generation)
+- **Web API**: FastAPI (voice and chat interactions)
 - **LLM**: OpenAI GPT-4o
 - **Text-to-Speech**: ElevenLabs (Multilingual v2)
 - **Speech-to-Text**: Soniox (Arabic/English language identification)
@@ -20,9 +18,7 @@ A multilingual voice and text chat application for Arabic language learning, sup
 arabic-voice-agent/
 ├── web-app/             # Marketing website (React + Vite)
 ├── flutter-app/         # Flutter app (iOS + Android)
-├── livekit-agent/       # LiveKit Python agent
-├── web-api/             # FastAPI token server
-├── supabase/            # Database migrations & config
+├── web-api/             # FastAPI backend for voice and chat
 ├── docs/                # Documentation
 └── .github/             # CI/CD workflows
 ```
@@ -35,40 +31,28 @@ See [docs/SETUP.md](docs/SETUP.md) for detailed setup instructions.
 
 - Python 3.11+
 - Flutter 3.24+
-- Node.js 18+ (for Supabase CLI)
+- Node.js 18+
 - Supabase account
-- LiveKit Cloud account
-- API keys: OpenAI, ElevenLabs, Deepgram
+- API keys: OpenAI, ElevenLabs, Soniox
 
 ### Environment Setup
 
-1. Copy `.env.example` to `.env` and fill in your API keys
-2. Install Supabase CLI: `npm install -g supabase`
-3. Link to your Supabase project: `supabase link`
-4. Run migrations: `supabase db push`
+1. Copy `.env.example` to `.env` in the `web-api` directory and fill in your API keys
+2. Follow the setup instructions in [docs/SETUP.md](docs/SETUP.md)
 
 ### Running Locally
+
+**Web API:**
+```bash
+cd web-api
+# Follow web-api README for setup
+```
 
 **Web App:**
 ```bash
 cd web-app
 npm install
 npm run dev
-```
-
-**Web API (required for web app):**
-```bash
-cd web-api
-# Follow web-api README for setup
-```
-
-**Agent:**
-```bash
-cd livekit-agent
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-pip install -r requirements.txt
-python src/main.py
 ```
 
 **Mobile App:**
@@ -84,8 +68,6 @@ flutter run
 - Iraqi Arabic
 - Egyptian Arabic
 - Mixed English/Arabic
-
-Configure via `ARABIC_DIALECT` environment variable.
 
 ## 📚 Documentation
 

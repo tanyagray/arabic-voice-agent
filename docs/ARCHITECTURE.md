@@ -14,36 +14,22 @@ System architecture for the Arabic Voice Agent application.
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
 └───────┬──────────────────────────┬──────────────────────────┘
         │                          │
-        │ Google OAuth             │ WebRTC/WebSocket
+        │ Google OAuth             │ WebSocket
         │ REST API                 │
         │                          │
 ┌───────▼──────────────┐    ┌──────▼───────────────┐
 │                      │    │                      │
-│   Supabase           │    │   LiveKit Cloud      │
-│   ┌──────────────┐   │    │   ┌──────────────┐   │
-│   │ Auth         │   │    │   │  WebRTC      │   │
-│   │ (Google)     │   │    │   │  Rooms       │   │
-│   └──────────────┘   │    │   └──────────────┘   │
-│   ┌──────────────┐   │    └──────┬───────────────┘
-│   │ PostgreSQL   │   │           │
-│   │ Database     │   │           │ Agent Connection
-│   └──────────────┘   │           │
-│                      │    ┌──────▼───────────────┐
-└──────┬───────────────┘    │                      │
-       │                    │   Python Agent       │
-       │ Query/Insert       │   (Render Worker)    │
-       │                    │                      │
-┌──────▼───────────────┐    │   ┌──────────────┐   │
-│                      │    │   │  LiveKit SDK │   │
-│  Agent Backend       │◄───┤   └──────────────┘   │
-│  (Database Access)   │    │   ┌──────────────┐   │
-│                      │    │   │  Deepgram    │   │
-│                      │    │   │  STT         │   │
-│                      │    │   └──────────────┘   │
-└──────────────────────┘    │   ┌──────────────┐   │
-                            │   │  OpenAI      │   │
-                            │   │  GPT-4o      │   │
-                            │   └──────────────┘   │
+│   Supabase           │    │   Web API            │
+│   ┌──────────────┐   │    │   (FastAPI)          │
+│   │ Auth         │   │    │                      │
+│   │ (Google)     │   │    │   ┌──────────────┐   │
+│   └──────────────┘   │    │   │  Soniox      │   │
+│   ┌──────────────┐   │    │   │  STT         │   │
+│   │ PostgreSQL   │   │    │   └──────────────┘   │
+│   │ Database     │   │    │   ┌──────────────┐   │
+│   └──────────────┘   │    │   │  OpenAI      │   │
+│                      │    │   │  GPT-4o      │   │
+└──────────────────────┘    │   └──────────────┘   │
                             │   ┌──────────────┐   │
                             │   │  ElevenLabs  │   │
                             │   │  TTS         │   │
@@ -86,7 +72,6 @@ System architecture for the Arabic Voice Agent application.
 **Services Used**:
 - ✅ Authentication (Google OAuth)
 - ✅ PostgreSQL Database
-- ❌ Edge Functions (Disabled as requested)
 
 **Database Schema**:
 
@@ -138,85 +123,50 @@ user_analytics (
 **Security**:
 - Row Level Security (RLS) enabled on all tables
 - Users can only access their own data
-- Service role key used by agent for system operations
 
 ---
 
-### 3. LiveKit Cloud (Voice Infrastructure)
+### 3. Web API (FastAPI Backend)
 
-**Purpose**: Managed WebRTC infrastructure for voice calls
+**Technology**: FastAPI, Python 3.11+
 
-**Architecture**:
-- Rooms created per conversation
-- Mobile app connects as participant
-- Agent joins as second participant
-- Audio streams bidirectionally
-
-**Room Lifecycle**:
-1. User initiates voice call
-2. Mobile app creates room via backend
-3. User joins room
-4. Agent auto-joins room (via webhook or polling)
-5. Conversation happens
-6. User leaves → room closed
-7. Agent saves transcript to database
-
-**Cost Model**: Pay-per-use based on:
-- Number of concurrent participants
-- Call duration
-- Bandwidth usage
-
----
-
-### 4. Python Agent (Render Background Worker)
-
-**Technology**: Python 3.11, LiveKit Agents SDK
-
-**Deployment**: Render (Background Worker)
+**Features**:
+- WebSocket-based voice interactions
+- Text chat with LLM
+- Audio streaming with Soniox STT
+- Text-to-speech with ElevenLabs
 
 **Architecture**:
 
 ```python
-Agent Entry Point (main.py)
+Web API Entry Point
     │
-    ├─► LiveKit Connection (app.py)
-    │     │
-    │     ├─► Speech-to-Text (Deepgram)
-    │     ├─► LLM Processing (OpenAI)
-    │     └─► Text-to-Speech (ElevenLabs)
+    ├─► Chat Service (chat_service.py)
+    │     └─► OpenAI GPT-4o
     │
-    ├─► Configuration (config.py)
-    │     │
-    │     ├─► System Prompts (editable)
-    │     ├─► Dialect Settings (MSA/Iraqi/Egyptian/Mixed)
-    │     └─► Voice Settings
+    ├─► STT Service (stt_service.py)
+    │     └─► Soniox (Arabic/English)
     │
-    ├─► Database (database.py)
-    │     └─► Supabase Client (service role)
-    │
-    └─► Function Calling (functions/)
-          └─► User Tools (user_tools.py)
+    └─► TTS Service (tts_service.py)
+          └─► ElevenLabs
 ```
 
 **Voice Pipeline**:
-1. User speaks → Deepgram transcribes (Arabic/English)
+1. User speaks → Soniox transcribes (Arabic/English)
 2. Transcript → OpenAI GPT-4o (generates response)
 3. Response → ElevenLabs synthesizes (Arabic/English)
 4. Audio streams back to user
 5. Transcript saved to Supabase
 
 **Dialect Support**:
-- Environment variable: `ARABIC_DIALECT`
-- Options: `msa`, `iraqi`, `egyptian`, `mixed`
-- Configures both system prompt and voice model
-
-**Context Management**:
-- Fresh context per session (no history loaded)
-- Can be changed in `config.py`
+- Supports Modern Standard Arabic (MSA)
+- Iraqi Arabic
+- Egyptian Arabic
+- Mixed English/Arabic
 
 ---
 
-### 5. External APIs
+### 4. External APIs
 
 #### OpenAI GPT-4o
 - **Purpose**: Natural language understanding & generation
@@ -236,13 +186,13 @@ Agent Entry Point (main.py)
   - Low latency streaming
 - **Cost**: Per character synthesized
 
-#### Deepgram
+#### Soniox
 - **Purpose**: Speech-to-text transcription
-- **Model**: `nova-2`
 - **Features**:
   - Real-time streaming
   - Arabic language support
-  - Punctuation & formatting
+  - English language support
+  - Automatic language detection
 - **Cost**: Per minute of audio
 
 ---
@@ -253,11 +203,11 @@ Agent Entry Point (main.py)
 
 ```
 1. User types message in app
-2. Message saved to Supabase (messages table)
-3. Backend function calls OpenAI API
+2. Message sent to Web API
+3. Web API calls OpenAI GPT-4o
 4. OpenAI generates response
-5. Response saved to Supabase
-6. App receives response via real-time subscription
+5. Response sent back to app
+6. Message and response saved to Supabase
 7. Response displayed to user
 ```
 
@@ -265,19 +215,16 @@ Agent Entry Point (main.py)
 
 ```
 1. User switches to voice mode
-2. App creates conversation in Supabase
-3. App generates LiveKit room token
-4. User joins LiveKit room
-5. Agent receives webhook/notification
-6. Agent joins same room
-7. Voice pipeline starts:
-   - User speech → Deepgram → Text
+2. App creates WebSocket connection to Web API
+3. User starts speaking
+4. Voice pipeline:
+   - User speech → Soniox → Text
    - Text → OpenAI → Response text
    - Response text → ElevenLabs → Audio
-   - Audio → User
-8. Conversation transcript saved to Supabase
-9. User ends call
-10. Agent updates conversation (end time, duration)
+   - Audio → User (via WebSocket)
+5. Conversation transcript saved to Supabase
+6. User ends call
+7. Web API updates conversation (end time, duration)
 ```
 
 ---
@@ -304,15 +251,10 @@ Agent Entry Point (main.py)
 - RLS policies enforce data access
 - Session JWT validates user
 
-**Agent → Supabase**:
-- Service role key (secret)
-- Bypasses RLS (trusted backend)
-- Never exposed to clients
-
-**Mobile → LiveKit**:
-- Room token (JWT)
-- Generated per session
-- Expires after use
+**Mobile → Web API**:
+- Session JWT validates user
+- WebSocket connections authenticated
+- CORS configured for allowed origins
 
 ### Data Access Control
 
@@ -346,9 +288,8 @@ CREATE POLICY "Users can view own messages"
 │ Local Machine   │
 ├─────────────────┤
 │ Flutter App     │ → Android Emulator / iOS Simulator
-│ Python Agent    │ → Local Python env
+│ Web API         │ → Local Python env
 │ Supabase        │ → Cloud (dev project)
-│ LiveKit         │ → Cloud (dev project)
 └─────────────────┘
 ```
 
@@ -369,15 +310,9 @@ CREATE POLICY "Users can view own messages"
     ┌───────────┴────────────┐
     │                        │
 ┌───▼────────┐     ┌─────────▼────┐
-│ Supabase   │     │ LiveKit Cloud│
-│ (Prod)     │     │ (Prod)       │
-└────────────┘     └─────────┬────┘
-                             │
-                   ┌─────────▼────────┐
-                   │ Render           │
-                   │ (Background      │
-                   │  Worker)         │
-                   └──────────────────┘
+│ Supabase   │     │ Web API      │
+│ (Prod)     │     │ (Render)     │
+└────────────┘     └──────────────┘
 ```
 
 ---
@@ -389,15 +324,10 @@ CREATE POLICY "Users can view own messages"
 - **Scale**: Dedicated compute, read replicas
 - **Optimization**: Indexes on frequently queried columns
 
-### Agent
-- **Current**: Single background worker
-- **Scale**: Multiple workers (Render auto-scales)
-- **Limit**: LiveKit room assignment logic
-
-### LiveKit
-- **Current**: Shared infrastructure
-- **Scale**: Dedicated deployment, multi-region
-- **Optimization**: Codec selection, bandwidth limits
+### Web API
+- **Current**: Single instance
+- **Scale**: Multiple instances with load balancer
+- **Optimization**: Connection pooling, caching
 
 ### Mobile App
 - **Current**: Client-side rendering
@@ -424,15 +354,14 @@ CREATE POLICY "Users can view own messages"
 **Cost**:
 - OpenAI token usage
 - ElevenLabs character usage
-- Deepgram minutes used
-- LiveKit bandwidth
+- Soniox minutes used
 
 ### Logging
 
-**Agent Logs**:
+**Web API Logs**:
 - Structured logging (JSON)
 - Log levels: DEBUG, INFO, WARNING, ERROR
-- Streamed to Render dashboard
+- Available via hosting platform dashboard
 
 **Database Logs**:
 - Query performance

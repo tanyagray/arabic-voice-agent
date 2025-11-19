@@ -21,7 +21,6 @@ class TTSService:
         self.model = "eleven_multilingual_v2"
 
         # Voice configurations for different languages
-        # Using the same voice ID from livekit-agent for consistency
         self.voice_configs = {
             "ar-AR": {
                 "voice_id": "cgSgspJ2msm6clMCkdW9",  # Arabic female voice
@@ -41,8 +40,7 @@ class TTSService:
             },
         }
 
-        # Voice settings matching livekit-agent configuration
-        # From: livekit-agent/src/tts/arabic_female.py
+        # Voice settings for ElevenLabs
         self.voice_settings = {
             "stability": 0.5,
             "similarity_boost": 0.75,
@@ -73,7 +71,7 @@ class TTSService:
             "xi-api-key": self.api_key,
         }
 
-        # Apply speed setting (0.8 from livekit-agent config)
+        # Apply speed setting
         voice_settings_with_speed = {
             **self.voice_settings,
             "speed": 0.8,

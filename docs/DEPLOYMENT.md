@@ -5,8 +5,8 @@ Guide for deploying Arabic Voice Agent to production.
 ## Overview
 
 - **Database & Auth**: Supabase (managed)
-- **Voice Infrastructure**: LiveKit Cloud (managed)
-- **Agent Backend**: Render (background worker)
+- **Web API Backend**: Render or similar hosting
+- **Web App**: Static hosting (Vercel, Netlify, etc.)
 - **Mobile Apps**: App Store & Google Play
 
 ---
@@ -59,85 +59,29 @@ supabase db lint
 
 ---
 
-## Part 2: LiveKit Cloud Production
+## Part 2: Deploy Web API to Render
 
-### 1. Upgrade Plan
+### Option A: Manual Setup (Recommended)
 
-1. Choose appropriate plan based on usage
-2. Consider:
-   - Expected concurrent users
-   - Average call duration
-   - Bandwidth requirements
-
-### 2. Configure Production Settings
-
-1. Settings → General
-   - Enable recording (optional)
-   - Set session limits
-   - Configure disconnect timeout
-
-### 3. Set Up Webhooks
-
-1. Settings → Webhooks
-2. Add production webhook URL: `https://your-agent.onrender.com/webhook`
-3. Enable events:
-   - `room_started`
-   - `room_finished`
-   - `participant_joined`
-   - `participant_left`
-
----
-
-## Part 3: Deploy Agent to Render
-
-### Option A: Using render.yaml (Recommended)
-
-1. **Push to GitHub**:
-   ```bash
-   git add .
-   git commit -m "Initial commit"
-   git push origin main
-   ```
-
-2. **Create Render Service**:
+1. **Create Web Service**:
    - Go to https://dashboard.render.com
-   - Click "New +" → "Blueprint"
+   - Click "New +" → "Web Service"
    - Connect GitHub repository
-   - Select `render.yaml`
-   - Click "Apply"
-
-3. **Configure Environment Variables**:
-   - Go to service → Environment
-   - Add all secrets from `.env`:
-     - `SUPABASE_URL`
-     - `SUPABASE_SERVICE_ROLE_KEY`
-     - `LIVEKIT_API_KEY`
-     - `LIVEKIT_API_SECRET`
-     - `LIVEKIT_URL`
-     - `OPENAI_API_KEY`
-     - `ELEVENLABS_API_KEY`
-     - `ELEVENLABS_VOICE_ID`
-     - `DEEPGRAM_API_KEY`
-     - `ARABIC_DIALECT`
-
-4. **Deploy**:
-   - Service will auto-deploy on push to `main`
-   - Or manually trigger: Dashboard → Manual Deploy
-
-### Option B: Manual Setup
-
-1. **Create Background Worker**:
-   - New + → Background Worker
-   - Connect GitHub repo
-   - Build Command: `pip install -r livekit-agent/requirements.txt`
-   - Start Command: `cd livekit-agent && python src/main.py start`
+   - Build Command: `pip install -r web-api/requirements.txt`
+   - Start Command: `cd web-api && uvicorn main:app --host 0.0.0.0 --port $PORT`
 
 2. **Configure Environment**:
    - Python Version: 3.11
-   - Add all environment variables
+   - Add all environment variables from `web-api/.env`:
+     - `SUPABASE_URL`
+     - `SUPABASE_ANON_KEY`
+     - `OPENAI_API_KEY`
+     - `ELEVEN_API_KEY`
+     - `SONIOX_API_KEY`
 
 3. **Deploy**:
-   - Click "Create Background Worker"
+   - Click "Create Web Service"
+   - Service will auto-deploy on push to `main`
 
 ### Verify Deployment
 
@@ -148,6 +92,43 @@ Check logs:
 render logs -s your-service-name
 ```
 
+Test the API:
+```bash
+curl https://your-service.onrender.com/health
+```
+
+---
+
+## Part 3: Deploy Web App
+
+### Using Vercel (Recommended)
+
+1. **Install Vercel CLI**:
+   ```bash
+   npm install -g vercel
+   ```
+
+2. **Deploy**:
+   ```bash
+   cd web-app
+   vercel --prod
+   ```
+
+3. **Configure Environment**:
+   - Add `VITE_API_URL` environment variable pointing to your Render Web API
+
+### Using Netlify
+
+1. **Build the app**:
+   ```bash
+   cd web-app
+   npm run build
+   ```
+
+2. **Deploy**:
+   - Drag and drop the `dist/` folder to Netlify
+   - Or use Netlify CLI
+
 ---
 
 ## Part 4: Mobile App Deployment
@@ -157,7 +138,7 @@ render logs -s your-service-name
 #### 1. Prepare for Release
 
 ```bash
-cd mobile-app
+cd flutter-app
 
 # Update version in pubspec.yaml
 version: 1.0.0+1
@@ -198,7 +179,7 @@ flutter build ios --release
 #### 1. Prepare for Release
 
 ```bash
-cd mobile-app
+cd flutter-app
 
 # Generate signing key
 keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
@@ -264,23 +245,11 @@ android {
 
 ### GitHub Secrets
 
-Add to repository secrets:
-
-```
-RENDER_API_KEY=your-render-api-key
-RENDER_SERVICE_ID=your-service-id
-```
+Add to repository secrets as needed for your deployment workflows.
 
 ### Auto-Deploy on Push
 
-Workflows are already configured in `.github/workflows/`:
-- `deploy-agent.yml` - Auto-deploys agent to Render
-- `test-mobile.yml` - Runs Flutter tests
-
-Enable:
-1. Go to GitHub repo → Settings → Secrets
-2. Add required secrets
-3. Push to `main` branch triggers deployment
+Configure GitHub Actions workflows in `.github/workflows/` for automatic deployments.
 
 ---
 
@@ -302,18 +271,11 @@ Enable:
   - API requests
   - Auth users
 
-**LiveKit:**
-- Dashboard → Analytics
-- Track:
-  - Concurrent connections
-  - Call duration
-  - Bandwidth usage
-
 ### Logs
 
-**Agent Logs:**
+**Web API Logs:**
 ```bash
-render logs -s arabic-voice-agent --tail
+render logs -s your-web-api-service --tail
 ```
 
 **Supabase Logs:**
@@ -346,16 +308,18 @@ render logs -s arabic-voice-agent --tail
 - Add indexes as needed
 - Consider read replicas for high traffic
 
-### Agent
+### Web API
 
-- Render auto-scales workers
-- Monitor concurrency limits
+- Render auto-scales instances
+- Monitor response times
 - Upgrade plan if needed
+- Consider caching layer (Redis)
 
-### LiveKit
+### Web App
 
-- Upgrade plan for more concurrent users
-- Consider regional deployment
+- Use CDN for static assets
+- Optimize bundle size
+- Enable compression
 
 ### Mobile Apps
 
@@ -382,9 +346,10 @@ render logs -s arabic-voice-agent --tail
 
 If deployment fails:
 
-1. **Render**: Use "Rollback" button in dashboard
-2. **Supabase**: Restore from backup
-3. **Mobile Apps**: Update app with hotfix, submit urgent review
+1. **Render (Web API)**: Use "Rollback" button in dashboard
+2. **Vercel/Netlify (Web App)**: Rollback to previous deployment
+3. **Supabase**: Restore from backup
+4. **Mobile Apps**: Update app with hotfix, submit urgent review
 
 ---
 
@@ -393,13 +358,13 @@ If deployment fails:
 **Typical costs for 1000 monthly active users:**
 
 - Supabase Pro: ~$25/month
-- LiveKit Cloud: ~$50-200/month (usage-based)
-- Render: ~$25/month (Starter plan)
+- Render (Web API): ~$25/month (Starter plan)
+- Vercel/Netlify (Web App): ~$0-20/month
 - OpenAI GPT-4o: ~$100-300/month (usage-based)
 - ElevenLabs: ~$50-100/month (usage-based)
-- Deepgram: ~$30-80/month (usage-based)
+- Soniox: ~$30-80/month (usage-based)
 
-**Total: ~$280-780/month**
+**Total: ~$230-550/month**
 
 Adjust based on actual usage patterns.
 
@@ -407,17 +372,25 @@ Adjust based on actual usage patterns.
 
 ## Support & Updates
 
-### Updating the Agent
+### Updating the Web API
 
-1. Make changes to `livekit-agent/`
+1. Make changes to `web-api/`
 2. Test locally
 3. Commit and push to `main`
 4. Render auto-deploys
 5. Monitor logs for errors
 
+### Updating the Web App
+
+1. Make changes to `web-app/`
+2. Test locally with `npm run dev`
+3. Build with `npm run build`
+4. Deploy to Vercel/Netlify
+5. Verify production deployment
+
 ### Updating Mobile Apps
 
-1. Make changes to `mobile-app/`
+1. Make changes to `flutter-app/`
 2. Increment version in `pubspec.yaml`
 3. Build and test
 4. Submit to App Store/Google Play

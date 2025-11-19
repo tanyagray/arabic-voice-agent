@@ -9,10 +9,6 @@
       "path": "web-api"
     },
     {
-      "name": "livekit-agent",
-      "path": "livekit-agent"
-    },
-    {
       "name": "web-app",
       "path": "web-app"
     },
