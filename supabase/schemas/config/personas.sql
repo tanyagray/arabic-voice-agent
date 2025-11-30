@@ -6,7 +6,7 @@ create table config.personas (
 );
 
 -- Table-level permissions
-grant select on config.personas to authenticated;
+grant select on config.personas to anon, authenticated;
 grant all on config.personas to service_role;
 
 -- Enable Row Level Security
