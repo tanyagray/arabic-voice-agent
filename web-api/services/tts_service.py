@@ -27,7 +27,7 @@ class TTSService:
                 "language_code": "ar",
             },
             "es-MX": {
-                "voice_id": "cgSgspJ2msm6clMCkdW9",  # Spanish female voice
+                "voice_id": "m7yTemJqdIqrcNleANfX",  # Spanish female voice
                 "language_code": "es",
             },
             "ru-RU": {
@@ -35,7 +35,7 @@ class TTSService:
                 "language_code": "ru",
             },
             "mi-NZ": {
-                "voice_id": "cgSgspJ2msm6clMCkdW9",  # Maori female voice
+                "voice_id": "BHhU6fTKdSX6bN7T1tpz",  # Maori male voice
                 "language_code": "mi",
             },
         }
