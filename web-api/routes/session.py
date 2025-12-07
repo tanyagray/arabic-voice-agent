@@ -1,9 +1,10 @@
 """Session management routes and models."""
 
-from fastapi import APIRouter, HTTPException, WebSocket, UploadFile, File
+from fastapi import APIRouter, HTTPException, WebSocket, UploadFile, File, Depends
 from pydantic import BaseModel, Field
 
 from services import session_service, agent_service, context_service, websocket_service, soniox_service
+from dependencies.auth import get_current_user_token, get_websocket_token
 
 
 # Models
@@ -47,26 +48,32 @@ router = APIRouter(prefix="/session", tags=["Session"])
 
 
 @router.post("", response_model=SessionResponse)
-async def create_session():
+async def create_session(access_token: str = Depends(get_current_user_token)):
     """
     Generate a new session ID.
 
     This endpoint creates a unique session identifier (GUID) that can be used
-    to track user sessions or conversations.
+    to track user sessions or conversations. Requires authentication.
+
+    Args:
+        access_token: JWT access token from Authorization header (automatically extracted)
 
     Returns:
         SessionResponse with the generated session ID
+
+    Raises:
+        HTTPException: 401 if authentication fails
     """
-    session_id = session_service.create_session()
+    session_id = session_service.create_session(access_token)
 
     return SessionResponse(session_id=session_id)
 
 
 @router.websocket("/{session_id}")
-async def open_session_websocket(websocket: WebSocket, session_id: str):
+async def open_session_websocket(websocket: WebSocket, session_id: str, access_token: str = Depends(get_websocket_token)):
 
     # Retrieve the session
-    session = session_service.get_session(session_id)
+    session = session_service.get_session(session_id, user_access_token=access_token)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
@@ -77,54 +84,56 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
     websocket_service.register_websocket(session_id, websocket)
 
     try:
-        await agent_service.start_realtime_agent(websocket, session_id)
+        await agent_service.start_realtime_agent(websocket, session_id, access_token)
     finally:
         # Unregister the WebSocket connection when it closes
         websocket_service.unregister_websocket(session_id)
 
 
 @router.post("/{session_id}/chat", response_model=TextResponse)
-async def send_chat_message(session_id: str, request: TextRequest):
+async def send_chat_message(session_id: str, request: TextRequest, access_token: str = Depends(get_current_user_token)):
     """
     Send a text message to the chat for a specific session.
 
     Args:
         session_id: The session ID to send the message to
         request: TextRequest containing the message
+        access_token: JWT access token from Authorization header (automatically extracted)
 
     Returns:
         TextResponse with the agent's response
 
     Raises:
-        HTTPException: 404 if session not found
+        HTTPException: 404 if session not found, 401 if authentication fails
     """
     # Verify the session exists
-    session = session_service.get_session(session_id)
+    session = session_service.get_session(session_id, user_access_token=access_token)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
     # Generate the agent response
-    response = await agent_service.generate_agent_response(session_id, request.message)
+    response = await agent_service.generate_agent_response(session_id, request.message, access_token)
 
     return TextResponse(text=response)
 
 
 @router.post("/{session_id}/event")
-async def send_test_event(session_id: str):
+async def send_test_event(session_id: str, access_token: str = Depends(get_current_user_token)):
     """
     Send a test event message to the WebSocket for a specific session.
 
     Args:
         session_id: The session ID to send the event to
+        access_token: JWT access token from Authorization header (automatically extracted)
 
     Returns:
         dict: Success message
 
     Raises:
-        HTTPException: 404 if session or WebSocket connection not found
+        HTTPException: 404 if session or WebSocket connection not found, 401 if authentication fails
     """
     # Retrieve the session
-    session = session_service.get_session(session_id)
+    session = session_service.get_session(session_id, user_access_token=access_token)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
@@ -143,22 +152,23 @@ async def send_test_event(session_id: str):
 
 
 @router.patch("/{session_id}/context", response_model=ContextResponse)
-async def update_context(session_id: str, request: UpdateContextRequest):
+async def update_context(session_id: str, request: UpdateContextRequest, access_token: str = Depends(get_current_user_token)):
     """
     Update session context settings (audio, language, etc.).
 
     Args:
         session_id: The session ID to update
         request: UpdateContextRequest with fields to update
+        access_token: JWT access token from Authorization header (automatically extracted)
 
     Returns:
         ContextResponse with updated context state
 
     Raises:
-        HTTPException: 404 if session or context not found
+        HTTPException: 404 if session or context not found, 401 if authentication fails
     """
     # Verify the session exists
-    session = session_service.get_session(session_id)
+    session = session_service.get_session(session_id, user_access_token=access_token)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
@@ -185,21 +195,22 @@ async def update_context(session_id: str, request: UpdateContextRequest):
 
 
 @router.get("/{session_id}/context", response_model=ContextResponse)
-async def get_context(session_id: str):
+async def get_context(session_id: str, access_token: str = Depends(get_current_user_token)):
     """
     Get current session context settings.
 
     Args:
         session_id: The session ID to get context for
+        access_token: JWT access token from Authorization header (automatically extracted)
 
     Returns:
         ContextResponse with current context state
 
     Raises:
-        HTTPException: 404 if session or context not found
+        HTTPException: 404 if session or context not found, 401 if authentication fails
     """
     # Verify the session exists
-    session = session_service.get_session(session_id)
+    session = session_service.get_session(session_id, user_access_token=access_token)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
@@ -218,7 +229,7 @@ async def get_context(session_id: str):
 
 
 @router.post("/{session_id}/audio", response_model=AudioUploadResponse)
-async def upload_audio(session_id: str, file: UploadFile = File(...)):
+async def upload_audio(session_id: str, file: UploadFile = File(...), access_token: str = Depends(get_current_user_token)):
     """
     Upload audio file for speech-to-text transcription.
 
@@ -233,15 +244,16 @@ async def upload_audio(session_id: str, file: UploadFile = File(...)):
     Args:
         session_id: The session ID to associate with this transcription
         file: Audio file in supported format (webm, mp3, wav, etc.)
+        access_token: JWT access token from Authorization header (automatically extracted)
 
     Returns:
         AudioUploadResponse with transcription ID and status
 
     Raises:
-        HTTPException: 404 if session not found, 500 if upload/transcription fails
+        HTTPException: 404 if session not found, 401 if authentication fails, 500 if upload/transcription fails
     """
     # Verify the session exists
-    session = session_service.get_session(session_id)
+    session = session_service.get_session(session_id, user_access_token=access_token)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 

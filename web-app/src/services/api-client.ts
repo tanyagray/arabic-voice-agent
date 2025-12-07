@@ -6,6 +6,7 @@
  */
 
 import axios from 'axios';
+import { supabase } from '../lib/supabase';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -15,6 +16,7 @@ const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
  * Features:
  * - Automatic base URL from environment
  * - JSON content type by default
+ * - Automatic JWT token injection from Supabase session
  * - Response/request interceptors for error handling
  */
 export const apiClient = axios.create({
@@ -24,6 +26,24 @@ export const apiClient = axios.create({
   },
   timeout: 30000, // 30 seconds
 });
+
+// Request interceptor to add JWT token to all requests
+apiClient.interceptors.request.use(
+  async (config) => {
+    // Get the current session from Supabase
+    const { data: { session } } = await supabase.auth.getSession();
+
+    // If a session exists, add the access token to the Authorization header
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // Response interceptor for handling errors globally
 apiClient.interceptors.response.use(

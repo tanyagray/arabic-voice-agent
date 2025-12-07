@@ -1,26 +1,31 @@
 """Session service for managing session business logic."""
-
 import uuid
 from typing import Dict, Optional
-from agents import SQLiteSession
+from services.agent_session import AgentSession
+from services.supabase_client import get_supabase_user_client, get_supabase_admin_client
 from services.context_service import create_context, delete_context
 
 # In-memory session storage indexed by session_id
-_sessions: Dict[str, SQLiteSession] = {}
+_sessions: Dict[str, AgentSession] = {}
 
 
-def create_session() -> str:
+def create_session(user_access_token: str) -> str:
     """
-    Create a new session and store it.
+    Create a new agent session and store it.
     Also creates an associated context for the session.
 
+    Args:
+        user_access_token: The UserSession access token to authenticate the user.
+
     Returns:
-        str: The generated session ID (UUID)
+        str: The generated Agent Session ID (UUID)
     """
     session_id = str(uuid.uuid4())
 
-    # In-memory database (lost when process ends)
-    session = SQLiteSession(session_id)
+    # Create Supabase-backed agent session (persisted in database)
+    # This uses the UserSession (via token) to authenticate
+    supabase_client = get_supabase_user_client(user_access_token)
+    session = AgentSession(session_id, supabase_client, user_access_token)
 
     # Store session indexed by session_id
     _sessions[session_id] = session
@@ -35,43 +40,77 @@ def create_session() -> str:
     return session_id
 
 
-def get_session(session_id: str) -> Optional[SQLiteSession]:
+def get_session(session_id: str, user_access_token: Optional[str] = None) -> Optional[AgentSession]:
     """
-    Retrieve a session by its ID.
+    Retrieve an agent session by its ID.
 
     Args:
         session_id: The session ID to retrieve
+        user_access_token: Optional user's access token for Supabase authentication (UserSession).
+                          If not provided, uses admin client for service-to-service calls.
 
     Returns:
-        SQLiteSession: The session object if found, None otherwise
+        AgentSession: The session object if found, None otherwise
     """
-    return _sessions.get(session_id)
+    # If session is in memory, return it
+    if session_id in _sessions:
+        return _sessions[session_id]
+
+    # Otherwise, try to load from Supabase
+    try:
+        if user_access_token:
+            supabase_client = get_supabase_user_client(user_access_token)
+        else:
+            # Use admin client for service-to-service calls (webhooks, etc.)
+            supabase_client = get_supabase_admin_client()
+
+        session = AgentSession(session_id, supabase_client)
+        _sessions[session_id] = session
+        return session
+    except Exception:
+        # Session doesn't exist in database
+        return None
 
 
-def delete_session(session_id: str) -> bool:
+def delete_session(session_id: str, user_access_token: Optional[str] = None) -> bool:
     """
-    Delete a session by its ID.
-    Also deletes the associated context.
+    Delete an agent session by its ID.
+    Also deletes the associated context and removes from Supabase.
 
     Args:
         session_id: The session ID to delete
+        user_access_token: Optional user's access token for Supabase authentication.
+                          If not provided, uses admin client for service-to-service calls.
 
     Returns:
         bool: True if session was deleted, False if not found
     """
+    # Remove from in-memory cache
     if session_id in _sessions:
         del _sessions[session_id]
-        # Also delete the associated context
-        delete_context(session_id)
-        return True
-    return False
+
+    # Delete from Supabase
+    try:
+        if user_access_token:
+            supabase_client = get_supabase_user_client(user_access_token)
+        else:
+            # Use admin client for service-to-service calls
+            supabase_client = get_supabase_admin_client()
+
+        supabase_client.table("agent_sessions").delete().eq("session_id", session_id).execute()
+    except Exception:
+        pass  # Session may not exist in database
+
+    # Delete the associated context
+    delete_context(session_id)
+    return True
 
 
-def get_all_sessions() -> Dict[str, SQLiteSession]:
+def get_all_sessions() -> Dict[str, AgentSession]:
     """
     Retrieve all sessions.
 
     Returns:
-        Dict[str, SQLiteSession]: Dictionary of all session objects indexed by session_id
+        Dict[str, AgentSession]: Dictionary of all session objects indexed by session_id
     """
     return _sessions.copy() 

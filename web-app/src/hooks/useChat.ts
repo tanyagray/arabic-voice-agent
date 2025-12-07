@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiClient } from '../services/api-client';
 import type {
   Message,
   ConnectionState,
@@ -73,13 +74,24 @@ export function useChat(sessionId: string | null): UseChatReturn {
     }
   }, []);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!sessionId) return;
+
+    // Get the access token from Supabase
+    const { supabase } = await import('../lib/supabase');
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      console.error('No access token available');
+      setConnectionState('error');
+      setError('Authentication required');
+      return;
+    }
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     // Convert http(s) to ws(s)
     const wsUrl = apiUrl.replace(/^http/, 'ws');
-    const url = `${wsUrl}/session/${sessionId}`;
+    const url = `${wsUrl}/session/${sessionId}?token=${encodeURIComponent(session.access_token)}`;
 
     setConnectionState('connecting');
     setError(null);
@@ -182,24 +194,18 @@ export function useChat(sessionId: string | null): UseChatReturn {
     }
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
       // Create form data with audio file
       const formData = new FormData();
       formData.append('file', audioBlob, 'recording.webm');
 
-      // Upload to server
-      const response = await fetch(`${apiUrl}/session/${sessionId}/audio`, {
-        method: 'POST',
-        body: formData,
+      // Upload to server using apiClient (will automatically include JWT token)
+      const response = await apiClient.post(`/session/${sessionId}/audio`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log('Audio uploaded successfully:', result);
+      console.log('Audio uploaded successfully:', response.data);
 
       // The transcription will be sent back via WebSocket when complete
     } catch (err) {

@@ -11,13 +11,14 @@ from .websocket_service import Message, send_message, send_audio_message
 from .tts_service import get_tts_service
 
 
-async def generate_agent_response(session_id: str, user_message: str) -> str:
+async def generate_agent_response(session_id: str, user_message: str, user_access_token: str | None = None) -> str:
     """
     Generate an agent response for the given session ID and user message.
 
     Args:
         session_id: The session identifier to look up the session and context
         user_message: The user's input message to process
+        user_access_token: Optional user's access token for Supabase authentication
 
     Returns:
         str: The agent's response
@@ -26,7 +27,7 @@ async def generate_agent_response(session_id: str, user_message: str) -> str:
         ValueError: If session is not found
     """
     # Look up the session
-    session = get_session(session_id)
+    session = get_session(session_id, user_access_token)
     if not session:
         raise ValueError(f"Session not found: {session_id}")
 
@@ -39,7 +40,7 @@ async def generate_agent_response(session_id: str, user_message: str) -> str:
     return result.final_output
 
 
-async def generate_agent_followup(session_id: str) -> str:
+async def generate_agent_followup(session_id: str, user_access_token: str | None = None) -> str:
     """
     Generate a followup agent response using existing session history.
 
@@ -49,6 +50,7 @@ async def generate_agent_followup(session_id: str) -> str:
 
     Args:
         session_id: The session identifier to look up the session and context
+        user_access_token: Optional user's access token for Supabase authentication
 
     Returns:
         str: The agent's followup response
@@ -57,7 +59,7 @@ async def generate_agent_followup(session_id: str) -> str:
         ValueError: If session is not found
     """
     # Look up the session
-    session = get_session(session_id)
+    session = get_session(session_id, user_access_token)
     if not session:
         raise ValueError(f"Session not found: {session_id}")
 
@@ -91,7 +93,7 @@ async def generate_agent_followup(session_id: str) -> str:
     return result.final_output
 
 
-async def trigger_agent_turn(session_id: str, user_message: str | None = None) -> None:
+async def trigger_agent_turn(session_id: str, user_message: str | None = None, user_access_token: str | None = None) -> None:
     """
     Process a complete agent turn: run the agent and send response and context updates.
 
@@ -99,12 +101,13 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None) -
         session_id: The session identifier for WebSocket communication
         user_message: Optional user input message. If provided, generates a response to the message.
                      If None, generates a followup based on existing conversation history.
+        user_access_token: Optional user's access token for Supabase authentication
     """
     # Run the agent with or without a new user message
     if user_message is not None:
-        text_response = await generate_agent_response(session_id, user_message)
+        text_response = await generate_agent_response(session_id, user_message, user_access_token)
     else:
-        text_response = await generate_agent_followup(session_id)
+        text_response = await generate_agent_followup(session_id, user_access_token)
 
     # Send the text response on the websocket
     await send_message(
@@ -152,7 +155,7 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None) -
         )
 
 
-async def start_realtime_agent(websocket: WebSocket, session_id: str) -> None:
+async def start_realtime_agent(websocket: WebSocket, session_id: str, user_access_token: str | None = None) -> None:
     """
     Start a realtime agent that processes messages from a WebSocket connection.
 
@@ -163,6 +166,7 @@ async def start_realtime_agent(websocket: WebSocket, session_id: str) -> None:
     Args:
         websocket: The WebSocket connection to receive/send messages
         session_id: The session identifier
+        user_access_token: Optional user's access token for Supabase authentication
     """
     base_timeout = 5.0  # seconds
     max_followups = 3
@@ -181,12 +185,12 @@ async def start_realtime_agent(websocket: WebSocket, session_id: str) -> None:
             current_timeout = base_timeout
 
             # Process the user message
-            await trigger_agent_turn(session_id, user_message)
+            await trigger_agent_turn(session_id, user_message, user_access_token)
         except asyncio.TimeoutError:
             # Timeout reached - check if we can send more followups
             if followup_count < max_followups:
                 # Send agent followup
-                await trigger_agent_turn(session_id)
+                await trigger_agent_turn(session_id, user_access_token=user_access_token)
                 followup_count += 1
                 # Increase timeout for next followup (exponential backoff)
                 current_timeout *= 2

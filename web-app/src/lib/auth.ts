@@ -1,9 +1,12 @@
 import { supabase } from './supabase'
 import type { User, Session } from '@supabase/supabase-js'
 
+// Alias Session as UserSession to distinguish from AgentSession
+export type UserSession = Session;
+
 export interface AuthState {
   user: User | null
-  session: Session | null
+  session: UserSession | null
   isLoading: boolean
 }
 

@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiClient } from '../services/api-client';
+import { useAuth } from './useAuth';
 
 interface SessionResponse {
   session_id: string;
@@ -34,20 +36,8 @@ export function useSession(): UseSessionReturn {
     setError(null);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create session');
-      }
-
-      const data: SessionResponse = await response.json();
-      setSessionId(data.session_id);
+      const response = await apiClient.post<SessionResponse>('/session');
+      setSessionId(response.data.session_id);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
       setError(errorMessage);
@@ -67,22 +57,12 @@ export function useSession(): UseSessionReturn {
     setError(null);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/session/${sessionId}/context`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ audio_enabled: enabled }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update audio setting');
-      }
-
-      const data: ContextResponse = await response.json();
-      setAudioEnabledState(data.audio_enabled);
-      console.log(`Audio ${data.audio_enabled ? 'enabled' : 'disabled'}`);
+      const response = await apiClient.patch<ContextResponse>(
+        `/session/${sessionId}/context`,
+        { audio_enabled: enabled }
+      );
+      setAudioEnabledState(response.data.audio_enabled);
+      console.log(`Audio ${response.data.audio_enabled ? 'enabled' : 'disabled'}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update audio setting';
       setError(errorMessage);
@@ -102,13 +82,8 @@ export function useSession(): UseSessionReturn {
       if (!sessionId) return;
 
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/session/${sessionId}/context`);
-
-        if (response.ok) {
-          const data: ContextResponse = await response.json();
-          setAudioEnabledState(data.audio_enabled);
-        }
+        const response = await apiClient.get<ContextResponse>(`/session/${sessionId}/context`);
+        setAudioEnabledState(response.data.audio_enabled);
       } catch (err) {
         console.error('Error fetching context:', err);
       }
@@ -117,10 +92,16 @@ export function useSession(): UseSessionReturn {
     fetchContext();
   }, [sessionId]);
 
-  // Auto-create session on mount
+  const { session: userSession, isLoading: isAuthLoading } = useAuth();
+  const hasCreatedSession = useRef(false);
+
+  // Auto-create session on mount, but only after auth is ready
   useEffect(() => {
-    createSession();
-  }, [createSession]);
+    if (!isAuthLoading && userSession && !hasCreatedSession.current) {
+      hasCreatedSession.current = true;
+      createSession();
+    }
+  }, [createSession, isAuthLoading, userSession]);
 
   return {
     sessionId,

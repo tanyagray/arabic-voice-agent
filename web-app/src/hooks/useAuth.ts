@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { signInAnonymously, onAuthStateChange, getSession, isAnonymousUser } from '../lib/auth'
-import type { Session, User } from '@supabase/supabase-js'
+import { signInAnonymously, onAuthStateChange, getSession, isAnonymousUser, type UserSession } from '../lib/auth'
+import type { User } from '@supabase/supabase-js'
 
 export function useAuth() {
-  const [session, setSession] = useState<Session | null>(null)
+  const [session, setSession] = useState<UserSession | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -12,16 +12,21 @@ export function useAuth() {
     // Check for existing session
     getSession()
       .then((session) => {
+        if (session) {
+          console.log('Found existing Supabase session:', session.user.id);
+        }
         setSession(session)
         setUser(session?.user ?? null)
 
         // If no session exists, sign in anonymously
         if (!session) {
+          console.log('No session found, signing in anonymously...');
           return signInAnonymously()
         }
       })
       .then((data) => {
         if (data) {
+          console.log('Anonymous sign-in successful:', data.user?.id);
           setSession(data.session)
           setUser(data.user)
         }
@@ -36,6 +41,7 @@ export function useAuth() {
 
     // Listen for auth state changes
     const subscription = onAuthStateChange((session) => {
+      console.log('Auth state changed. User:', session?.user?.id, 'Is Anonymous:', session?.user?.is_anonymous);
       setSession(session)
       setUser(session?.user ?? null)
     })
