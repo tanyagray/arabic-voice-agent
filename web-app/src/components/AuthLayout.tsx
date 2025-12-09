@@ -1,5 +1,6 @@
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Center, Spinner, Box } from "@chakra-ui/react"
 
 const AuthLayout: React.FC = () => {
   const { user, loading, isAnonymous } = useAuth();
@@ -8,9 +9,9 @@ const AuthLayout: React.FC = () => {
   // Show loading state while checking authentication
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
+      <Center minH="100vh">
+        <Spinner size="lg" />
+      </Center>
     );
   }
 
@@ -22,11 +23,11 @@ const AuthLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <Center minH="100vh" p={4}>
+      <Box w="full" maxW="md">
         <Outlet />
-      </div>
-    </div>
+      </Box>
+    </Center>
   );
 };
 

@@ -4,12 +4,16 @@ import { useAudioRecording } from '../../hooks/useAudioRecording';
 import { useAgentState } from '../../hooks/useAgentState';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { BsMic, BsArrowRepeat } from 'react-icons/bs';
+import { Button, Box } from '@chakra-ui/react';
 
 interface AudioInputProps {
   isActive: boolean;
   onActivate: () => void;
   state: string;
 }
+
+const MotionButton = motion.create(Button);
+const MotionBox = motion.create(Box);
 
 export function AudioInput({ isActive, onActivate }: AudioInputProps) {
   const { isRecording, startRecording, stopRecording } = useAudioRecording();
@@ -57,17 +61,19 @@ export function AudioInput({ isActive, onActivate }: AudioInputProps) {
   const isTextMode = !isActive;
 
   // Determine button style based on state
-  const getButtonStyle = () => {
-    if (isTextMode) return 'bg-white/10 hover:bg-white/20';
-    if (isUploading) return 'bg-yellow-500/30 border border-yellow-500/50';
-    if (isRecording) return 'bg-red-500/30 hover:bg-red-500/40 border border-red-500/50';
-    if (state === 'thinking') return 'bg-blue-500/30 hover:bg-blue-500/40 border border-blue-500/50';
-    if (state === 'speaking') return 'bg-purple-500/30 hover:bg-purple-500/40 border border-purple-500/50';
-    return 'bg-gray-500 hover:bg-gray-600';
+  const getButtonProps = () => {
+    if (isTextMode) return { bg: 'white/10', _hover: { bg: 'white/20' }, borderColor: 'transparent' };
+    if (isUploading) return { bg: 'yellow.500/30', borderColor: 'yellow.500/50' };
+    if (isRecording) return { bg: 'red.500/30', _hover: { bg: 'red.500/40' }, borderColor: 'red.500/50' };
+    if (state === 'thinking') return { bg: 'blue.500/30', _hover: { bg: 'blue.500/40' }, borderColor: 'blue.500/50' };
+    if (state === 'speaking') return { bg: 'purple.500/30', _hover: { bg: 'purple.500/40' }, borderColor: 'purple.500/50' };
+    return { bg: 'gray.500', _hover: { bg: 'gray.600' }, borderColor: 'transparent' };
   };
 
+  const buttonProps = getButtonProps();
+
   return (
-    <motion.button
+    <MotionButton
       type="button"
       onClick={isTextMode ? handleToggleToAudio : undefined}
       onMouseDown={isTextMode ? undefined : handleMouseDown}
@@ -75,7 +81,25 @@ export function AudioInput({ isActive, onActivate }: AudioInputProps) {
       onMouseLeave={isTextMode ? undefined : handleMouseUp}
       onTouchStart={isTextMode ? undefined : handleMouseDown}
       onTouchEnd={isTextMode ? undefined : handleMouseUp}
-      className={`${getButtonStyle()} text-white ${isTextMode ? 'p-3' : 'px-6 py-3'} rounded-full font-semibold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2 select-none`}
+
+      rounded="full"
+      fontWeight="semibold"
+      fontSize="sm"
+      shadow="lg"
+      transitionProperty="all"
+      transitionDuration="0.2s"
+      display="flex"
+      alignItems="center"
+      gap={2}
+      userSelect="none"
+      borderWidth="1px"
+      color="white"
+      h="auto"
+      py={isTextMode ? 3 : 3}
+      px={isTextMode ? 3 : 6}
+      minW={isTextMode ? "auto" : "140px"}
+      {...buttonProps}
+
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
@@ -86,41 +110,49 @@ export function AudioInput({ isActive, onActivate }: AudioInputProps) {
           {/* Status indicator */}
           <AnimatePresence mode="wait">
             {isUploading && (
-              <motion.div
+              <MotionBox
                 key="uploading-spinner"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
               >
                 <BsArrowRepeat className="animate-spin h-5 w-5" />
-              </motion.div>
+              </MotionBox>
             )}
             {!isUploading && isRecording && (
-              <motion.span
+              <MotionBox
                 key="recording-dot"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
-                className="w-3 h-3 bg-red-400 rounded-full animate-pulse"
+                w={3}
+                h={3}
+                bg="red.400"
+                rounded="full"
+                animation="pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"
               />
             )}
             {!isUploading && !isRecording && state === 'thinking' && (
-              <motion.div
+              <MotionBox
                 key="thinking-spinner"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
               >
                 <BsArrowRepeat className="animate-spin h-5 w-5" />
-              </motion.div>
+              </MotionBox>
             )}
             {!isUploading && !isRecording && state === 'speaking' && (
-              <motion.span
+              <MotionBox
                 key="speaking-dot"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
-                className="w-3 h-3 bg-purple-400 rounded-full animate-pulse"
+                w={3}
+                h={3}
+                bg="purple.400"
+                rounded="full"
+                animation="pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"
               />
             )}
             {!isUploading && !isRecording && !['thinking', 'speaking'].includes(state) && (
@@ -130,47 +162,51 @@ export function AudioInput({ isActive, onActivate }: AudioInputProps) {
           {/* Label text */}
           <AnimatePresence mode="wait">
             {isUploading ? (
-              <motion.span
+              <MotionBox
                 key="uploading"
+                as="span"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
                 Processing...
-              </motion.span>
+              </MotionBox>
             ) : isRecording ? (
-              <motion.span
+              <MotionBox
                 key="recording"
+                as="span"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
                 Recording...
-              </motion.span>
+              </MotionBox>
             ) : state === 'thinking' ? (
-              <motion.span
+              <MotionBox
                 key="thinking"
+                as="span"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
                 Thinking...
-              </motion.span>
+              </MotionBox>
             ) : state === 'speaking' ? (
-              <motion.span
+              <MotionBox
                 key="speaking"
+                as="span"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
                 Speaking...
-              </motion.span>
+              </MotionBox>
             ) : (
               <span key="hold">Hold to Talk</span>
             )}
           </AnimatePresence>
         </>
       )}
-    </motion.button>
+    </MotionButton>
   );
 }

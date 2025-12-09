@@ -1,114 +1,157 @@
 import { motion } from 'framer-motion';
+import { Box, Container, Heading, Text, Grid, Flex } from '@chakra-ui/react';
 
 const features = [
   {
     icon: '🗣️',
     title: 'Multiple Arabic Dialects',
     description: 'Practice Modern Standard Arabic, Iraqi, and Egyptian dialects with native-like pronunciation and cultural context.',
-    gradient: 'from-blue-500 to-cyan-500',
+    gradient: 'linear(to-r, blue.500, cyan.500)',
   },
   {
     icon: '🔄',
     title: 'Seamless Code-Switching',
     description: 'Mix English and Arabic naturally in conversation, just like real bilinguals do in everyday life.',
-    gradient: 'from-purple-500 to-pink-500',
+    gradient: 'linear(to-r, purple.500, pink.500)',
   },
   {
     icon: '🤖',
     title: 'AI-Powered Tutor',
     description: 'Powered by GPT-4o and advanced voice models for natural, context-aware conversations and instant feedback.',
-    gradient: 'from-orange-500 to-red-500',
+    gradient: 'linear(to-r, orange.500, red.500)',
   },
   {
     icon: '⚡',
     title: 'Real-Time Voice',
     description: 'Ultra-low latency voice processing using LiveKit infrastructure for smooth, natural conversations.',
-    gradient: 'from-green-500 to-emerald-500',
+    gradient: 'linear(to-r, green.500, emerald.500)',
   },
   {
     icon: '📱',
     title: 'Cross-Platform',
     description: 'Available on iOS, Android, and web. Practice Arabic anywhere, anytime, on any device.',
-    gradient: 'from-indigo-500 to-purple-500',
+    gradient: 'linear(to-r, indigo.500, purple.500)',
   },
   {
     icon: '🎯',
     title: 'Personalized Learning',
     description: 'Adaptive conversation topics and difficulty levels that grow with your Arabic language skills.',
-    gradient: 'from-yellow-500 to-orange-500',
+    gradient: 'linear(to-r, yellow.500, orange.500)',
   },
 ];
 
+const MotionBox = motion.create(Box);
+
 export function Features() {
   return (
-    <section className="py-24 bg-gradient-to-b from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <Box as="section" py={24} bgGradient="to-b" gradientFrom="gray.50" gradientTo="white">
+      <Container maxW="7xl" px={{ base: 4, sm: 6, lg: 8 }}>
         {/* Section header */}
-        <motion.div
-          className="text-center mb-16"
+        <MotionBox
+          textAlign="center"
+          mb={16}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Everything You Need to
-            <span className="block bg-gradient-to-r from-primary-600 to-purple-600 bg-clip-text text-transparent">
+          <Heading as="h2" size="2xl" fontWeight="bold" color="gray.900" mb={4}>
+            Everything You Need to{" "}
+            <Text as="span" display="block" bgGradient="to-r" gradientFrom="primary.600" gradientTo="purple.600" bgClip="text" color="transparent">
               Master Arabic
-            </span>
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            </Text>
+          </Heading>
+          <Text fontSize="xl" color="gray.600" maxW="3xl" mx="auto">
             A comprehensive language learning platform that adapts to your needs and learning style
-          </p>
-        </motion.div>
+          </Text>
+        </MotionBox>
 
         {/* Features grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }} gap={8}>
           {features.map((feature, idx) => (
-            <motion.div
+            <MotionBox
               key={idx}
-              className="group relative"
+              className="group"
+              position="relative"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: idx * 0.1 }}
             >
               {/* Card */}
-              <div className="h-full bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 group-hover:border-transparent relative overflow-hidden">
+              <Box
+                h="full"
+                bg="white"
+                rounded="2xl"
+                p={8}
+                boxShadow="lg"
+                _hover={{ boxShadow: "2xl", borderColor: "transparent" }}
+                transition="all 0.3s"
+                borderWidth="1px"
+                borderColor="gray.100"
+                position="relative"
+                overflow="hidden"
+              >
                 {/* Gradient overlay on hover */}
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}
+                <Box
+                  position="absolute"
+                  inset={0}
+                  bgGradient={feature.gradient}
+                  opacity={0}
+                  _groupHover={{ opacity: 0.05 }}
+                  transition="opacity 0.3s"
                 />
 
                 {/* Content */}
-                <div className="relative z-10">
+                <Box position="relative" zIndex={10}>
                   {/* Icon */}
-                  <div className="mb-6">
-                    <div
-                      className={`w-16 h-16 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center text-3xl shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}
+                  <Box mb={6}>
+                    <Flex
+                      w={16}
+                      h={16}
+                      bgGradient={feature.gradient}
+                      rounded="xl"
+                      align="center"
+                      justify="center"
+                      fontSize="3xl"
+                      boxShadow="lg"
+                      transform="auto"
+                      _groupHover={{ scale: 1.1, rotate: "3deg" }}
+                      transition="transform 0.3s"
                     >
                       {feature.icon}
-                    </div>
-                  </div>
+                    </Flex>
+                  </Box>
 
                   {/* Title */}
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-primary-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all">
+                  <Heading
+                    as="h3"
+                    size="md"
+                    fontWeight="bold"
+                    color="gray.900"
+                    mb={3}
+                    _groupHover={{ color: "transparent", bgClip: "text", bgGradient: "to-r", gradientFrom: "primary.600", gradientTo: "purple.600" }}
+                    transition="all 0.3s"
+                  >
                     {feature.title}
-                  </h3>
+                  </Heading>
 
                   {/* Description */}
-                  <p className="text-gray-600 leading-relaxed">
+                  <Text color="gray.600" lineHeight="relaxed">
                     {feature.description}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
+                  </Text>
+                </Box>
+              </Box>
+            </MotionBox>
           ))}
-        </div>
+        </Grid>
 
         {/* Stats section */}
-        <motion.div
-          className="mt-24 grid grid-cols-2 md:grid-cols-4 gap-8"
+        <MotionBox
+          mt={24}
+          display="grid"
+          gridTemplateColumns={{ base: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }}
+          gap={8}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -120,15 +163,24 @@ export function Features() {
             { value: '24/7', label: 'Available' },
             { value: '100%', label: 'Natural Speech' },
           ].map((stat, idx) => (
-            <div key={idx} className="text-center">
-              <div className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 to-purple-600 bg-clip-text text-transparent mb-2">
+            <Box key={idx} textAlign="center">
+              <Text
+                fontSize={{ base: "4xl", md: "5xl" }}
+                fontWeight="bold"
+                bgGradient="to-r"
+                gradientFrom="primary.600"
+                gradientTo="purple.600"
+                bgClip="text"
+                color="transparent"
+                mb={2}
+              >
                 {stat.value}
-              </div>
-              <div className="text-gray-600 font-medium">{stat.label}</div>
-            </div>
+              </Text>
+              <Text color="gray.600" fontWeight="medium">{stat.label}</Text>
+            </Box>
           ))}
-        </motion.div>
-      </div>
-    </section>
+        </MotionBox>
+      </Container>
+    </Box>
   );
 }

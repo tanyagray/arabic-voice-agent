@@ -1,5 +1,6 @@
 import { useSessionContext } from '../../contexts/SessionContext';
 import { BsVolumeUp, BsVolumeMute } from 'react-icons/bs';
+import { IconButton } from '@chakra-ui/react';
 
 export function AudioToggle() {
   const { audioEnabled, isUpdatingContext, toggleAudioEnabled } = useSessionContext();
@@ -9,21 +10,28 @@ export function AudioToggle() {
   };
 
   return (
-    <button
+    <IconButton
       onClick={handleToggle}
       disabled={isUpdatingContext}
-      className={`p-3 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${
-        audioEnabled
-          ? 'bg-accent-500 hover:bg-accent-600 text-white'
-          : 'bg-white/10 hover:bg-white/20 text-white'
-      }`}
       aria-label={audioEnabled ? 'Disable audio responses' : 'Enable audio responses'}
+      rounded="full"
+      size="xl"
+      shadow="lg"
+      transition="all 0.2s"
+      _disabled={{ opacity: 0.5, cursor: "not-allowed", transform: "none" }}
+      bg={audioEnabled ? 'accent.500' : 'white/10'}
+      color="white"
+      _hover={{
+        shadow: "xl",
+        transform: "scale(1.05)",
+        bg: audioEnabled ? 'accent.600' : 'white/20'
+      }}
     >
       {audioEnabled ? (
-        <BsVolumeUp className="w-5 h-5" />
+        <BsVolumeUp size="1.25em" />
       ) : (
-        <BsVolumeMute className="w-5 h-5" />
+        <BsVolumeMute size="1.25em" />
       )}
-    </button>
+    </IconButton>
   );
 }

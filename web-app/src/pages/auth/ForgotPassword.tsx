@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Box, Button, Input, VStack, Image, Text, Link, Alert, Heading } from '@chakra-ui/react';
+import { Field } from "@/components/ui/field"
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -25,92 +27,106 @@ const ForgotPassword: React.FC = () => {
 
   if (success) {
     return (
-      <div className="space-y-6">
-        <div className="text-center pt-6">
-          <img 
-            src="/logo.svg" 
-            alt="Arabic Voice Agent" 
-            className="h-32 w-auto mx-auto mb-2"
+      <VStack gap={6}>
+        <Box textAlign="center" pt={6}>
+          <Image
+            src="/logo.svg"
+            alt="Arabic Voice Agent"
+            h={32}
+            mx="auto"
+            mb={2}
           />
-        </div>
-        <div className="text-center space-y-4">
-          <div className="rounded-md bg-green-900/50 border border-green-500 p-4">
-            <div className="text-sm text-green-200">
+        </Box>
+        <VStack textAlign="center" gap={4}>
+          <Alert.Root status="success" variant="surface">
+            <Alert.Indicator />
+            <Alert.Description>
               Password reset email sent! Check your inbox and follow the link to reset your password.
-            </div>
-          </div>
-          <div className="text-sm">
+            </Alert.Description>
+          </Alert.Root>
+          <Box fontSize="sm">
             <Link
-              to="/sign-in"
-              className="font-medium text-blue-200 hover:text-blue-100 transition-colors"
+              asChild
+              color="blue.200"
+              _hover={{ color: "blue.100" }}
+              fontWeight="medium"
             >
-              Back to sign in
+              <RouterLink to="/sign-in">
+                Back to sign in
+              </RouterLink>
             </Link>
-          </div>
-        </div>
-      </div>
+          </Box>
+        </VStack>
+      </VStack>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center pt-6">
-        <img 
-          src="/logo.svg" 
-          alt="Arabic Voice Agent" 
-          className="h-32 w-auto mx-auto mb-2"
+    <VStack gap={6}>
+      <Box textAlign="center" pt={6}>
+        <Image
+          src="/logo.svg"
+          alt="Arabic Voice Agent"
+          h={32}
+          mx="auto"
+          mb={2}
         />
-      </div>
-      <div className="text-center mb-4">
-        <h2 className="text-xl font-semibold text-white mb-2">Forgot your password?</h2>
-        <p className="text-gray-300 text-sm">
+      </Box>
+      <Box textAlign="center" mb={4}>
+        <Heading as="h2" size="lg" fontWeight="semibold" color="white" mb={2}>Forgot your password?</Heading>
+        <Text color="gray.300" fontSize="sm">
           Enter your email address and we'll send you a link to reset your password.
-        </p>
-      </div>
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        {error && (
-          <div className="rounded-md bg-red-900/50 border border-red-500 p-4">
-            <div className="text-sm text-red-200">{error}</div>
-          </div>
-        )}
-        <div>
-          <label htmlFor="email-address" className="sr-only">
-            Email address
-          </label>
-          <input
-            id="email-address"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/90 backdrop-blur-sm"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
+        </Text>
+      </Box>
+      <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+        <VStack gap={4} w="full">
+          {error && (
+            <Alert.Root status="error" variant="surface">
+              <Alert.Indicator />
+              <Alert.Title>{error}</Alert.Title>
+            </Alert.Root>
+          )}
+          <Field label="Email address" required>
+            <Input
+              name="email"
+              type="email"
+              autoComplete="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              bg="white/90"
+              backdropFilter="blur(4px)"
+            />
+          </Field>
 
-        <div>
-          <button
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-gray-900 bg-yellow-400 hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            loading={loading}
+            w="full"
+            color="gray.900"
+            bg="yellow.400"
+            _hover={{ bg: "yellow.500" }}
           >
             {loading ? 'Sending...' : 'Send reset link'}
-          </button>
-        </div>
+          </Button>
 
-        <div className="text-sm text-center">
-          <Link
-            to="/sign-in"
-            className="font-medium text-blue-200 hover:text-blue-100 transition-colors"
-          >
-            Back to sign in
-          </Link>
-        </div>
+          <Box fontSize="sm" textAlign="center">
+            <Link
+              asChild
+              color="blue.200"
+              _hover={{ color: "blue.100" }}
+              fontWeight="medium"
+            >
+              <RouterLink to="/sign-in">
+                Back to sign in
+              </RouterLink>
+            </Link>
+          </Box>
+        </VStack>
       </form>
-    </div>
+    </VStack>
   );
 };
 
-export default ForgotPassword; 
+export default ForgotPassword;

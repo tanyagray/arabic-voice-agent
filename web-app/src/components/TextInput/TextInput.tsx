@@ -2,11 +2,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, type FormEvent } from 'react';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { BsSend, BsPencil } from 'react-icons/bs';
+import { Box, IconButton, Input } from '@chakra-ui/react';
 
 interface TextInputProps {
   isActive: boolean;
   onActivate: () => void;
 }
+
+const MotionBox = motion.create(Box);
+const MotionIconButton = motion.create(IconButton);
 
 export function TextInput({ isActive, onActivate }: TextInputProps) {
   const { sendMessage } = useSessionContext();
@@ -33,47 +37,73 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
   return (
     <AnimatePresence mode="wait">
       {isActive ? (
-        <motion.form
+        <MotionBox
           key="text-input"
+          as="form"
           initial={{ width: 0, opacity: 0 }}
           animate={{ width: '100%', opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ duration: 0.3 }}
           onSubmit={handleSendMessage}
-          className="flex gap-2 items-center"
+          display="flex"
+          alignItems="center"
+          gap={2}
+          overflow="hidden"
         >
-          <input
-            type="text"
+          <Input
             value={textMessage}
             onChange={(e) => setTextMessage(e.target.value)}
             placeholder="Type a message..."
             disabled={isSending}
-            className="flex-1 bg-white/10 text-white placeholder-white/50 px-4 py-3 rounded-full border border-white/20 focus:outline-none focus:border-accent-400 transition-all disabled:opacity-50"
+            flex={1}
+            bg="white/10"
+            color="white"
+            _placeholder={{ color: "white/50" }}
+            px={4}
+            size="lg"
+            rounded="full"
+            borderColor="white/20"
+            _focus={{ borderColor: "accent.400", outline: "none" }}
+            transition="all 0.2s"
+            _disabled={{ opacity: 0.5 }}
             autoFocus
           />
-          <motion.button
+          <MotionIconButton
             type="submit"
+            aria-label="Send message"
             disabled={!textMessage.trim() || isSending}
-            className="bg-accent-500 hover:bg-accent-600 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            bg="accent.500"
+            color="white"
+            _hover={{ bg: "accent.600" }}
+            rounded="full"
+            size="lg"
+            shadow="lg"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            _disabled={{ opacity: 0.5, cursor: "not-allowed" }}
           >
-            <BsSend className="w-5 h-5" />
-          </motion.button>
-        </motion.form>
+            <BsSend />
+          </MotionIconButton>
+        </MotionBox>
       ) : (
-        <motion.button
+        <MotionIconButton
           key="text-icon"
           type="button"
           onClick={handleToggleToText}
           initial={{ width: 'auto', opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
-          className="bg-white/10 hover:bg-white/20 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center"
+          aria-label="Switch to text input"
+          bg="white/10"
+          color="white"
+          _hover={{ bg: "white/20" }}
+          rounded="full"
+          size="xl"
+          shadow="lg"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          <BsPencil className="w-5 h-5" />
-        </motion.button>
+          <BsPencil />
+        </MotionIconButton>
       )}
     </AnimatePresence>
   );

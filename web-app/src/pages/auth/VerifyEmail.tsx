@@ -3,16 +3,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
-  ChakraProvider,
-  defaultSystem,
   VStack,
   Text,
   Button,
-  Alert,
   Image,
   Heading,
   PinInput,
-  Link as ChakraLink
+  Link,
+  Alert
 } from '@chakra-ui/react';
 
 const VerifyEmail: React.FC = () => {
@@ -28,14 +26,12 @@ const VerifyEmail: React.FC = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Check if user is already verified
     if (user?.email_confirmed_at) {
       console.log('User already verified, redirecting to chat');
       navigate('/', { replace: true });
       return;
     }
 
-    // Get email from URL params or user object
     const emailParam = searchParams.get('email');
     if (emailParam) {
       setEmail(emailParam);
@@ -43,14 +39,13 @@ const VerifyEmail: React.FC = () => {
       setEmail(user.email);
     }
 
-    // Auto-verify if token is in URL (email link verification)
     const token = searchParams.get('token');
     if (token && (emailParam || user?.email)) {
       const handleTokenVerification = async (tokenParam: string, emailAddress: string) => {
         try {
           setLoading(true);
           setError(null);
-          
+
           const { error } = await supabase.auth.verifyOtp({
             email: emailAddress,
             token: tokenParam,
@@ -58,7 +53,7 @@ const VerifyEmail: React.FC = () => {
           });
 
           if (error) throw error;
-          
+
           setTimeout(() => navigate('/', { replace: true }), 2000);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to verify email');
@@ -66,27 +61,26 @@ const VerifyEmail: React.FC = () => {
           setLoading(false);
         }
       };
-      
+
       handleTokenVerification(token, emailParam || user?.email || '');
     }
   }, [user, searchParams, navigate]);
 
   const handleOtpVerification = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
+
     const otpString = otp.join('');
     if (!email || !otpString || otpString.length !== 6) {
       setError('Email and 6-digit verification code are required');
       return;
     }
 
-    // Mark that we've attempted verification for this OTP
     setHasAttemptedCurrentOtp(true);
 
     try {
       setLoading(true);
       setError(null);
-      
+
       const { error } = await supabase.auth.verifyOtp({
         email,
         token: otpString,
@@ -94,8 +88,7 @@ const VerifyEmail: React.FC = () => {
       });
 
       if (error) throw error;
-      
-      // Refresh the session to get updated user data and navigate
+
       await supabase.auth.getSession();
       navigate('/', { replace: true });
     } catch (err) {
@@ -105,7 +98,6 @@ const VerifyEmail: React.FC = () => {
     }
   }, [otp, email, navigate]);
 
-  // Auto-verify when all 6 digits are entered, but only if we haven't attempted this OTP yet
   useEffect(() => {
     const otpString = otp.join('');
     if (otpString.length === 6 && email && !loading && !hasAttemptedCurrentOtp) {
@@ -122,7 +114,7 @@ const VerifyEmail: React.FC = () => {
     try {
       setResendLoading(true);
       setError(null);
-      
+
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email,
@@ -132,8 +124,7 @@ const VerifyEmail: React.FC = () => {
       });
 
       if (error) throw error;
-      
-      // Show success message
+
       setEmailSent(true);
       setTimeout(() => setEmailSent(false), 10000);
     } catch (err) {
@@ -144,12 +135,11 @@ const VerifyEmail: React.FC = () => {
   };
 
   return (
-    <ChakraProvider value={defaultSystem}>
-      <VStack gap={10} py={8} maxW="md" mx="auto">
+    <VStack gap={10} py={8} maxW="md" mx="auto">
       <VStack gap={12} textAlign="center">
-        <Image 
-          src="/logo.svg" 
-          alt="Arabic Voice Agent" 
+        <Image
+          src="/logo.svg"
+          alt="Arabic Voice Agent"
           h={32}
           mx="auto"
         />
@@ -169,33 +159,29 @@ const VerifyEmail: React.FC = () => {
       </VStack>
 
       <VStack gap={8} w="full">
-
         <VStack gap={4} align="center">
-          <PinInput.Root 
-            otp 
+          <PinInput.Root
+            otp
             onValueChange={(details) => {
               setOtp(details.value);
-              // Clear error and reset attempt flag when user changes the code
               if (error) setError(null);
               setHasAttemptedCurrentOtp(false);
-            }} 
-            value={otp} 
+            }}
+            value={otp}
             size="lg"
           >
             <PinInput.HiddenInput />
             <PinInput.Control>
-              <PinInput.Input index={0} bg="white" color="black" />
-              <PinInput.Input index={1} bg="white" color="black" />
-              <PinInput.Input index={2} bg="white" color="black" />
-              <PinInput.Input index={3} bg="white" color="black" />
-              <PinInput.Input index={4} bg="white" color="black" />
-              <PinInput.Input index={5} bg="white" color="black" />
+              {Array.from({ length: 6 }).map((_, id) => (
+                <PinInput.Input key={id} index={id} bg="white" color="black" />
+              ))}
             </PinInput.Control>
           </PinInput.Root>
 
           {error && (
             <Alert.Root status="error" variant="surface" alignSelf="stretch">
-              <Alert.Description>{error}</Alert.Description>
+              <Alert.Indicator />
+              <Alert.Title>{error}</Alert.Title>
             </Alert.Root>
           )}
         </VStack>
@@ -209,23 +195,25 @@ const VerifyEmail: React.FC = () => {
           _hover={{ color: emailSent ? "blue.200" : "white" }}
           opacity={1}
           transition="all 0.3s ease-in-out"
+          position="relative"
         >
-          <Text 
-            transition="opacity 0.3s ease-in-out" 
+          <Text
+            transition="opacity 0.3s ease-in-out"
             opacity={emailSent ? 0 : 1}
-            position="absolute"
+            position={emailSent ? "absolute" : undefined}
           >
             Send verification email again
           </Text>
-          <Text 
-            transition="opacity 0.3s ease-in-out" 
+          <Text
+            transition="opacity 0.3s ease-in-out"
             opacity={emailSent ? 1 : 0}
+            position={!emailSent ? "absolute" : undefined}
           >
             Email sent! Check your inbox 👍
           </Text>
         </Button>
 
-        <ChakraLink
+        <Link
           onClick={() => navigate('/sign-in')}
           fontSize="sm"
           color="blue.200"
@@ -233,10 +221,9 @@ const VerifyEmail: React.FC = () => {
           cursor="pointer"
         >
           ← Back to sign in
-        </ChakraLink>
+        </Link>
       </VStack>
     </VStack>
-    </ChakraProvider>
   );
 };
 

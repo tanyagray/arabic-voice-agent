@@ -3,52 +3,76 @@ import { useAuth } from '../contexts/AuthContext';
 import { Hero } from '../components/Hero/Hero';
 import { Features } from '../components/Features/Features';
 import { Footer } from '../components/Footer/Footer';
+import { Box, Button, Container, Flex, Heading, Text, HStack } from '@chakra-ui/react';
 
 function HomePage() {
   const { user, isAnonymous, signOut } = useAuth();
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen">
+    <Box minH="100vh">
       {/* Header with Auth */}
-      <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold text-white">Arabic Voice Agent</h1>
-          <div>
-            {isAnonymous ? (
-              <div className="space-x-3">
-                <button
-                  onClick={() => navigate('/sign-in')}
-                  className="px-4 py-2 text-white hover:text-gray-200 transition-colors"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => navigate('/sign-up')}
-                  className="px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors font-medium"
-                >
-                  Sign Up
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-white/80">{user?.email}</span>
-                <button
-                  onClick={() => signOut()}
-                  className="px-4 py-2 text-white hover:text-gray-200 transition-colors"
-                >
-                  Sign Out
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      <Box
+        as="header"
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        zIndex={50}
+        px={6}
+        py={4}
+      >
+        <Container maxW="7xl" px={0}>
+          <Flex justify="space-between" align="center">
+            <Heading as="h1" size="md" fontWeight="bold" color="white">
+              Arabic Voice Agent
+            </Heading>
+            <Box>
+              {isAnonymous ? (
+                <HStack spaceX={3}>
+                  <Button
+                    variant="ghost"
+                    color="white"
+                    _hover={{ color: "gray.200", bg: "white/10" }}
+                    onClick={() => navigate('/sign-in')}
+                  >
+                    Sign In
+                  </Button>
+                  <Button
+                    bg="white"
+                    color="gray.900"
+                    _hover={{ bg: "gray.100" }}
+                    onClick={() => navigate('/sign-up')}
+                    fontWeight="medium"
+                  >
+                    Sign Up
+                  </Button>
+                </HStack>
+              ) : (
+                <Flex align="center" gap={4}>
+                  <Text fontSize="sm" color="white/80">
+                    {user?.email}
+                  </Text>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    color="white"
+                    _hover={{ color: "gray.200", bg: "white/10" }}
+                    onClick={() => signOut()}
+                  >
+                    Sign Out
+                  </Button>
+                </Flex>
+              )}
+            </Box>
+          </Flex>
+        </Container>
+      </Box>
 
       <Hero />
       <Features />
       <Footer />
-    </div>
+    </Box>
   );
 }
 

@@ -11,14 +11,16 @@ const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 
+import { Spinner, Center, Text, VStack } from "@chakra-ui/react"
+
 function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
-      </div>
-    </div>
+    <Center minH="100vh">
+      <VStack gap={4}>
+        <Spinner size="xl" color="gray.900" borderWidth="2px" />
+        <Text color="gray.600">Loading...</Text>
+      </VStack>
+    </Center>
   );
 }
 

@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { forwardRef, type HTMLAttributes } from 'react';
 import { useTranscriptionsWithParticipants } from '../../hooks/useTranscriptionsWithParticipants';
 import { BsPlus, BsMic } from 'react-icons/bs';
+import { Box, Flex, Text, Icon } from '@chakra-ui/react';
 
 interface TranscriptBubbleProps {
   text: string;
@@ -10,32 +11,44 @@ interface TranscriptBubbleProps {
   index: number;
 }
 
+const MotionBox = motion.create(Box);
+
 function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubbleProps) {
   return (
-    <motion.div
+    <MotionBox
       key={`${timestamp}-${index}`}
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: 'auto', opacity: 1 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'} overflow-hidden`}
+      display="flex"
+      justifyContent={isUser ? 'flex-end' : 'flex-start'}
+      overflow="hidden"
     >
-      <div
-        className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-          isUser ? 'bg-accent-500 text-white rounded-br-sm' : 'bg-white/20 text-white rounded-bl-sm'
-        }`}
+      <Box
+        maxW="80%"
+        rounded="2xl"
+        px={4}
+        py={2}
+        bg={isUser ? 'accent.500' : 'white/20'}
+        color="white"
+        roundedBottomRight={isUser ? 'sm' : '2xl'}
+        roundedBottomLeft={isUser ? '2xl' : 'sm'}
       >
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm font-medium opacity-70">{isUser ? 'You' : 'Agent'}</span>
-          {/* Show chat icon for user messages, mic icon for agent (since agent uses voice) */}
+        <Flex align="center" gap={2} mb={1}>
+          <Text fontSize="sm" fontWeight="medium" opacity={0.7}>
+            {isUser ? 'You' : 'Agent'}
+          </Text>
           {isUser ? (
-            <BsPlus className="w-4 h-4 opacity-70" />
+            <Icon as={BsPlus} w={4} h={4} opacity={0.7} />
           ) : (
-            <BsMic className="w-4 h-4 opacity-70" />
+            <Icon as={BsMic} w={4} h={4} opacity={0.7} />
           )}
-        </div>
-        <p className="text-lg leading-relaxed">{text}</p>
-      </div>
-    </motion.div>
+        </Flex>
+        <Text fontSize="lg" lineHeight="relaxed">
+          {text}
+        </Text>
+      </Box>
+    </MotionBox>
   );
 }
 
@@ -44,9 +57,10 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
     const transcriptions = useTranscriptionsWithParticipants();
 
     return (
-      <div
+      <Box
         ref={ref}
-        className={`relative overflow-hidden ${className}`}
+        position="relative"
+        overflow="hidden"
         style={{
           maskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
@@ -55,7 +69,16 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
         {...props}
       >
         {transcriptions && transcriptions.length > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 flex flex-col space-y-3 pr-2 pb-2">
+          <Flex
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            direction="column"
+            gap={3}
+            pr={2}
+            pb={2}
+          >
             {transcriptions.map((transcription, index) => {
               const isUser = transcription.type === 'user';
               return (
@@ -68,9 +91,9 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
                 />
               );
             })}
-          </div>
+          </Flex>
         )}
-      </div>
+      </Box>
     );
   }
 );

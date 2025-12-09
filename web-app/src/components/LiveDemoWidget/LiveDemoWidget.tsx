@@ -4,8 +4,8 @@ import { SessionProvider, useSessionContext } from '../../contexts/SessionContex
 import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
-import { AudioToggle } from '../AudioToggle';
-import { BsArrowRepeat } from 'react-icons/bs';
+import { AudioToggle } from '../AudioToggle/AudioToggle';
+import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
 
 export function LiveDemoWidget() {
   return (
@@ -15,17 +15,22 @@ export function LiveDemoWidget() {
   );
 }
 
+const MotionBox = motion.create(Box);
+
 function LiveDemoWidgetContent() {
   const { isCreating, sessionError, connectionState, chatError } = useSessionContext();
   const error = sessionError || chatError;
   const isLoading = isCreating || connectionState === 'connecting';
 
   return (
-    <motion.div
+    <MotionBox
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.8, delay: 0.2 }}
-      className="flex flex-col w-full h-full"
+      display="flex"
+      flexDirection="column"
+      w="full"
+      h="full"
     >
       {connectionState === 'disconnected' || connectionState === 'error' ? (
         <>
@@ -35,7 +40,7 @@ function LiveDemoWidgetContent() {
       ) : (
         <RoomUI />
       )}
-    </motion.div>
+    </MotionBox>
   );
 }
 
@@ -43,26 +48,32 @@ export type InputMode = 'audio' | 'text';
 
 function LoadingState() {
   return (
-    <div className="flex flex-col items-center justify-center gap-4">
-      <div className="flex items-center gap-2 text-white">
-        <BsArrowRepeat className="animate-spin h-8 w-8" />
-        <span className="text-lg">Connecting...</span>
-      </div>
-    </div>
+    <Flex direction="column" align="center" justify="center" gap={4}>
+      <Flex align="center" gap={2} color="white">
+        <Spinner size="lg" />
+        <Text fontSize="lg">Connecting...</Text>
+      </Flex>
+    </Flex>
   );
 }
 
 function ErrorState({ error }: { error: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4">
-      <motion.div
+    <Flex direction="column" align="center" justify="center" gap={4}>
+      <MotionBox
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-red-500/20 border border-red-500/50 text-white px-6 py-3 rounded-lg"
+        bg="red.500/20"
+        borderColor="red.500/50"
+        borderWidth="1px"
+        color="white"
+        px={6}
+        py={3}
+        rounded="lg"
       >
         {error}
-      </motion.div>
-    </div>
+      </MotionBox>
+    </Flex>
   );
 }
 
@@ -70,12 +81,14 @@ function RoomUI() {
   const [inputMode, setInputMode] = useState<InputMode>('text');
 
   return (
-    <div className="flex flex-col flex-1 gap-6 min-h-0">
+    <Flex direction="column" flex={1} gap={6} minH={0}>
       {/* Transcript - fills available space */}
-      <Transcript className="flex-1 min-h-0" />
+      <Box flex={1} minH={0} position="relative" w="full">
+        <Transcript style={{ position: 'absolute', inset: 0 }} />
+      </Box>
 
       {/* Control buttons */}
-      <div className="flex justify-center gap-4 items-center flex-shrink-0">
+      <Flex justify="center" gap={4} align="center" flexShrink={0}>
         <AudioToggle />
         <TextInput
           isActive={inputMode === 'text'}
@@ -86,7 +99,7 @@ function RoomUI() {
           onActivate={() => setInputMode('audio')}
           state="idle"
         />
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 }

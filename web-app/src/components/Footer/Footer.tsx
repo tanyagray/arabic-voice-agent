@@ -1,70 +1,84 @@
+import { Box, Container, Grid, Heading, Text, List, Link, Flex } from '@chakra-ui/react';
+
 export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-gray-900 text-white py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid md:grid-cols-3 gap-8 mb-8">
+    <Box as="footer" bg="gray.900" color="white" py={12}>
+      <Container maxW="7xl" px={{ base: 4, sm: 6, lg: 8 }}>
+        <Grid templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap={8} mb={8}>
           {/* Brand */}
-          <div>
-            <h3 className="text-2xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent mb-4">
+          <Box>
+            <Heading
+              as="h3"
+              size="lg"
+              fontWeight="bold"
+              bgGradient="to-r"
+              gradientFrom="primary.400"
+              gradientTo="accent.400"
+              bgClip="text"
+              color="transparent"
+              mb={4}
+            >
               Arabic Voice Agent
-            </h3>
-            <p className="text-gray-400">
+            </Heading>
+            <Text color="gray.400">
               Master Arabic through AI-powered conversations with support for multiple dialects and natural code-switching.
-            </p>
-          </div>
+            </Text>
+          </Box>
 
           {/* Supported Dialects */}
-          <div>
-            <h4 className="font-semibold text-lg mb-4">Supported Dialects</h4>
-            <ul className="space-y-2 text-gray-400">
-              <li>Modern Standard Arabic (MSA)</li>
-              <li>Iraqi Arabic</li>
-              <li>Egyptian Arabic</li>
-              <li>English Code-Switching</li>
-            </ul>
-          </div>
+          <Box>
+            <Heading as="h4" size="md" fontWeight="semibold" mb={4}>Supported Dialects</Heading>
+            <List.Root spaceY={2} color="gray.400" listStyleType="none">
+              <List.Item>Modern Standard Arabic (MSA)</List.Item>
+              <List.Item>Iraqi Arabic</List.Item>
+              <List.Item>Egyptian Arabic</List.Item>
+              <List.Item>English Code-Switching</List.Item>
+            </List.Root>
+          </Box>
 
           {/* Technology */}
-          <div>
-            <h4 className="font-semibold text-lg mb-4">Powered By</h4>
-            <ul className="space-y-2 text-gray-400">
-              <li>OpenAI GPT-4o</li>
-              <li>ElevenLabs TTS</li>
-              <li>Soniox STT</li>
-              <li>LiveKit Infrastructure</li>
-            </ul>
-          </div>
-        </div>
+          <Box>
+            <Heading as="h4" size="md" fontWeight="semibold" mb={4}>Powered By</Heading>
+            <List.Root spaceY={2} color="gray.400" listStyleType="none">
+              <List.Item>OpenAI GPT-4o</List.Item>
+              <List.Item>ElevenLabs TTS</List.Item>
+              <List.Item>Soniox STT</List.Item>
+              <List.Item>LiveKit Infrastructure</List.Item>
+            </List.Root>
+          </Box>
+        </Grid>
 
         {/* Bottom bar */}
-        <div className="pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-400 text-sm">
+        <Flex
+          pt={8}
+          borderTopWidth="1px"
+          borderColor="gray.800"
+          direction={{ base: "column", md: "row" }}
+          justify="space-between"
+          align="center"
+          gap={4}
+        >
+          <Text color="gray.400" fontSize="sm">
             © {currentYear} Arabic Voice Agent. Built with ❤️ for Arabic learners.
-          </p>
-          <div className="flex gap-6">
-            <a
-              href="#"
-              className="text-gray-400 hover:text-primary-400 transition-colors text-sm"
-            >
-              Privacy
-            </a>
-            <a
-              href="#"
-              className="text-gray-400 hover:text-primary-400 transition-colors text-sm"
-            >
-              Terms
-            </a>
-            <a
-              href="#"
-              className="text-gray-400 hover:text-primary-400 transition-colors text-sm"
-            >
-              GitHub
-            </a>
-          </div>
-        </div>
-      </div>
-    </footer>
+          </Text>
+          <Flex gap={6}>
+            {["Privacy", "Terms", "GitHub"].map((item) => (
+              <Link
+                key={item}
+                href="#"
+                color="gray.400"
+                _hover={{ color: "primary.400" }}
+                transition="colors"
+                fontSize="sm"
+              >
+                {item}
+              </Link>
+            ))}
+          </Flex>
+        </Flex>
+      </Container>
+    </Box>
   );
 }

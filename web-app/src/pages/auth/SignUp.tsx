@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Box, Button, Input, VStack, Heading, Text, Link, Stack, Alert } from '@chakra-ui/react';
+import { Field } from "@/components/ui/field"
 
 const SignUp: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -12,7 +14,6 @@ const SignUp: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
 
     try {
       setError(null);
@@ -27,73 +28,74 @@ const SignUp: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center pt-6">
-        <h1 className="text-3xl font-bold mb-4">Sign Up</h1>
-        <p className="text-gray-600 mb-6">Create your account to get started</p>
-      </div>
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        {error && (
-          <div className="rounded-md bg-red-900/50 border border-red-500 p-4">
-            <div className="text-sm text-red-200">{error}</div>
-          </div>
-        )}
-        <div className="rounded-md shadow-sm space-y-2">
-          <div>
-            <label htmlFor="email-address" className="sr-only">
-              Email address
-            </label>
-            <input
-              id="email-address"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-t-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/90 backdrop-blur-sm"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="sr-only">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-b-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/90 backdrop-blur-sm"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-        </div>
+    <VStack gap={6}>
+      <Box textAlign="center" pt={6}>
+        <Heading as="h1" size="xl" fontWeight="bold" mb={4}>Sign Up</Heading>
+        <Text color="gray.600" mb={6}>Create your account to get started</Text>
+      </Box>
+      <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+        <VStack gap={4} w="full">
+          {error && (
+            <Alert.Root status="error" variant="surface">
+              <Alert.Indicator />
+              <Alert.Title>{error}</Alert.Title>
+            </Alert.Root>
+          )}
+          <Stack gap={2} w="full">
+            <Field label="Email address" required>
+              <Input
+                name="email"
+                type="email"
+                autoComplete="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                bg="white/90"
+                backdropFilter="blur(4px)"
+              />
+            </Field>
+            <Field label="Password" required>
+              <Input
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                bg="white/90"
+                backdropFilter="blur(4px)"
+              />
+            </Field>
+          </Stack>
 
-        <div>
-          <button
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-gray-900 bg-yellow-400 hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            loading={loading}
+            w="full"
+            color="gray.900"
+            bg="yellow.400"
+            _hover={{ bg: "yellow.500" }}
           >
             {loading ? 'Creating account...' : 'Sign up'}
-          </button>
-        </div>
+          </Button>
 
-        <div className="text-sm text-center">
-          <Link
-            to="/sign-in"
-            className="font-medium text-blue-200 hover:text-blue-100 transition-colors"
-          >
-            Already have an account? Sign in
-          </Link>
-        </div>
+          <Box fontSize="sm" textAlign="center">
+            <Link
+              asChild
+              color="blue.200"
+              _hover={{ color: "blue.100" }}
+              fontWeight="medium"
+            >
+              <RouterLink to="/sign-in">
+                Already have an account? Sign in
+              </RouterLink>
+            </Link>
+          </Box>
+        </VStack>
       </form>
-    </div>
+    </VStack>
   );
 };
 
-export default SignUp; 
+export default SignUp;
