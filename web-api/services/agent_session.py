@@ -1,7 +1,6 @@
 """Supabase-backed session implementation for OpenAI Agents SDK."""
 
-import json
-from typing import List, Optional
+from typing import Any, List, Optional, cast
 from agents.memory.session import SessionABC
 from agents.items import TResponseInputItem
 from supabase import Client
@@ -63,15 +62,8 @@ class AgentSession(SessionABC):
         Returns:
             Dictionary representation of the item
         """
-        # Convert the item to a dict. The exact structure depends on TResponseInputItem.
-        # Assuming it has a model_dump or dict method (common with Pydantic models)
-        if hasattr(item, "model_dump"):
-            return item.model_dump()
-        elif hasattr(item, "dict"):
-            return item.dict()
-        else:
-            # Fallback: try to convert to dict
-            return dict(item)
+        # TResponseInputItem is a TypedDict union, so items are already dictionaries
+        return dict(item)
 
     def _deserialize_item(self, data: dict) -> TResponseInputItem:
         """
@@ -103,7 +95,9 @@ class AgentSession(SessionABC):
         if not response.data:
             return []
 
-        items_data = response.data[0]["items"]
+        # Type assertion for Supabase response data
+        record = cast(dict[str, Any], response.data[0])
+        items_data = cast(List[dict[str, Any]], record["items"])
         items = [self._deserialize_item(item) for item in items_data]
 
         if limit is not None and limit > 0:
@@ -123,9 +117,10 @@ class AgentSession(SessionABC):
         response = self.supabase.table("agent_sessions").select("items").eq("session_id", self.session_id).execute()
 
         if not response.data:
-            current_items = []
+            current_items: List[dict[str, Any]] = []
         else:
-            current_items = response.data[0]["items"]
+            record = cast(dict[str, Any], response.data[0])
+            current_items = cast(List[dict[str, Any]], record["items"])
 
         # Serialize and append new items
         serialized_items = [self._serialize_item(item) for item in items]
@@ -146,10 +141,14 @@ class AgentSession(SessionABC):
         # Get current items
         response = self.supabase.table("agent_sessions").select("items").eq("session_id", self.session_id).execute()
 
-        if not response.data or not response.data[0]["items"]:
+        if not response.data:
             return None
 
-        current_items = response.data[0]["items"]
+        record = cast(dict[str, Any], response.data[0])
+        current_items = cast(List[dict[str, Any]], record["items"])
+
+        if not current_items:
+            return None
 
         # Pop the last item
         popped_item_data = current_items.pop()
