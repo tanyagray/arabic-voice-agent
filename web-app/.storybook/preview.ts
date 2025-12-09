@@ -14,10 +14,14 @@ const preview: Preview = {
         order: ['Pages', 'Components', 'Atoms'],
       },
     },
-    backgrounds: {
-      default: 'dark',
-    },
+    backgrounds: {},
   },
+
+  initialGlobals: {
+    backgrounds: {
+      value: 'dark'
+    }
+  }
 };
 
 export default preview;
