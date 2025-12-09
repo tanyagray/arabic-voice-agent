@@ -1,3 +1,13 @@
+/**
+ * @deprecated This hook is deprecated. Use AuthContext from '@/contexts/AuthContext' instead.
+ *
+ * Migration guide:
+ * - Replace: import { useAuth } from '@/hooks/useAuth'
+ * - With: import { useAuth } from '@/contexts/AuthContext'
+ *
+ * The new hook provides additional email auth methods while maintaining
+ * backward compatibility with existing properties (user, session, isLoading, isAnonymous).
+ */
 import { useEffect, useState } from 'react'
 import { signInAnonymously, onAuthStateChange, getSession, isAnonymousUser, type UserSession } from '../lib/auth'
 import type { User } from '@supabase/supabase-js'

@@ -1,5 +1,8 @@
 # Root-level patterns applicable to entire project
 
+# Dependencies
+node_modules/
+
 # Environment variables
 .env
 .env.local

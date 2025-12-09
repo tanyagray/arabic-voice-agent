@@ -1,0 +1,13 @@
+{
+  "name": "emails",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "email dev --dir src",
+    "build": "email export --dir src --outDir ../supabase/email-templates --pretty"
+  },
+  "devDependencies": {
+    "@react-email/components": "0.5.0"
+  }
+}

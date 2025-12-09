@@ -150,7 +150,7 @@ password_requirements = ""
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+email_sent = 10
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -177,7 +177,7 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -188,19 +188,36 @@ otp_length = 6
 otp_expiry = 3600
 
 # Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# For local dev, emails go to Inbucket. Set RESEND_ENABLED=true in production.
+[auth.email.smtp]
+enabled = "env(RESEND_ENABLED)"
+host = "smtp.resend.com"
+port = 587
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "noreply@transactional.arabizi.chat"
+sender_name = "Arabic Voice Agent"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Email template configurations
+[auth.email.template.invite]
+subject = "You're invited to join Arabic Voice Agent"
+content_path = "./supabase/email-templates/invite.html"
+
+[auth.email.template.confirmation]
+subject = "Welcome to Arabic Voice Agent - Please confirm your email"
+content_path = "./supabase/email-templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Arabic Voice Agent password"
+content_path = "./supabase/email-templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Sign in to Arabic Voice Agent - Magic Link"
+content_path = "./supabase/email-templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your email change - Arabic Voice Agent"
+content_path = "./supabase/email-templates/email_change.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
