@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../services/api-client';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Session {
   session_id: string;
@@ -19,10 +20,17 @@ interface UseUserSessionsReturn {
 
 export function useUserSessions(): UseUserSessionsReturn {
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user, isAnonymous } = useAuth();
 
   const fetchSessions = useCallback(async () => {
+    if (isAnonymous || !user) {
+      setSessions([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -36,7 +44,7 @@ export function useUserSessions(): UseUserSessionsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user, isAnonymous]);
 
   useEffect(() => {
     fetchSessions();

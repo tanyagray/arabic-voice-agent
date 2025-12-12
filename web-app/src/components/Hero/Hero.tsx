@@ -2,17 +2,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { BsArrowRight } from 'react-icons/bs';
 import { LiveSession } from '../LiveSession/LiveSession';
+import { SessionList } from '../SessionList/SessionList';
 import { Box, Button, Flex, Heading, Text, Container } from '@chakra-ui/react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useUserSessions } from '../../hooks/useUserSessions';
 
 const MotionBox = motion.create(Box);
 
 export function Hero() {
   const [showDemo, setShowDemo] = useState(false);
+  const { isAnonymous } = useAuth();
+  const { sessions, isLoading } = useUserSessions();
 
   return (
     <Box
       position="relative"
       minH="100vh"
+      h="100vh"
       display="flex"
       alignItems="center"
       justifyContent="center"
@@ -36,21 +42,31 @@ export function Hero() {
       </Box>
 
       {/* Content */}
-      <Container
-        position="relative"
-        zIndex={10}
-        maxW="7xl"
-        px={{ base: 4, sm: 6, lg: 8 }}
-        w="full"
-        h="full"
-      >
-        <Flex
-          direction={{ base: "column", md: "row" }}
-          gap={12}
-          align="center"
-          justify="center"
+      <Flex position="relative" zIndex={10} w="full" h="100%">
+        {/* SessionList for logged in users */}
+        {!isAnonymous && (
+          <SessionList
+            sessions={sessions}
+            isLoading={isLoading}
+            height="100%"
+          />
+        )}
+
+        <Container
+          position="relative"
+          maxW="7xl"
+          px={{ base: 4, sm: 6, lg: 8 }}
+          w="full"
           h="full"
+          flex={1}
         >
+          <Flex
+            direction={{ base: "column", md: "row" }}
+            gap={12}
+            align="center"
+            justify="center"
+            h="full"
+          >
           {/* Heading - Initially Centered, Then Moves Left */}
           <MotionBox
             initial={{ opacity: 0, y: 20 }}
@@ -146,6 +162,7 @@ export function Hero() {
           </AnimatePresence>
         </Flex>
       </Container>
+      </Flex>
     </Box>
   );
 }
