@@ -42,8 +42,17 @@ export function SessionList({
 
   if (isLoading) {
     return (
-      <Flex w={width} h={height} bg="gray.900/50" borderRight="1px" borderColor="gray.800" direction="column">
-        <Box p={4} borderBottom="1px" borderColor="gray.800">
+      <Flex
+        w={width}
+        h={height}
+        bg="whiteAlpha.50"
+        backdropFilter="blur(10px)"
+        borderRight="1px"
+        borderColor="whiteAlpha.200"
+        boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
+        direction="column"
+      >
+        <Box p={4} borderBottom="1px" borderColor="whiteAlpha.200">
           <Text fontSize="lg" fontWeight="semibold" color="gray.200">
             Sessions
           </Text>
@@ -57,8 +66,17 @@ export function SessionList({
 
   if (sessions.length === 0) {
     return (
-      <Flex w={width} h={height} bg="gray.900/50" borderRight="1px" borderColor="gray.800" direction="column">
-        <Box p={4} borderBottom="1px" borderColor="gray.800">
+      <Flex
+        w={width}
+        h={height}
+        bg="whiteAlpha.50"
+        backdropFilter="blur(10px)"
+        borderRight="1px"
+        borderColor="whiteAlpha.200"
+        boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
+        direction="column"
+      >
+        <Box p={4} borderBottom="1px" borderColor="whiteAlpha.200">
           <Text fontSize="lg" fontWeight="semibold" color="gray.200">
             Sessions
           </Text>
@@ -73,8 +91,17 @@ export function SessionList({
   }
 
   return (
-    <Flex w={width} h={height} bg="gray.900/50" borderRight="1px" borderColor="gray.800" direction="column">
-      <Box p={4} borderBottom="1px" borderColor="gray.800">
+    <Flex
+      w={width}
+      h={height}
+      bg="whiteAlpha.50"
+      backdropFilter="blur(10px)"
+      borderRight="1px"
+      borderColor="whiteAlpha.200"
+      boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
+      direction="column"
+    >
+      <Box p={4} borderBottom="1px" borderColor="whiteAlpha.200">
         <Text fontSize="lg" fontWeight="semibold" color="gray.200">
           Sessions
         </Text>
