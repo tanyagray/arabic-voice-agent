@@ -40,7 +40,7 @@ Full-page sections and layout components:
 
 Complex, composed components that combine multiple atoms:
 
-- **LiveDemoWidget** ([LiveDemoWidget.stories.tsx](src/components/LiveDemoWidget.stories.tsx)) - Main voice agent widget with LiveKit integration
+- **LiveSession** ([LiveSession.stories.tsx](src/components/LiveSession/LiveSession.stories.tsx)) - Main voice agent widget with LiveKit integration
 - **Transcript** ([Transcript.stories.tsx](src/components/Transcript.stories.tsx)) - Conversation transcript display with message bubbles
 
 ### Atoms

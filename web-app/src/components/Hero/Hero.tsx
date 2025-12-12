@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { BsArrowRight } from 'react-icons/bs';
-import { LiveDemoWidget } from '../LiveDemoWidget/LiveDemoWidget';
+import { LiveSession } from '../LiveSession/LiveSession';
 import { Box, Button, Flex, Heading, Text, Container } from '@chakra-ui/react';
 
 const MotionBox = motion.create(Box);
@@ -140,7 +140,7 @@ export function Hero() {
                 alignSelf="stretch"
                 alignItems="stretch"
               >
-                <LiveDemoWidget />
+                <LiveSession />
               </MotionBox>
             )}
           </AnimatePresence>

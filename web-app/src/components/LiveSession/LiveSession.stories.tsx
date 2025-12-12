@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { LiveDemoWidget } from './LiveDemoWidget';
+import { LiveSession } from './LiveSession';
 
 const meta = {
-  title: 'Components/LiveDemoWidget',
-  component: LiveDemoWidget,
+  title: 'Components/LiveSession',
+  component: LiveSession,
   parameters: {
     layout: 'fullscreen',
     backgrounds: {
@@ -20,11 +20,11 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof LiveDemoWidget>;
+} satisfies Meta<typeof LiveSession>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// Note: LiveDemoWidget now creates its own SessionContext internally
+// Note: LiveSession now creates its own SessionContext internally
 // To see it work, ensure VITE_API_URL is set to point to your running API
 export const Default: Story = {};
