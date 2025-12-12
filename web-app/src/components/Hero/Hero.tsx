@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { BsArrowRight } from 'react-icons/bs';
 import { LiveSession } from '../LiveSession/LiveSession';
 import { SessionList } from '../SessionList/SessionList';
-import { Box, Button, Flex, Heading, Text, Container } from '@chakra-ui/react';
+import { HeroCTA } from '../HeroCTA/HeroCTA';
+import { Box, Flex, Container } from '@chakra-ui/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUserSessions } from '../../hooks/useUserSessions';
 
@@ -67,81 +67,8 @@ export function Hero() {
             justify="center"
             h="full"
           >
-          {/* Heading - Initially Centered, Then Moves Left */}
-          <MotionBox
-            initial={{ opacity: 0, y: 20 }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            transition={{ duration: 0.8, ease: 'easeInOut' }}
-            display="flex"
-            flexDirection="column"
-            className={showDemo ? '' : 'max-w-3xl text-center'}
-            flex={showDemo ? 1 : undefined}
-            alignItems={showDemo ? "flex-start" : "center"}
-            justifyContent="center"
-          >
-            <Heading as="h1" fontWeight="bold" color="white" lineHeight="1.1">
-              <Text as="span" display="block" fontSize={{ base: "5xl", md: "7xl" }}>
-                Master Arabic
-              </Text>
-              <Text
-                as="span"
-                display="block"
-                fontSize={{ base: "3xl", md: "5xl" }}
-                mt={0}
-                bgGradient="to-r"
-                gradientFrom="accent.300"
-                gradientTo="accent.500"
-                bgClip="text"
-                color="transparent"
-                lineHeight="1.2"
-                pb={2}
-              >
-                with AI-Powered Conversations
-              </Text>
-            </Heading>
-
-            {/* Buttons */}
-            <MotionBox
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.5 }}
-              mt={8}
-              display="flex"
-              alignItems="center"
-              gap={4}
-            >
-              <Button
-                size="xl"
-                bg="white"
-                color="primary.600"
-                _hover={{ bg: "gray.100", boxShadow: "xl" }}
-                boxShadow="lg"
-                rounded="lg"
-                fontSize="lg"
-                transition="all 0.3s"
-              >
-                Sign Up
-              </Button>
-              {!showDemo && (
-                <Button
-                  onClick={() => setShowDemo(true)}
-                  size="xl"
-                  bg="accent.500"
-                  color="white"
-                  _hover={{ bg: "accent.600", boxShadow: "xl" }}
-                  boxShadow="lg"
-                  rounded="lg"
-                  fontSize="lg"
-                  transition="all 0.3s"
-                >
-                  Chat Now <BsArrowRight className="text-xl" />
-                </Button>
-              )}
-            </MotionBox>
-          </MotionBox>
+          {/* CTA - Initially Centered, Then Moves Left */}
+          <HeroCTA showDemo={showDemo} onChatNowClick={() => setShowDemo(true)} />
 
           {/* Voice Agent Widget - Fades in after heading moves */}
           <AnimatePresence>
