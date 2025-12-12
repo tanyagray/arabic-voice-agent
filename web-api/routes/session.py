@@ -43,6 +43,17 @@ class ContextResponse(BaseModel):
     active_tool: str | None
 
 
+class SessionListItem(BaseModel):
+    """Response model for a session in the list."""
+    session_id: str
+    created_at: str
+
+
+class SessionListResponse(BaseModel):
+    """Response model for list of user sessions."""
+    sessions: list[SessionListItem]
+
+
 # Router
 router = APIRouter(prefix="/session", tags=["Session"])
 
@@ -67,6 +78,24 @@ async def create_session(access_token: str = Depends(get_current_user_token)):
     session_id = session_service.create_session(access_token)
 
     return SessionResponse(session_id=session_id)
+
+
+@router.get("", response_model=SessionListResponse)
+async def list_user_sessions(access_token: str = Depends(get_current_user_token)):
+    """
+    List all sessions for the authenticated user.
+
+    Args:
+        access_token: JWT access token from Authorization header (automatically extracted)
+
+    Returns:
+        SessionListResponse with list of user sessions
+
+    Raises:
+        HTTPException: 401 if authentication fails
+    """
+    sessions = session_service.list_user_sessions(access_token)
+    return SessionListResponse(sessions=sessions)
 
 
 @router.websocket("/{session_id}")

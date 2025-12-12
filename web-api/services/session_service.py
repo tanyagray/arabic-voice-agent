@@ -113,4 +113,38 @@ def get_all_sessions() -> Dict[str, AgentSession]:
     Returns:
         Dict[str, AgentSession]: Dictionary of all session objects indexed by session_id
     """
-    return _sessions.copy() 
+    return _sessions.copy()
+
+
+def list_user_sessions(user_access_token: str) -> list[dict]:
+    """
+    List all sessions for a specific user from the database.
+
+    Args:
+        user_access_token: The user's access token for authentication
+
+    Returns:
+        list[dict]: List of session dictionaries containing session_id and created_at
+    """
+    supabase_client = get_supabase_user_client(user_access_token)
+
+    # Get user info
+    user_response = supabase_client.auth.get_user(user_access_token)
+    if not user_response or not user_response.user:
+        return []
+
+    user_id = user_response.user.id
+
+    # Query all sessions for this user
+    response = supabase_client.table("agent_sessions").select("session_id, created_at").eq("user_id", user_id).order("created_at", desc=True).execute()
+
+    if not response.data:
+        return []
+
+    return [
+        {
+            "session_id": session["session_id"],
+            "created_at": session["created_at"]
+        }
+        for session in response.data
+    ] 

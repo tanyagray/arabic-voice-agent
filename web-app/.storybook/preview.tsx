@@ -1,9 +1,10 @@
 import React from "react"
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react"
+import { ChakraProvider } from "@chakra-ui/react"
 import { withThemeByClassName } from "@storybook/addon-themes"
 import { MemoryRouter } from "react-router-dom"
 import type { Preview } from '@storybook/react-vite'
 import { AuthProvider } from '../src/contexts/AuthContext'
+import { system } from '../src/theme'
 import '../src/index.css'
 
 const preview: Preview = {
@@ -33,7 +34,7 @@ const preview: Preview = {
     (Story) => (
       <AuthProvider>
         <MemoryRouter>
-          <ChakraProvider value={defaultSystem}>
+          <ChakraProvider value={system}>
             <Story />
           </ChakraProvider>
         </MemoryRouter>
