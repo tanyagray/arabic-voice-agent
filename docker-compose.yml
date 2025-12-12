@@ -1,0 +1,62 @@
+services:
+  web-api:
+    image: python:3.13-slim
+    container_name: arabic-voice-agent-api
+    working_dir: /app
+    volumes:
+      - ./web-api:/app
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # debugpy port
+    env_file:
+      - ./web-api/.env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - SUPABASE_URL=http://host.docker.internal:54321
+    command: >
+      bash -c "pip install --no-cache-dir uv &&
+               uv sync &&
+               uv run python -m debugpy --listen 0.0.0.0:5678 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+    networks:
+      - arabic-voice-agent
+
+  web-app:
+    image: node:20-alpine
+    container_name: arabic-voice-agent-web-app
+    working_dir: /app
+    volumes:
+      - ./web-app:/app
+      - /app/node_modules  # Use container's node_modules
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./web-app/.env.local
+    command: >
+      sh -c "npm ci &&
+             npm run dev -- --host"
+    depends_on:
+      - web-api
+    networks:
+      - arabic-voice-agent
+
+  web-app-storybook:
+    image: node:20-alpine
+    container_name: arabic-voice-agent-storybook
+    working_dir: /app
+    volumes:
+      - ./web-app:/app
+      - /app/node_modules  # Use container's node_modules
+    ports:
+      - "6006:6006"
+    env_file:
+      - ./web-app/.env.local
+    command: >
+      sh -c "npm ci &&
+             npm run storybook -- --host 0.0.0.0 --no-open"
+    networks:
+      - arabic-voice-agent
+
+networks:
+  arabic-voice-agent:
+    driver: bridge
