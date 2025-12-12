@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { useAudioRecording } from '../../hooks/useAudioRecording';
 import { useAgentState } from '../../hooks/useAgentState';
-import { useSessionContext } from '../../contexts/SessionContext';
+import { useSessionContext } from '../../context/SessionContext';
 import { BsMic, BsArrowRepeat } from 'react-icons/bs';
 import { Button, Box } from '@chakra-ui/react';
 

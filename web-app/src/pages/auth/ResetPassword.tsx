@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Box, Button, Input, VStack, Image, Text, Alert, Heading, Stack } from '@chakra-ui/react';
 import { Field } from "@/components/ui/field"

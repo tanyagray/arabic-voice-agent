@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import AuthLayout from './components/AuthLayout';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './context/AuthContext';
 
 // Lazy load pages
 const HomePage = lazy(() => import('./pages/HomePage'));

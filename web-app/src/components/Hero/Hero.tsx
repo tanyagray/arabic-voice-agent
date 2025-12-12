@@ -4,7 +4,7 @@ import { LiveSession } from '../LiveSession/LiveSession';
 import { SessionList } from '../SessionList/SessionList';
 import { HeroCTA } from '../HeroCTA/HeroCTA';
 import { Box, Flex, Container } from '@chakra-ui/react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useUserSessions } from '../../hooks/useUserSessions';
 
 const MotionBox = motion.create(Box);

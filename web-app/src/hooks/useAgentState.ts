@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSessionContext } from '../contexts/SessionContext';
+import { useSessionContext } from '../context/SessionContext';
 import type { AgentState } from '../types/chat';
 
 export function useAgentState(): AgentState {

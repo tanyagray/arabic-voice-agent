@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { Box, Button, Input, VStack, Image, Text, Link, Alert, Heading } from '@chakra-ui/react';
 import { Field } from "@/components/ui/field"
 

@@ -1,9 +1,9 @@
 /**
- * @deprecated This hook is deprecated. Use AuthContext from '@/contexts/AuthContext' instead.
+ * @deprecated This hook is deprecated. Use AuthContext from '@/context/AuthContext' instead.
  *
  * Migration guide:
  * - Replace: import { useAuth } from '@/hooks/useAuth'
- * - With: import { useAuth } from '@/contexts/AuthContext'
+ * - With: import { useAuth } from '@/context/AuthContext'
  *
  * The new hook provides additional email auth methods while maintaining
  * backward compatibility with existing properties (user, session, isLoading, isAnonymous).

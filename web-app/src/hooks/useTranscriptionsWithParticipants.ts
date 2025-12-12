@@ -1,4 +1,4 @@
-import { useSessionContext } from '../contexts/SessionContext';
+import { useSessionContext } from '../context/SessionContext';
 
 interface TranscriptionEntry {
   text: string;

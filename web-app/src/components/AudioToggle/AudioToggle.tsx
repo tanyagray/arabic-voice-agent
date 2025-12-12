@@ -1,4 +1,4 @@
-import { useSessionContext } from '../../contexts/SessionContext';
+import { useSessionContext } from '../../context/SessionContext';
 import { BsVolumeUp, BsVolumeMute } from 'react-icons/bs';
 import { IconButton } from '@chakra-ui/react';
 

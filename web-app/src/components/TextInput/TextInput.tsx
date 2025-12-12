@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, type FormEvent } from 'react';
-import { useSessionContext } from '../../contexts/SessionContext';
+import { useSessionContext } from '../../context/SessionContext';
 import { BsSend, BsPencil } from 'react-icons/bs';
 import { Box, IconButton, Input } from '@chakra-ui/react';
 

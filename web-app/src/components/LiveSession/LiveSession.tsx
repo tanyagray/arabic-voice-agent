@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { useState } from 'react';
-import { SessionProvider, useSessionContext } from '../../contexts/SessionContext';
+import { SessionProvider, useSessionContext } from '../../context/SessionContext';
 import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
