@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useState, type FormEvent } from 'react';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { BsSend, BsPencil } from 'react-icons/bs';

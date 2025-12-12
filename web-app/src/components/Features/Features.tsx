@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Box, Container, Heading, Text, Grid, Flex } from '@chakra-ui/react';
 
 const features = [

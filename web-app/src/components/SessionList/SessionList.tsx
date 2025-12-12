@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
 
 interface Session {

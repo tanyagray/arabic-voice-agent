@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { forwardRef, type HTMLAttributes } from 'react';
 import { useTranscriptionsWithParticipants } from '../../hooks/useTranscriptionsWithParticipants';
 import { BsPlus, BsMic } from 'react-icons/bs';

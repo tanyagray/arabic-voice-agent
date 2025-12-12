@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { BsArrowRight } from 'react-icons/bs';
 import { Box, Button, Heading, Text } from '@chakra-ui/react';
 

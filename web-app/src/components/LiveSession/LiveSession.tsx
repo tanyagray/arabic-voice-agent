@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useState } from 'react';
 import { SessionProvider, useSessionContext } from '../../contexts/SessionContext';
 import { Transcript } from '../Transcript/Transcript';
