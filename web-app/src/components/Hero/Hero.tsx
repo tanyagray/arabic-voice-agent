@@ -72,9 +72,9 @@ export function Hero() {
             <HeroCTA showDemo={showDemo} onChatNowClick={() => setShowDemo(true)} />
           )}
 
-          {/* Voice Agent Widget - Fades in after heading moves */}
+          {/* Voice Agent Widget - Always visible for logged in users, fades in after heading moves for anonymous */}
           <AnimatePresence>
-            {showDemo && (
+            {(!isAnonymous || showDemo) && (
               <MotionBox
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
