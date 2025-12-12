@@ -15,64 +15,52 @@ export function Hero() {
   const { sessions, isLoading } = useUserSessions();
 
   return (
-    <Box
+    <Flex
       position="relative"
       minH="100vh"
       h="100vh"
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
       overflow="hidden"
+      bgGradient="to-br"
+      gradientFrom="primary.500"
+      gradientVia="purple.600"
+      gradientTo="primary.700"
+      _before={{
+        content: '""',
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')",
+        opacity: 0.4,
+      }}
     >
-      {/* Animated gradient background */}
-      <Box
-        position="absolute"
-        inset={0}
-        bgGradient="to-br"
-        gradientFrom="primary.500"
-        gradientVia="purple.600"
-        gradientTo="primary.700"
-      >
-        <Box
-          position="absolute"
-          inset={0}
-          backgroundImage="url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')"
-          opacity={0.4}
+      {!isAnonymous && (
+        <SessionList
+          sessions={sessions}
+          isLoading={isLoading}
+          height="100%"
         />
-      </Box>
+      )}
 
-      {/* Content */}
-      <Flex position="relative" zIndex={10} w="full" h="100%">
-        {/* SessionList for logged in users */}
-        {!isAnonymous && (
-          <SessionList
-            sessions={sessions}
-            isLoading={isLoading}
-            height="100%"
-          />
-        )}
-
-        <Container
-          position="relative"
-          maxW="7xl"
-          px={{ base: 4, sm: 6, lg: 8 }}
+      <Container
+        position="relative"
+        zIndex={10}
+        maxW="7xl"
+        px={{ base: 4, sm: 6, lg: 8 }}
+        flex={1}
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          gap={12}
+          align="center"
+          justify="center"
           w="full"
-          h="full"
-          flex={1}
         >
-          <Flex
-            direction={{ base: "column", md: "row" }}
-            gap={12}
-            align="center"
-            justify="center"
-            h="full"
-          >
-          {/* CTA - Initially Centered, Then Moves Left */}
           {isAnonymous && (
             <HeroCTA showDemo={showDemo} onChatNowClick={() => setShowDemo(true)} />
           )}
 
-          {/* Voice Agent Widget - Always visible for logged in users, fades in after heading moves for anonymous */}
           <AnimatePresence>
             {(!isAnonymous || showDemo) && (
               <MotionBox
@@ -91,7 +79,6 @@ export function Hero() {
           </AnimatePresence>
         </Flex>
       </Container>
-      </Flex>
-    </Box>
+    </Flex>
   );
 }
