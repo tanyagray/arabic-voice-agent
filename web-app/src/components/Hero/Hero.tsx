@@ -68,7 +68,9 @@ export function Hero() {
             h="full"
           >
           {/* CTA - Initially Centered, Then Moves Left */}
-          <HeroCTA showDemo={showDemo} onChatNowClick={() => setShowDemo(true)} />
+          {isAnonymous && (
+            <HeroCTA showDemo={showDemo} onChatNowClick={() => setShowDemo(true)} />
+          )}
 
           {/* Voice Agent Widget - Fades in after heading moves */}
           <AnimatePresence>
