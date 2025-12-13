@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { forwardRef, type HTMLAttributes } from 'react';
-import { useTranscriptionsWithParticipants } from '../../hooks/useTranscriptionsWithParticipants';
+import { useStore } from '../../store';
 import { BsPlus, BsMic } from 'react-icons/bs';
 import { Box, Flex, Text, Icon } from '@chakra-ui/react';
 
@@ -54,13 +54,20 @@ function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubblePr
 
 export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className = '', style, ...props }, ref) => {
-    const transcriptions = useTranscriptionsWithParticipants();
+    const messages = useStore((state) => state.session.messages);
+
+    console.log('Transcript rendering with messages:', messages);
 
     return (
-      <Box
+      <Flex
         ref={ref}
-        position="relative"
-        overflow="hidden"
+        direction="column"
+        gap={3}
+        h="full"
+        w="full"
+        overflowY="auto"
+        pr={2}
+        pb={2}
         style={{
           maskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
@@ -68,32 +75,28 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
         }}
         {...props}
       >
-        {transcriptions && transcriptions.length > 0 && (
-          <Flex
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            direction="column"
-            gap={3}
-            pr={2}
-            pb={2}
-          >
-            {transcriptions.map((transcription, index) => {
-              const isUser = transcription.type === 'user';
-              return (
-                <TranscriptBubble
-                  key={`${transcription.timestamp}-${index}`}
-                  text={transcription.text}
-                  isUser={isUser}
-                  timestamp={transcription.timestamp}
-                  index={index}
-                />
-              );
-            })}
+        {messages && messages.length > 0 ? (
+          messages.map((message, index) => {
+            const isUser = message.role === 'user';
+            console.log('Rendering message:', message);
+            return (
+              <TranscriptBubble
+                key={`${message.id}-${index}`}
+                text={message.text}
+                isUser={isUser}
+                timestamp={message.timestamp.getTime()}
+                index={index}
+              />
+            );
+          })
+        ) : (
+          <Flex h="full" align="center" justify="center">
+            <Text color="white" opacity={0.5}>
+              No messages yet
+            </Text>
           </Flex>
         )}
-      </Box>
+      </Flex>
     );
   }
 );

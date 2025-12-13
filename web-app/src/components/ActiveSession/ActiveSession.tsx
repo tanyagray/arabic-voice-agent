@@ -7,6 +7,8 @@ import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
 import { AudioToggle } from '../AudioToggle/AudioToggle';
 import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
+import type { WebSocketMessage, TranscriptMessageData } from '../../types/chat';
+import type { ChatMessage } from '../../api/sessions/sessions.types';
 
 const MotionBox = motion.create(Box);
 
@@ -17,6 +19,41 @@ export function ActiveSession() {
   const socketError = useStore((state) => state.socket.error);
   const socketConnect = useStore((state) => state.socket.connect);
   const socketDisconnect = useStore((state) => state.socket.disconnect);
+  const socketOnMessage = useStore((state) => state.socket.onMessage);
+  const removeMessageHandler = useStore((state) => state.socket.removeMessageHandler);
+  const addMessage = useStore((state) => state.session.addMessage);
+
+  // Handle incoming websocket messages
+  useEffect(() => {
+    const handleMessage = (message: WebSocketMessage) => {
+      console.log('Received websocket message:', message);
+
+      // Handle transcript messages
+      if (message.kind === 'transcript') {
+        const data = message.data as TranscriptMessageData;
+
+        // Convert source to role
+        const role = data.source === 'user' ? 'user' : 'assistant';
+
+        // Create ChatMessage from transcript
+        const chatMessage: ChatMessage = {
+          id: `${data.source}-${Date.now()}`,
+          text: data.text,
+          role,
+          timestamp: new Date(),
+        };
+
+        console.log('Adding message to store:', chatMessage);
+        addMessage(chatMessage);
+      }
+    };
+
+    socketOnMessage(handleMessage);
+
+    return () => {
+      removeMessageHandler();
+    };
+  }, [socketOnMessage, removeMessageHandler, addMessage]);
 
   // Manage socket connection based on active session
   useEffect(() => {
@@ -100,8 +137,8 @@ function RoomUI() {
   return (
     <Flex direction="column" flex={1} gap={6} minH={0}>
       {/* Transcript - fills available space */}
-      <Box flex={1} minH={0} position="relative" w="full">
-        <Transcript style={{ position: 'absolute', inset: 0 }} />
+      <Box flex={1} minH={0} w="full">
+        <Transcript />
       </Box>
 
       {/* Control buttons */}
