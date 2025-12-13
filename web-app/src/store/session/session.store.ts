@@ -6,6 +6,7 @@
  */
 
 import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 import type { SessionState } from './session.state';
 
 /**
@@ -16,7 +17,9 @@ import type { SessionState } from './session.state';
  * const { messages, addMessage, sessionId } = useSessionStore();
  * ```
  */
-export const useSessionStore = create<SessionState>((set) => ({
+export const useSessionStore = create<SessionState>()(
+  devtools(
+    (set) => ({
   sessionId: null,
   messages: [],
   currentInput: '',
@@ -40,4 +43,7 @@ export const useSessionStore = create<SessionState>((set) => ({
       messages: [],
       currentInput: '',
     }),
-}));
+    }),
+    { name: 'SessionStore' }
+  )
+);
