@@ -9,6 +9,7 @@ from .context_service import get_context
 from .session_service import get_session
 from .websocket_service import Message, send_message, send_audio_message
 from .tts_service import get_tts_service
+from .transcript_service import create_transcript_message
 
 
 async def generate_agent_response(session_id: str, user_message: str, user_access_token: str | None = None) -> str:
@@ -109,17 +110,36 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None, u
     else:
         text_response = await generate_agent_followup(session_id, user_access_token)
 
-    # Send the text response on the websocket
-    await send_message(
-        session_id,
-        Message(
-            kind="transcript",
-            data={
-                "source": "tutor",
-                "text": text_response
-            }
+    # Create and save the tutor message to the database
+    try:
+        transcript_message = await create_transcript_message(
+            session_id=session_id,
+            message_source="tutor",
+            message_kind="text",
+            message_content=text_response,
         )
-    )
+
+        # Send the full message format via websocket
+        await send_message(
+            session_id,
+            Message(
+                kind="transcript",
+                data=transcript_message.model_dump(mode='json')
+            )
+        )
+    except Exception as e:
+        # If database save fails, still send a simple message
+        print(f"[Agent] Failed to save tutor message to database: {e}")
+        await send_message(
+            session_id,
+            Message(
+                kind="transcript",
+                data={
+                    "source": "tutor",
+                    "text": text_response
+                }
+            )
+        )
 
     # Check if audio is enabled and generate audio if so
     context = get_context(session_id)
@@ -183,6 +203,18 @@ async def start_realtime_agent(websocket: WebSocket, session_id: str, user_acces
             # User responded - reset followup counter and timeout
             followup_count = 0
             current_timeout = base_timeout
+
+            # Save the user's message to the database
+            try:
+                await create_transcript_message(
+                    session_id=session_id,
+                    message_source="user",
+                    message_kind="text",
+                    message_content=user_message,
+                )
+            except Exception as e:
+                # Log the error but continue - don't fail the request if DB insert fails
+                print(f"[Agent] Failed to save user message to database: {e}")
 
             # Process the user message
             await trigger_agent_turn(session_id, user_message, user_access_token)

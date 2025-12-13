@@ -6,12 +6,17 @@
 
 /**
  * Represents a single chat message in the conversation.
+ * Matches the transcript_messages table schema in the database.
  */
 export interface ChatMessage {
-  id: string;
-  text: string;
-  role: 'user' | 'assistant';
-  timestamp: Date;
+  message_id: string;
+  session_id: string;
+  user_id: string;
+  message_source: 'user' | 'tutor' | 'system';
+  message_kind: string;
+  message_content: string;
+  created_at: string;
+  updated_at: string;
 }
 
 /**

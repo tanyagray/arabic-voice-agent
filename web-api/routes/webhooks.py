@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from services import soniox_service, agent_service, websocket_service
+from services import soniox_service, agent_service, websocket_service, transcript_service
 from services.websocket_service import Message
 
 # Models
@@ -55,58 +55,64 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
             transcript_text = await soniox_service.get_transcript(transcription_id)
 
             if not transcript_text:
-                # Send error message to client
+                # Create and save error message
+                try:
+                    error_message = await transcript_service.create_transcript_message(
+                        session_id=session_id,
+                        message_source="system",
+                        message_kind="text",
+                        message_content="Sorry, I couldn't transcribe the audio. Please try again.",
+                    )
+                    await websocket_service.send_message(
+                        session_id,
+                        Message(
+                            kind="transcript",
+                            data=error_message.model_dump(mode='json')
+                        )
+                    )
+                except Exception as e:
+                    print(f"[Webhook] Failed to save error message: {e}")
+                return {"message": "Empty transcript received"}
+
+            # Create and save the user's transcribed message
+            try:
+                user_message = await transcript_service.create_transcript_message(
+                    session_id=session_id,
+                    message_source="user",
+                    message_kind="text",
+                    message_content=transcript_text,
+                )
                 await websocket_service.send_message(
                     session_id,
                     Message(
                         kind="transcript",
-                        data={
-                            "source": "system",
-                            "text": "Sorry, I couldn't transcribe the audio. Please try again."
-                        }
+                        data=user_message.model_dump(mode='json')
                     )
                 )
-                return {"message": "Empty transcript received"}
+            except Exception as e:
+                print(f"[Webhook] Failed to save user message: {e}")
 
-            # Send the user's transcribed message to the client
-            await websocket_service.send_message(
-                session_id,
-                Message(
-                    kind="transcript",
-                    data={
-                        "source": "user",
-                        "text": transcript_text
-                    }
-                )
-            )
-
-            # Generate agent response
-            agent_response = await agent_service.generate_agent_response(session_id, transcript_text)
-
-            # Send agent response to client via WebSocket
-            await websocket_service.send_message(
-                session_id,
-                Message(
-                    kind="transcript",
-                    data={
-                        "source": "tutor",
-                        "text": agent_response
-                    }
-                )
-            )
+            # Generate and send agent response (this will save and send the tutor message)
+            await agent_service.trigger_agent_turn(session_id, transcript_text)
 
         elif status == "error":
-            # Send error message to client
-            await websocket_service.send_message(
-                session_id,
-                Message(
-                    kind="transcript",
-                    data={
-                        "source": "system",
-                        "text": "Sorry, there was an error transcribing your audio. Please try again."
-                    }
+            # Create and save error message
+            try:
+                error_message = await transcript_service.create_transcript_message(
+                    session_id=session_id,
+                    message_source="system",
+                    message_kind="text",
+                    message_content="Sorry, there was an error transcribing your audio. Please try again.",
                 )
-            )
+                await websocket_service.send_message(
+                    session_id,
+                    Message(
+                        kind="transcript",
+                        data=error_message.model_dump(mode='json')
+                    )
+                )
+            except Exception as e:
+                print(f"[Webhook] Failed to save error message: {e}")
 
         # Clean up the transcription job mapping
         soniox_service.remove_transcription_job(transcription_id)
@@ -114,17 +120,23 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
         return {"message": "Webhook processed successfully"}
 
     except Exception as e:
-        # Send error message to client
-        await websocket_service.send_message(
-            session_id,
-            Message(
-                kind="transcript",
-                data={
-                    "source": "system",
-                    "text": "Sorry, there was an error processing your message. Please try again."
-                }
+        # Create and save error message
+        try:
+            error_message = await transcript_service.create_transcript_message(
+                session_id=session_id,
+                message_source="system",
+                message_kind="text",
+                message_content="Sorry, there was an error processing your message. Please try again.",
             )
-        )
+            await websocket_service.send_message(
+                session_id,
+                Message(
+                    kind="transcript",
+                    data=error_message.model_dump(mode='json')
+                )
+            )
+        except Exception as save_error:
+            print(f"[Webhook] Failed to save error message: {save_error}")
 
         # Clean up even on error
         soniox_service.remove_transcription_job(transcription_id)

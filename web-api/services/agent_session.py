@@ -19,13 +19,14 @@ class AgentSession(SessionABC):
     and is associated with that user.
     """
 
-    def __init__(self, session_id: str, supabase_client: Client, user_access_token: str):
+    def __init__(self, session_id: str, supabase_client: Client, user_access_token: Optional[str] = None):
         """
         Initialize a Supabase-backed Agent Session.
 
         Args:
             session_id: Unique identifier for this agent session
             supabase_client: Authenticated Supabase client (representing the UserSession)
+            user_access_token: Optional user access token for getting user info
         """
         self.session_id = session_id
         self.supabase = supabase_client
@@ -34,16 +35,19 @@ class AgentSession(SessionABC):
 
     def _ensure_session_exists(self) -> None:
         """Ensure an agent session record exists in the database for the current user."""
-        user_response = self.supabase.auth.get_user(self.user_access_token)
-        if user_response is None:
-            raise ValueError("Invalid user access token provided.")
-        
-        self.user: User = user_response.user
-
         # Check if agent session exists
-        response = self.supabase.table("agent_sessions").select("session_id").eq("session_id", self.session_id).execute()
+        response = self.supabase.table("agent_sessions").select("session_id, user_id").eq("session_id", self.session_id).execute()
 
         if not response.data:
+            # Session doesn't exist - need user_access_token to create it
+            if not self.user_access_token:
+                raise ValueError("User access token required to create new session")
+
+            user_response = self.supabase.auth.get_user(self.user_access_token)
+            if user_response is None:
+                raise ValueError("Invalid user access token provided.")
+
+            self.user: User = user_response.user
 
             # Create new agent session if it doesn't exist
             self.supabase.table("agent_sessions").insert({
@@ -51,6 +55,14 @@ class AgentSession(SessionABC):
                 "session_id": self.session_id,
                 "items": []
             }).execute()
+        else:
+            # Session exists - try to get user info if we have a token
+            if self.user_access_token:
+                user_response = self.supabase.auth.get_user(self.user_access_token)
+                if user_response:
+                    self.user: User = user_response.user
+            # If we don't have a token or it fails, we can still use the session
+            # The user attribute just won't be set
 
     def _serialize_item(self, item: TResponseInputItem) -> dict:
         """

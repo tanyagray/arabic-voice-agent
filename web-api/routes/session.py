@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from pydantic import BaseModel, Field
 
-from services import session_service, agent_service, context_service, websocket_service, soniox_service
+from services import session_service, agent_service, context_service, websocket_service, soniox_service, transcript_service
 from dependencies.auth import get_current_user_token
 
 
@@ -118,6 +118,18 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
     session = session_service.get_session(session_id, user_access_token=access_token)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+
+    # Save the user's message to the database
+    try:
+        await transcript_service.create_transcript_message(
+            session_id=session_id,
+            message_source="user",
+            message_kind="text",
+            message_content=request.message,
+        )
+    except Exception as e:
+        # Log the error but continue - don't fail the request if DB insert fails
+        print(f"[Session] Failed to save user message to database: {e}")
 
     # Generate the agent response
     response = await agent_service.generate_agent_response(session_id, request.message, access_token)

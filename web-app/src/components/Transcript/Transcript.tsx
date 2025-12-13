@@ -77,14 +77,14 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
       >
         {messages && messages.length > 0 ? (
           messages.map((message, index) => {
-            const isUser = message.role === 'user';
+            const isUser = message.message_source === 'user';
             console.log('Rendering message:', message);
             return (
               <TranscriptBubble
-                key={`${message.id}-${index}`}
-                text={message.text}
+                key={`${message.message_id}-${index}`}
+                text={message.message_content}
                 isUser={isUser}
-                timestamp={message.timestamp.getTime()}
+                timestamp={new Date(message.created_at).getTime()}
                 index={index}
               />
             );

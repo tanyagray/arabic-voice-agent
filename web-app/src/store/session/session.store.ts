@@ -146,10 +146,14 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
 
       // Optimistically add user message
       const userMessage: ChatMessage = {
-        id: `user-${Date.now()}`,
-        text: message,
-        role: 'user',
-        timestamp: new Date(),
+        message_id: `user-${Date.now()}`,
+        session_id: activeSessionId,
+        user_id: '', // Will be populated by backend
+        message_source: 'user',
+        message_kind: 'text',
+        message_content: message,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       addMessage(userMessage);
 
@@ -157,10 +161,14 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
 
       // Add assistant response
       const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        text: responseText,
-        role: 'assistant',
-        timestamp: new Date(),
+        message_id: `assistant-${Date.now()}`,
+        session_id: activeSessionId,
+        user_id: '', // Will be populated by backend
+        message_source: 'tutor',
+        message_kind: 'text',
+        message_content: responseText,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       addMessage(assistantMessage);
     },
@@ -169,11 +177,16 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
       const { session } = get();
       const { addMessage } = session;
 
+      // The backend now sends the full message format matching the database schema
       const transcriptMessage: ChatMessage = {
-        id: `transcript-${Date.now()}`,
-        text: message.data.text,
-        role: message.data.source,
-        timestamp: new Date(),
+        message_id: message.data.message_id,
+        session_id: message.data.session_id,
+        user_id: message.data.user_id,
+        message_source: message.data.message_source,
+        message_kind: message.data.message_kind,
+        message_content: message.data.message_content,
+        created_at: message.data.created_at,
+        updated_at: message.data.updated_at,
       };
       addMessage(transcriptMessage);
     }
