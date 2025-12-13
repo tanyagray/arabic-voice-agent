@@ -49,6 +49,13 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
 
     loadSessions: async () => {
       const sessions = await getSessions();
+
+      if (!sessions || sessions.length === 0) {
+        await get().session.createNewSession();
+        get().session.loadSessions();
+        return;
+      }
+
       // Set the most recent session as active (assuming sessions are sorted by created_at descending)
       const mostRecentSessionId = sessions.length > 0 ? sessions[0].session_id : null;
       set((state) => ({

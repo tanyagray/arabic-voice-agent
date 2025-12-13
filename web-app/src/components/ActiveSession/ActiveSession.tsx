@@ -1,76 +1,27 @@
 import { motion } from 'motion/react';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../../store';
 import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
 import { AudioToggle } from '../AudioToggle/AudioToggle';
 import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
-import type { WebSocketMessage, TranscriptMessageData } from '../../types/chat';
-import type { ChatMessage } from '../../api/sessions/sessions.types';
 
 const MotionBox = motion.create(Box);
 
 export function ActiveSession() {
-  const activeSessionId = useStore((state) => state.session.activeSessionId);
-  const socketStatus = useStore((state) => state.socket.status);
-  const socketError = useStore((state) => state.socket.error);
-  const socketConnect = useStore((state) => state.socket.connect);
-  const socketDisconnect = useStore((state) => state.socket.disconnect);
-  const socketOnMessage = useStore((state) => state.socket.onMessage);
-  const removeMessageHandler = useStore((state) => state.socket.removeMessageHandler);
-  const addMessage = useStore((state) => state.session.addMessage);
-
-  // Handle incoming websocket messages
-  useEffect(() => {
-    const handleMessage = (message: WebSocketMessage) => {
-      console.log('Received websocket message:', message);
-
-      // Handle transcript messages
-      if (message.kind === 'transcript') {
-        const data = message.data as TranscriptMessageData;
-
-        // Convert source to role
-        const role = data.source === 'user' ? 'user' : 'assistant';
-
-        // Create ChatMessage from transcript
-        const chatMessage: ChatMessage = {
-          id: `${data.source}-${Date.now()}`,
-          text: data.text,
-          role,
-          timestamp: new Date(),
-        };
-
-        console.log('Adding message to store:', chatMessage);
-        addMessage(chatMessage);
-      }
-    };
-
-    socketOnMessage(handleMessage);
-
-    return () => {
-      removeMessageHandler();
-    };
-  }, [socketOnMessage, removeMessageHandler, addMessage]);
-
-  // Manage socket connection based on active session
-  useEffect(() => {
-    // Disconnect any existing socket connection
-    socketDisconnect();
-
-    // Connect to new session if session ID exists
-    if (activeSessionId) {
-      socketConnect(activeSessionId);
-    }
-
-    // Cleanup: disconnect on unmount or when session changes
-    return () => {
-      socketDisconnect();
-    };
-  }, [activeSessionId, socketConnect, socketDisconnect]);
-
-  const error = socketError;
+  const socketStatus = useStore((s) => s.socket.status);
+  const error = useStore((s) => s.socket.error);
   const isLoading = socketStatus === 'connecting';
+  const activeSessionId = useStore((s) => s.session.activeSessionId);
+  const connect = useStore((s) => s.socket.connect);
+
+  // Connect to WebSocket when activeSessionId changes
+  useEffect(() => {
+    if (activeSessionId) {
+      connect(activeSessionId);
+    }
+  }, [activeSessionId]);
 
   return (
     <MotionBox
