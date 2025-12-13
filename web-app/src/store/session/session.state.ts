@@ -9,7 +9,6 @@ export interface SessionState {
   activeSession: Session | null;
   sessions: Session[];
   messages: ChatMessage[];
-  currentInput: string;
 
   // Actions
   setActiveSession: (session: Session | null) => void;
@@ -17,6 +16,9 @@ export interface SessionState {
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;
   clearMessages: () => void;
-  setCurrentInput: (input: string) => void;
   reset: () => void;
+
+  // API Actions
+  createNewSession: () => Promise<void>;
+  sendMessage: (message: string) => Promise<void>;
 }

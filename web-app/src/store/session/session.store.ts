@@ -7,24 +7,24 @@
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { getSessions } from '@/api/sessions/sessions.api';
+import { getSessions, createSession, sendMessage as sendMessageApi } from '@/api/sessions/sessions.api';
 import type { SessionState } from './session.state';
+import type { ChatMessage } from '@/api/sessions/sessions.types';
 
 /**
  * Session store hook.
  *
  * Usage:
  * ```tsx
- * const { messages, addMessage, activeSession } = useSessionStore();
+ * const { messages, addMessage, activeSession, createNewSession } = useSessionStore();
  * ```
  */
 export const useSessionStore = create<SessionState>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
   activeSession: null,
   sessions: [],
   messages: [],
-  currentInput: '',
 
   setActiveSession: (session) => set({ activeSession: session }),
 
@@ -44,14 +44,49 @@ export const useSessionStore = create<SessionState>()(
 
   clearMessages: () => set({ messages: [] }),
 
-  setCurrentInput: (input) => set({ currentInput: input }),
-
   reset: () =>
     set({
       activeSession: null,
       messages: [],
-      currentInput: '',
     }),
+
+  createNewSession: async () => {
+    const newSessionId = await createSession();
+    set({
+      activeSession: {
+        session_id: newSessionId,
+        created_at: new Date().toISOString(),
+      },
+    });
+  },
+
+  sendMessage: async (message: string) => {
+    const { activeSession, addMessage } = get();
+
+    if (!activeSession) {
+      throw new Error('No active session. Create a session first.');
+    }
+
+    // Optimistically add user message
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      text: message,
+      role: 'user',
+      timestamp: new Date(),
+    };
+    addMessage(userMessage);
+
+    const responseText = await sendMessageApi(activeSession.session_id, message);
+
+    // Add assistant response
+    const assistantMessage: ChatMessage = {
+      id: `assistant-${Date.now()}`,
+      text: responseText,
+      role: 'assistant',
+      timestamp: new Date(),
+    };
+    addMessage(assistantMessage);
+  },
     }),
     { name: 'SessionStore' }
   )

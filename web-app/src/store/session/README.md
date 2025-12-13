@@ -4,52 +4,66 @@ This module provides a complete chat interface for interacting with the Arabic V
 
 ## Architecture
 
-The chat module follows a hybrid architecture pattern:
+The chat module uses Zustand for state management with integrated API calls:
 
 - **Services Layer** (`src/services/`) - Technical infrastructure (HTTP client configuration)
-- **Store Layer** (`src/store/session/`) - Business logic for session/chat feature
+- **Store Layer** (`src/store/session/`) - Business logic for session/chat feature with API integration
 
 ### Files
 
-- `session.store.ts` - Zustand store for client-side chat state
-- `useChat.ts` - Main React hook combining React Query + Zustand
+- `session.store.ts` - Zustand store with client-side state and API actions
+- `session.state.ts` - TypeScript interfaces for the store
 
 ## Usage
 
 ### Basic Example
 
 ```tsx
-import { useChat } from '@/store/session/useChat';
+import { useSessionStore } from '@/store/session/session.store';
+import { useState } from 'react';
 
 function ChatComponent() {
-  const {
-    messages,
-    sessionId,
-    sendMessage,
-    createNewSession,
-    isLoading,
-    error,
-  } = useChat();
+  const { messages, activeSession, sendMessage, createNewSession } = useSessionStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleCreateSession = () => {
-    createNewSession();
+  const handleCreateSession = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await createNewSession();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create session');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSendMessage = (text: string) => {
-    if (!sessionId) {
+  const handleSendMessage = async (text: string) => {
+    if (!activeSession) {
       alert('Create a session first!');
       return;
     }
-    sendMessage(text);
+    setIsLoading(true);
+    setError(null);
+    try {
+      await sendMessage(text);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send message');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div>
-      {!sessionId && (
-        <button onClick={handleCreateSession}>Start New Chat</button>
+      {!activeSession && (
+        <button onClick={handleCreateSession} disabled={isLoading}>
+          Start New Chat
+        </button>
       )}
 
-      {sessionId && (
+      {activeSession && (
         <>
           <div className="messages">
             {messages.map((msg) => (
@@ -72,7 +86,7 @@ function ChatComponent() {
           />
 
           {isLoading && <p>Sending...</p>}
-          {error && <p>Error: {error.message}</p>}
+          {error && <p>Error: {error}</p>}
         </>
       )}
     </div>
@@ -80,9 +94,9 @@ function ChatComponent() {
 }
 ```
 
-### Direct Store Access
+### Selective Store Access
 
-You can also access the store directly in any component:
+For better performance, you can select only the state you need:
 
 ```tsx
 import { useSessionStore } from '@/store/session/session.store';
@@ -110,31 +124,28 @@ console.log(response);
 
 ## API Reference
 
-### `useChat()` Hook
+### `useSessionStore()` Hook
 
 Returns an object with the following properties:
 
 #### State
 
-- `sessionId: string | null` - Current session ID
+- `activeSession: Session | null` - Current active session
+- `sessions: Session[]` - Array of all sessions
 - `messages: ChatMessage[]` - Array of chat messages
-- `currentInput: string` - Current input text (for controlled inputs)
 
 #### Actions
 
-- `createNewSession: () => void` - Create a new chat session
-- `sendMessage: (message: string) => void` - Send a message to the agent
-- `setCurrentInput: (input: string) => void` - Update current input
+- `setActiveSession: (session: Session | null) => void` - Set the active session
+- `loadSessions: () => Promise<void>` - Load all sessions from the API
+- `addMessage: (message: ChatMessage) => void` - Add a message to the store
+- `setMessages: (messages: ChatMessage[]) => void` - Replace all messages
+- `clearMessages: () => void` - Clear all messages
 - `reset: () => void` - Reset the entire chat state
+- `createNewSession: () => Promise<void>` - Create a new chat session (API call)
+- `sendMessage: (message: string) => Promise<void>` - Send a message to the agent (API call)
 
-#### Loading/Error States
-
-- `isCreatingSession: boolean` - True while creating a session
-- `isSendingMessage: boolean` - True while sending a message
-- `isLoading: boolean` - True if any operation is in progress
-- `createSessionError: Error | null` - Error from session creation
-- `sendMessageError: Error | null` - Error from sending message
-- `error: Error | null` - Combined error state
+> **Note:** Loading and error states are managed locally in components. The async actions return promises that can be caught for error handling.
 
 ### Types
 
@@ -168,18 +179,27 @@ VITE_API_URL=http://localhost:8000
 
 ### Optimistic Updates
 
-The `sendMessage` function automatically adds your message to the UI before receiving a response (optimistic update). If the request fails, you can handle it via the error state.
+The `sendMessage` function automatically adds your message to the UI before receiving a response (optimistic update). If the request fails, catch the promise rejection in your component:
+
+```tsx
+try {
+  await sendMessage(text);
+} catch (err) {
+  // Handle error in your component
+  console.error('Failed to send message:', err);
+}
+```
 
 ### Multiple Sessions
 
 To support multiple chat sessions, you can reset the store and create a new session:
 
 ```tsx
-const { reset, createNewSession } = useChat();
+const { reset, createNewSession } = useSessionStore();
 
-const startNewConversation = () => {
+const startNewConversation = async () => {
   reset();
-  createNewSession();
+  await createNewSession();
 };
 ```
 
