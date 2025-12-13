@@ -8,9 +8,24 @@
 import { apiClient } from '@/api/api-client';
 import type {
   CreateSessionResponse,
+  GetSessionsResponse,
   SendMessageRequest,
   SendMessageResponse,
+  Session,
 } from './sessions.types';
+
+/**
+ * Get all chat sessions.
+ *
+ * @returns Promise resolving to an array of sessions
+ * @throws Error if the request fails
+ *
+ * Backend endpoint: GET /sessions
+ */
+export async function getSessions(): Promise<Session[]> {
+  const response = await apiClient.get<GetSessionsResponse>('/sessions');
+  return response.data.sessions;
+}
 
 /**
  * Create a new chat session.

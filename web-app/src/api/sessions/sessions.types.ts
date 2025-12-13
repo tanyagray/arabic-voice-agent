@@ -36,3 +36,18 @@ export interface SendMessageRequest {
 export interface SendMessageResponse {
   text: string;
 }
+
+/**
+ * Represents a session with metadata.
+ */
+export interface Session {
+  session_id: string;
+  created_at: string;
+}
+
+/**
+ * Response from fetching all sessions.
+ */
+export interface GetSessionsResponse {
+  sessions: Session[];
+}

@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { getSessions } from '@/api/sessions/sessions.api';
 import type { SessionState } from './session.state';
 
 /**
@@ -21,10 +22,16 @@ export const useSessionStore = create<SessionState>()(
   devtools(
     (set) => ({
   sessionId: null,
+  sessions: [],
   messages: [],
   currentInput: '',
 
   setSessionId: (sessionId) => set({ sessionId }),
+
+  loadSessions: async () => {
+    const sessions = await getSessions();
+    set({ sessions });
+  },
 
   addMessage: (message) =>
     set((state) => ({
