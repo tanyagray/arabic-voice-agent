@@ -1,13 +1,9 @@
 import { motion } from 'motion/react';
 import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
-
-interface Session {
-  session_id: string;
-  created_at: string;
-}
+import { useSessionStore } from '@/store/session/session.store';
+import { useEffect } from 'react';
 
 interface SessionListProps {
-  sessions: Session[];
   currentSessionId?: string | null;
   onSessionSelect?: (sessionId: string) => void;
   isLoading?: boolean;
@@ -18,13 +14,20 @@ interface SessionListProps {
 const MotionBox = motion.create(Box);
 
 export function SessionList({
-  sessions,
   currentSessionId,
   onSessionSelect,
   isLoading = false,
   width = "300px",
   height = "100%",
 }: SessionListProps) {
+  const sessions = useSessionStore((s) => s.sessions);
+  const loadSessions = useSessionStore((s) => s.loadSessions);
+
+  // load the list of sessions on mount
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
