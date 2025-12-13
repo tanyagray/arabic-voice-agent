@@ -24,15 +24,6 @@ tasks:
       - |
         echo "Testing /health endpoint..."
         curl -s http://localhost:8000/health | jq .
-        echo ""
-        echo "Testing /livekit/token POST endpoint..."
-        curl -s -X POST http://localhost:8000/livekit/token \
-          -H "Content-Type: application/json" \
-          -d '{
-            "room_name": "test-room",
-            "participant_identity": "test-user-123",
-            "participant_name": "Test User"
-          }' | jq .
 
   clean:
     desc: Clean up generated files and cache

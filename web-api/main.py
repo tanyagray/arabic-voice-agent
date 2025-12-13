@@ -1,16 +1,14 @@
 """
-FastAPI application for LiveKit token generation.
+FastAPI application for Arabic Voice Agent backend.
 
-This server provides an endpoint to generate JWT tokens for LiveKit clients.
+This server provides API endpoints for session management, content delivery, and webhooks.
 """
 
-import os
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from routes.livekit import router as livekit_router
 from routes.session import router as session_router
 from routes.content import router as content_router
 from routes.webhooks import router as webhooks_router
@@ -22,8 +20,8 @@ load_dotenv(dotenv_path=env_path, override=True)
 
 
 app = FastAPI(
-    title="LiveKit Token Server",
-    description="API for generating LiveKit access tokens",
+    title="Arabic Voice Agent API",
+    description="Backend API for the Arabic Voice Agent application",
     version="1.0.0"
 )
 
@@ -37,7 +35,6 @@ app.add_middleware(
 )
 
 # Include routes
-app.include_router(livekit_router)
 app.include_router(session_router)
 app.include_router(content_router)
 app.include_router(webhooks_router)
@@ -47,7 +44,7 @@ app.include_router(webhooks_router)
 async def root():
     """Root endpoint."""
     return {
-        "service": "LiveKit Token Server",
+        "service": "Arabic Voice Agent API",
         "status": "running",
         "version": "1.0.0"
     }
@@ -56,17 +53,10 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check endpoint."""
-    # Check if required environment variables are set
-    api_key = os.getenv("LIVEKIT_API_KEY")
-    api_secret = os.getenv("LIVEKIT_API_SECRET")
-
-    config_status = "ok" if api_key and api_secret else "misconfigured"
-
     return {
         "status": "healthy",
-        "service": "LiveKit Token Server",
-        "version": "1.0.0",
-        "config": config_status
+        "service": "Arabic Voice Agent API",
+        "version": "1.0.0"
     }
 
 
