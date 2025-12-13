@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiClient } from '../api/api-client';
+import { sendVoiceMessage } from '../api/sessions/sessions.api';
 import type {
   Message,
   ConnectionState,
@@ -194,19 +194,8 @@ export function useChat(sessionId: string | null): UseChatReturn {
     }
 
     try {
-      // Create form data with audio file
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'recording.webm');
-
-      // Upload to server using apiClient (will automatically include JWT token)
-      const response = await apiClient.post(`/sessions/${sessionId}/audio`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      console.log('Audio uploaded successfully:', response.data);
-
+      await sendVoiceMessage(sessionId, audioBlob);
+      console.log('Audio uploaded successfully');
       // The transcription will be sent back via WebSocket when complete
     } catch (err) {
       console.error('Error uploading audio:', err);

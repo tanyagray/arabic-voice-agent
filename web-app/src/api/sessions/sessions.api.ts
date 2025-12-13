@@ -63,3 +63,27 @@ export async function sendMessage(
 
   return response.data.text;
 }
+
+/**
+ * Send a voice message (audio file) to the agent for a specific session.
+ *
+ * @param sessionId - The session ID to send the audio to
+ * @param audioBlob - The audio blob to upload
+ * @returns Promise that resolves when the audio is successfully uploaded
+ * @throws Error if the request fails or session not found (404)
+ *
+ * Backend endpoint: POST /sessions/{session_id}/audio
+ */
+export async function sendVoiceMessage(
+  sessionId: string,
+  audioBlob: Blob
+): Promise<void> {
+  const formData = new FormData();
+  formData.append('file', audioBlob, 'recording.webm');
+
+  await apiClient.post(`/sessions/${sessionId}/audio`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+}
