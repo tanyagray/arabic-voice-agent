@@ -21,6 +21,7 @@ export function SessionList({
   const sessions = useSessionStore((s) => s.sessions);
   const activeSession = useSessionStore((s) => s.activeSession);
   const loadSessions = useSessionStore((s) => s.loadSessions);
+  const setActiveSession = useSessionStore((s) => s.setActiveSession);
 
   // load the list of sessions on mount
   useEffect(() => {
@@ -119,7 +120,10 @@ export function SessionList({
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
-              onClick={() => onSessionSelect?.(session.session_id)}
+              onClick={() => {
+                setActiveSession(session);
+                onSessionSelect?.(session.session_id);
+              }}
               w="full"
               px={4}
               py={3}
