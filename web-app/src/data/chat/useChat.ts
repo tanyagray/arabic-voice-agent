@@ -7,8 +7,8 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { useChatStore } from './store';
-import { createSession, sendMessage } from '@/api/sessions.api';
-import type { ChatMessage } from '@/api/sessions.types';
+import { createSession, sendMessage } from '@/api/sessions/sessions.api';
+import type { ChatMessage } from '@/api/sessions/sessions.types';
 
 /**
  * Custom hook for chat functionality.
