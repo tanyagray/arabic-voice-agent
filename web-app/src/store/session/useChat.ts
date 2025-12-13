@@ -6,7 +6,7 @@
  */
 
 import { useMutation } from '@tanstack/react-query';
-import { useChatStore } from './store';
+import { useChatStore } from './session.store';
 import { createSession, sendMessage } from '@/api/sessions/sessions.api';
 import type { ChatMessage } from '@/api/sessions/sessions.types';
 

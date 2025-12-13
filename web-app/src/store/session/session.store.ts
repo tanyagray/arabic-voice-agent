@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand';
-import type { ChatMessage } from './types';
+import type { ChatMessage } from '@/api/sessions/sessions.types';
 
 interface ChatState {
   // State

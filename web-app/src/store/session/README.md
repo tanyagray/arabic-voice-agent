@@ -7,13 +7,11 @@ This module provides a complete chat interface for interacting with the Arabic V
 The chat module follows a hybrid architecture pattern:
 
 - **Services Layer** (`src/services/`) - Technical infrastructure (HTTP client configuration)
-- **Data Layer** (`src/data/chat/`) - Business logic for chat feature
+- **Store Layer** (`src/store/session/`) - Business logic for session/chat feature
 
 ### Files
 
-- `types.ts` - TypeScript type definitions matching the backend API
-- `api.ts` - API functions for chat endpoints
-- `store.ts` - Zustand store for client-side chat state
+- `session.store.ts` - Zustand store for client-side chat state
 - `useChat.ts` - Main React hook combining React Query + Zustand
 
 ## Usage
@@ -21,7 +19,7 @@ The chat module follows a hybrid architecture pattern:
 ### Basic Example
 
 ```tsx
-import { useChat } from '@/data/chat/useChat';
+import { useChat } from '@/store/session/useChat';
 
 function ChatComponent() {
   const {
@@ -87,7 +85,7 @@ function ChatComponent() {
 You can also access the store directly in any component:
 
 ```tsx
-import { useChatStore } from '@/data/chat/store';
+import { useChatStore } from '@/store/session/session.store';
 
 function MessageCount() {
   const messages = useChatStore((state) => state.messages);
@@ -187,7 +185,7 @@ const startNewConversation = () => {
 
 ### Persistent State
 
-If you want to persist chat messages across page refreshes, you can use Zustand's persist middleware. Update `store.ts`:
+If you want to persist chat messages across page refreshes, you can use Zustand's persist middleware. Update `session.store.ts`:
 
 ```typescript
 import { create } from 'zustand';
