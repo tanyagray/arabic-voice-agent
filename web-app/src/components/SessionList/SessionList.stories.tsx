@@ -14,13 +14,6 @@ const meta = {
     },
   },
   argTypes: {
-    sessions: {
-      description: 'Array of session objects to display',
-    },
-    currentSessionId: {
-      description: 'ID of the currently active session',
-      control: 'text',
-    },
     onSessionSelect: {
       description: 'Callback when a session is selected',
     },
@@ -67,8 +60,6 @@ const mockSessions = [
 
 export const Default: Story = {
   args: {
-    sessions: mockSessions,
-    currentSessionId: mockSessions[0].session_id,
     onSessionSelect: (sessionId: string) => {
       console.log('Selected session:', sessionId);
     },

@@ -4,7 +4,6 @@ import { useSessionStore } from '@/store/session/session.store';
 import { useEffect } from 'react';
 
 interface SessionListProps {
-  currentSessionId?: string | null;
   onSessionSelect?: (sessionId: string) => void;
   isLoading?: boolean;
   width?: string | number;
@@ -14,13 +13,13 @@ interface SessionListProps {
 const MotionBox = motion.create(Box);
 
 export function SessionList({
-  currentSessionId,
   onSessionSelect,
   isLoading = false,
   width = "300px",
   height = "100%",
 }: SessionListProps) {
   const sessions = useSessionStore((s) => s.sessions);
+  const activeSession = useSessionStore((s) => s.activeSession);
   const loadSessions = useSessionStore((s) => s.loadSessions);
 
   // load the list of sessions on mount
@@ -111,7 +110,7 @@ export function SessionList({
       </Box>
       <Box flex={1} overflowY="auto">
         {sessions.map((session, index) => {
-          const isActive = session.session_id === currentSessionId;
+          const isActive = session.session_id === activeSession?.session_id;
 
           return (
             <MotionBox

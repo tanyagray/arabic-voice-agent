@@ -5,14 +5,12 @@ import { SessionList } from '../SessionList/SessionList';
 import { HeroCTA } from '../HeroCTA/HeroCTA';
 import { Box, Flex, Container } from '@chakra-ui/react';
 import { useAuth } from '../../context/AuthContext';
-import { useUserSessions } from '../../hooks/useUserSessions';
 
 const MotionBox = motion.create(Box);
 
 export function Hero() {
   const [showDemo, setShowDemo] = useState(false);
   const { isAnonymous } = useAuth();
-  const { sessions, isLoading } = useUserSessions();
 
   return (
     <Flex
@@ -34,8 +32,6 @@ export function Hero() {
     >
       {!isAnonymous && (
         <SessionList
-          sessions={sessions}
-          isLoading={isLoading}
           height="100%"
         />
       )}
