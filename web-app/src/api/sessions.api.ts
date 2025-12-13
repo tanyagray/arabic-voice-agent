@@ -10,7 +10,7 @@ import type {
   CreateSessionResponse,
   SendMessageRequest,
   SendMessageResponse,
-} from './types';
+} from './sessions.types';
 
 /**
  * Create a new chat session.

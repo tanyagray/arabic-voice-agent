@@ -100,7 +100,7 @@ function MessageCount() {
 You can also use the API functions directly outside of React components:
 
 ```tsx
-import { createSession, sendMessage } from '@/data/chat/api';
+import { createSession, sendMessage } from '@/api/sessions.api';
 
 // Create a session
 const sessionId = await createSession();
