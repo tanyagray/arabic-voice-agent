@@ -1,17 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiClient } from '../api/api-client';
+import {
+  createSession as createSessionApi,
+  getSessionContext,
+  patchSessionContext,
+} from '../api/sessions/sessions.api';
 import { useAuth } from './useAuth';
-
-interface SessionResponse {
-  session_id: string;
-}
-
-interface ContextResponse {
-  session_id: string;
-  audio_enabled: boolean;
-  language: string;
-  active_tool: string | null;
-}
 
 interface UseSessionReturn {
   sessionId: string | null;
@@ -36,8 +29,8 @@ export function useSession(): UseSessionReturn {
     setError(null);
 
     try {
-      const response = await apiClient.post<SessionResponse>('/sessions');
-      setSessionId(response.data.session_id);
+      const sessionId = await createSessionApi();
+      setSessionId(sessionId);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
       setError(errorMessage);
@@ -57,12 +50,9 @@ export function useSession(): UseSessionReturn {
     setError(null);
 
     try {
-      const response = await apiClient.patch<ContextResponse>(
-        `/sessions/${sessionId}/context`,
-        { audio_enabled: enabled }
-      );
-      setAudioEnabledState(response.data.audio_enabled);
-      console.log(`Audio ${response.data.audio_enabled ? 'enabled' : 'disabled'}`);
+      const response = await patchSessionContext(sessionId, { audio_enabled: enabled });
+      setAudioEnabledState(response.audio_enabled);
+      console.log(`Audio ${response.audio_enabled ? 'enabled' : 'disabled'}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update audio setting';
       setError(errorMessage);
@@ -82,8 +72,8 @@ export function useSession(): UseSessionReturn {
       if (!sessionId) return;
 
       try {
-        const response = await apiClient.get<ContextResponse>(`/sessions/${sessionId}/context`);
-        setAudioEnabledState(response.data.audio_enabled);
+        const context = await getSessionContext(sessionId);
+        setAudioEnabledState(context.audio_enabled);
       } catch (err) {
         console.error('Error fetching context:', err);
       }

@@ -9,9 +9,11 @@ import { apiClient } from '@/api/api-client';
 import type {
   CreateSessionResponse,
   GetSessionsResponse,
+  PatchSessionContextRequest,
   SendMessageRequest,
   SendMessageResponse,
   Session,
+  SessionContextResponse,
 } from './sessions.types';
 
 /**
@@ -86,4 +88,43 @@ export async function sendVoiceMessage(
       'Content-Type': 'multipart/form-data',
     },
   });
+}
+
+/**
+ * Get the context for a specific session.
+ *
+ * @param sessionId - The session ID to fetch context for
+ * @returns Promise resolving to the session context
+ * @throws Error if the request fails or session not found (404)
+ *
+ * Backend endpoint: GET /sessions/{session_id}/context
+ */
+export async function getSessionContext(
+  sessionId: string
+): Promise<SessionContextResponse> {
+  const response = await apiClient.get<SessionContextResponse>(
+    `/sessions/${sessionId}/context`
+  );
+  return response.data;
+}
+
+/**
+ * Update the context for a specific session.
+ *
+ * @param sessionId - The session ID to update context for
+ * @param context - The context fields to update
+ * @returns Promise resolving to the updated session context
+ * @throws Error if the request fails or session not found (404)
+ *
+ * Backend endpoint: PATCH /sessions/{session_id}/context
+ */
+export async function patchSessionContext(
+  sessionId: string,
+  context: PatchSessionContextRequest
+): Promise<SessionContextResponse> {
+  const response = await apiClient.patch<SessionContextResponse>(
+    `/sessions/${sessionId}/context`,
+    context
+  );
+  return response.data;
 }
