@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 
-interface UseAudioRecordingReturn {
+interface RecordAudioReturn {
   isRecording: boolean;
   startRecording: () => Promise<void>;
   stopRecording: () => Promise<Blob | null>;
@@ -8,7 +8,7 @@ interface UseAudioRecordingReturn {
   error: string | null;
 }
 
-export function useAudioRecording(): UseAudioRecordingReturn {
+export function recordAudio(): RecordAudioReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);

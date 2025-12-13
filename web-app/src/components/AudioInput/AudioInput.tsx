@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { useAudioRecording } from '../../hooks/useAudioRecording';
+import { recordAudio } from './helpers/recordAudio';
 import { useAgentState } from '../../hooks/useAgentState';
 import { useStore } from '../../store';
 import { sendVoiceMessage } from '../../api/sessions/sessions.api';
@@ -17,7 +17,7 @@ const MotionButton = motion.create(Button);
 const MotionBox = motion.create(Box);
 
 export function AudioInput({ isActive, onActivate }: AudioInputProps) {
-  const { isRecording, startRecording, stopRecording } = useAudioRecording();
+  const { isRecording, startRecording, stopRecording } = recordAudio();
   const activeSession = useStore((state) => state.session.activeSession);
   const sessionId = activeSession?.session_id ?? null;
   const agentState = useAgentState();
