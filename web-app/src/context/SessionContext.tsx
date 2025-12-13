@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useSession } from '../hooks/useSession';
 import { useChat } from '../hooks/useChat';
+import { useSessionStore } from '../store/session/session.store';
 import type { Message, ConnectionState } from '../types/chat';
 
 interface SessionContextValue {
@@ -25,8 +26,8 @@ interface SessionProviderProps {
 }
 
 export function SessionProvider({ children }: SessionProviderProps) {
+  const { activeSession } = useSessionStore();
   const {
-    sessionId,
     isCreating,
     error: sessionError,
     audioEnabled,
@@ -34,10 +35,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
     toggleAudioEnabled,
     setAudioEnabled,
   } = useSession();
-  const { messages, sendMessage, uploadAudio, connectionState, error: chatError } = useChat(sessionId);
+  const { messages, sendMessage, uploadAudio, connectionState, error: chatError } = useChat(activeSession?.session_id ?? null);
 
   const value: SessionContextValue = {
-    sessionId,
+    sessionId: activeSession?.session_id ?? null,
     isCreating,
     sessionError,
     messages,
