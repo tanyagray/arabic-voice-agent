@@ -32,11 +32,11 @@ function MyComponent() {
 }
 ```
 
-### Option 2: Add to LiveSession
+### Option 2: Add to ActiveSession
 
-To add the audio toggle to the existing LiveSession, modify:
+To add the audio toggle to the existing ActiveSession, modify:
 
-**File:** `web-app/src/components/LiveSession/LiveSession.tsx`
+**File:** `web-app/src/components/ActiveSession/ActiveSession.tsx`
 
 ```tsx
 import { AudioToggle } from '../AudioToggle';

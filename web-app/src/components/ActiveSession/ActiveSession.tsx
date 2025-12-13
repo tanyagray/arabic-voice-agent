@@ -7,17 +7,17 @@ import { AudioInput } from '../AudioInput/AudioInput';
 import { AudioToggle } from '../AudioToggle/AudioToggle';
 import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
 
-export function LiveSession() {
+export function ActiveSession() {
   return (
     <SessionProvider>
-      <LiveSessionContent />
+      <ActiveSessionContent />
     </SessionProvider>
   );
 }
 
 const MotionBox = motion.create(Box);
 
-function LiveSessionContent() {
+function ActiveSessionContent() {
   const { isCreating, sessionError, connectionState, chatError } = useSessionContext();
   const error = sessionError || chatError;
   const isLoading = isCreating || connectionState === 'connecting';

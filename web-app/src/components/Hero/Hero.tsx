@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
-import { LiveSession } from '../LiveSession/LiveSession';
+import { ActiveSession } from '../ActiveSession/ActiveSession';
 import { SessionList } from '../SessionList/SessionList';
 import { HeroCTA } from '../HeroCTA/HeroCTA';
 import { Box, Flex, Container } from '@chakra-ui/react';
@@ -69,7 +69,7 @@ export function Hero() {
                 alignSelf="stretch"
                 alignItems="stretch"
               >
-                <LiveSession />
+                <ActiveSession />
               </MotionBox>
             )}
           </AnimatePresence>
