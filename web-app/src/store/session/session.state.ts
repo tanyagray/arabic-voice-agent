@@ -25,6 +25,7 @@ export interface SessionState {
   clearMessages: () => void;
   reset: () => void;
   setContext: (context: Partial<SessionContext>) => void;
+  setAudioEnabled: (enabled: boolean) => Promise<void>;
 
   // API Actions
   createNewSession: () => Promise<void>;

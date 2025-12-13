@@ -1,24 +1,23 @@
-import { useSession } from '../../hooks/useSession';
+import { useStore } from '../../store';
 import { BsVolumeUp, BsVolumeMute } from 'react-icons/bs';
 import { IconButton } from '@chakra-ui/react';
 
 export function AudioToggle() {
-  const { audioEnabled, isUpdatingContext, toggleAudioEnabled } = useSession();
+  const audioEnabled = useStore((state) => state.session.context.audio_enabled);
+  const setAudioEnabled = useStore((state) => state.session.setAudioEnabled);
 
-  const handleToggle = async () => {
-    await toggleAudioEnabled();
+  const handleToggle = () => {
+    setAudioEnabled(!audioEnabled);
   };
 
   return (
     <IconButton
       onClick={handleToggle}
-      disabled={isUpdatingContext}
       aria-label={audioEnabled ? 'Disable audio responses' : 'Enable audio responses'}
       rounded="full"
       size="xl"
       shadow="lg"
       transition="all 0.2s"
-      _disabled={{ opacity: 0.5, cursor: "not-allowed", transform: "none" }}
       bg={audioEnabled ? 'accent.500' : 'white/10'}
       color="white"
       _hover={{

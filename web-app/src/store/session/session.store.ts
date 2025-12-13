@@ -6,7 +6,12 @@
  */
 
 import type { StateCreator } from 'zustand';
-import { getSessions, createSession, sendMessage as sendMessageApi } from '@/api/sessions/sessions.api';
+import {
+  getSessions,
+  createSession,
+  sendMessage as sendMessageApi,
+  patchSessionContext,
+} from '@/api/sessions/sessions.api';
 import type { SessionState } from './session.state';
 import type { ChatMessage } from '@/api/sessions/sessions.types';
 
@@ -107,6 +112,27 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
           activeSession: {
             session_id: newSessionId,
             created_at: new Date().toISOString(),
+          },
+        },
+      }));
+    },
+
+    setAudioEnabled: async (enabled: boolean) => {
+      const { session } = get();
+      const sessionId = session.activeSession?.session_id;
+
+      if (!sessionId) {
+        console.error('Cannot update audio: no session ID');
+        return;
+      }
+
+      const response = await patchSessionContext(sessionId, { audio_enabled: enabled });
+      set((state) => ({
+        session: {
+          ...state.session,
+          context: {
+            ...state.session.context,
+            audio_enabled: response.audio_enabled,
           },
         },
       }));

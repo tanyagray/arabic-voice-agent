@@ -1,7 +1,6 @@
 import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store';
-import { useSession } from '../../hooks/useSession';
 import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
@@ -13,7 +12,6 @@ import type { ChatMessage } from '../../api/sessions/sessions.types';
 const MotionBox = motion.create(Box);
 
 export function ActiveSession() {
-  const { isCreating, error: sessionError } = useSession();
   const activeSession = useStore((state) => state.session.activeSession);
   const socketStatus = useStore((state) => state.socket.status);
   const socketError = useStore((state) => state.socket.error);
@@ -73,8 +71,8 @@ export function ActiveSession() {
     };
   }, [activeSession?.session_id, socketConnect, socketDisconnect]);
 
-  const error = sessionError || socketError;
-  const isLoading = isCreating || socketStatus === 'connecting';
+  const error = socketError;
+  const isLoading = socketStatus === 'connecting';
 
   return (
     <MotionBox
