@@ -35,7 +35,7 @@ export function useUserSessions(): UseUserSessionsReturn {
     setError(null);
 
     try {
-      const response = await apiClient.get<SessionListResponse>('/session');
+      const response = await apiClient.get<SessionListResponse>('/sessions');
       setSessions(response.data.sessions);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch sessions';

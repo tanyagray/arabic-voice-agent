@@ -55,7 +55,7 @@ class SessionListResponse(BaseModel):
 
 
 # Router
-router = APIRouter(prefix="/session", tags=["Session"])
+router = APIRouter(prefix="/sessions", tags=["Session"])
 
 
 @router.post("", response_model=SessionResponse)

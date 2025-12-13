@@ -36,7 +36,7 @@ export function useSession(): UseSessionReturn {
     setError(null);
 
     try {
-      const response = await apiClient.post<SessionResponse>('/session');
+      const response = await apiClient.post<SessionResponse>('/sessions');
       setSessionId(response.data.session_id);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
@@ -58,7 +58,7 @@ export function useSession(): UseSessionReturn {
 
     try {
       const response = await apiClient.patch<ContextResponse>(
-        `/session/${sessionId}/context`,
+        `/sessions/${sessionId}/context`,
         { audio_enabled: enabled }
       );
       setAudioEnabledState(response.data.audio_enabled);
@@ -82,7 +82,7 @@ export function useSession(): UseSessionReturn {
       if (!sessionId) return;
 
       try {
-        const response = await apiClient.get<ContextResponse>(`/session/${sessionId}/context`);
+        const response = await apiClient.get<ContextResponse>(`/sessions/${sessionId}/context`);
         setAudioEnabledState(response.data.audio_enabled);
       } catch (err) {
         console.error('Error fetching context:', err);

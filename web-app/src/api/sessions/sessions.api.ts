@@ -18,10 +18,10 @@ import type {
  * @returns Promise resolving to the session ID
  * @throws Error if the request fails
  *
- * Backend endpoint: POST /session
+ * Backend endpoint: POST /sessions
  */
 export async function createSession(): Promise<string> {
-  const response = await apiClient.post<CreateSessionResponse>('/session');
+  const response = await apiClient.post<CreateSessionResponse>('/sessions');
   return response.data.session_id;
 }
 
@@ -33,7 +33,7 @@ export async function createSession(): Promise<string> {
  * @returns Promise resolving to the agent's response text
  * @throws Error if the request fails or session not found (404)
  *
- * Backend endpoint: POST /session/{session_id}/chat
+ * Backend endpoint: POST /sessions/{session_id}/chat
  */
 export async function sendMessage(
   sessionId: string,
@@ -42,7 +42,7 @@ export async function sendMessage(
   const payload: SendMessageRequest = { message };
 
   const response = await apiClient.post<SendMessageResponse>(
-    `/session/${sessionId}/chat`,
+    `/sessions/${sessionId}/chat`,
     payload
   );
 

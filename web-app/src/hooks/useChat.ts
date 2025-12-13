@@ -91,7 +91,7 @@ export function useChat(sessionId: string | null): UseChatReturn {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     // Convert http(s) to ws(s)
     const wsUrl = apiUrl.replace(/^http/, 'ws');
-    const url = `${wsUrl}/session/${sessionId}?token=${encodeURIComponent(session.access_token)}`;
+    const url = `${wsUrl}/sessions/${sessionId}?token=${encodeURIComponent(session.access_token)}`;
 
     setConnectionState('connecting');
     setError(null);
@@ -199,7 +199,7 @@ export function useChat(sessionId: string | null): UseChatReturn {
       formData.append('file', audioBlob, 'recording.webm');
 
       // Upload to server using apiClient (will automatically include JWT token)
-      const response = await apiClient.post(`/session/${sessionId}/audio`, formData, {
+      const response = await apiClient.post(`/sessions/${sessionId}/audio`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

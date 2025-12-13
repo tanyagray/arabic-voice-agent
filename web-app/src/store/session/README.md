@@ -151,8 +151,8 @@ interface ChatMessage {
 
 This module interacts with the following backend endpoints:
 
-- `POST /session` - Create a new session
-- `POST /session/{session_id}/chat` - Send a chat message
+- `POST /sessions` - Create a new session
+- `POST /sessions/{session_id}/chat` - Send a chat message
 
 See `web-api/routes/session.py` for backend implementation.
 
