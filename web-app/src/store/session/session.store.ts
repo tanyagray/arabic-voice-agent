@@ -1,27 +1,12 @@
 /**
- * Zustand store for chat state management.
+ * Zustand store for session state management.
  *
  * This store manages the client-side state for chat messages,
  * session information, and UI state.
  */
 
 import { create } from 'zustand';
-import type { ChatMessage } from '@/api/sessions/sessions.types';
-
-interface ChatState {
-  // State
-  sessionId: string | null;
-  messages: ChatMessage[];
-  currentInput: string;
-
-  // Actions
-  setSessionId: (sessionId: string) => void;
-  addMessage: (message: ChatMessage) => void;
-  setMessages: (messages: ChatMessage[]) => void;
-  clearMessages: () => void;
-  setCurrentInput: (input: string) => void;
-  reset: () => void;
-}
+import type { SessionState } from './session.state';
 
 const initialState = {
   sessionId: null,
@@ -37,7 +22,7 @@ const initialState = {
  * const { messages, addMessage, sessionId } = useChatStore();
  * ```
  */
-export const useChatStore = create<ChatState>((set) => ({
+export const useChatStore = create<SessionState>((set) => ({
   ...initialState,
 
   setSessionId: (sessionId) => set({ sessionId }),
