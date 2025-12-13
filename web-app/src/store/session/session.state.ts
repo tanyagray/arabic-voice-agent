@@ -4,11 +4,18 @@
 
 import type { ChatMessage, Session } from '@/api/sessions/sessions.types';
 
+export interface SessionContext {
+  active_tool: string | null;
+  language: string;
+  audio_enabled: boolean;
+}
+
 export interface SessionState {
   // State
   activeSession: Session | null;
   sessions: Session[];
   messages: ChatMessage[];
+  context: SessionContext;
 
   // Actions
   setActiveSession: (session: Session | null) => void;
@@ -17,6 +24,7 @@ export interface SessionState {
   setMessages: (messages: ChatMessage[]) => void;
   clearMessages: () => void;
   reset: () => void;
+  setContext: (context: Partial<SessionContext>) => void;
 
   // API Actions
   createNewSession: () => Promise<void>;

@@ -28,6 +28,11 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
     activeSession: null,
     sessions: [],
     messages: [],
+    context: {
+      active_tool: null,
+      language: 'en',
+      audio_enabled: false,
+    },
 
     setActiveSession: (session) =>
       set((state) => ({
@@ -71,6 +76,17 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
         session: {
           ...state.session,
           messages: [],
+        },
+      })),
+
+    setContext: (context) =>
+      set((state) => ({
+        session: {
+          ...state.session,
+          context: {
+            ...state.session.context,
+            ...context,
+          },
         },
       })),
 
