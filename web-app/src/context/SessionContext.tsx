@@ -1,18 +1,11 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useSession } from '../hooks/useSession';
-import { useChat } from '../hooks/useChat';
 import { useStore } from '../store';
-import type { Message, ConnectionState } from '../types/chat';
 
 interface SessionContextValue {
   sessionId: string | null;
   isCreating: boolean;
   sessionError: string | null;
-  messages: Message[];
-  sendMessage: (text: string) => void;
-  uploadAudio: (audioBlob: Blob) => Promise<void>;
-  connectionState: ConnectionState;
-  chatError: string | null;
   audioEnabled: boolean;
   isUpdatingContext: boolean;
   toggleAudioEnabled: () => Promise<void>;
@@ -35,17 +28,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
     toggleAudioEnabled,
     setAudioEnabled,
   } = useSession();
-  const { messages, sendMessage, uploadAudio, connectionState, error: chatError } = useChat(activeSession?.session_id ?? null);
 
   const value: SessionContextValue = {
     sessionId: activeSession?.session_id ?? null,
     isCreating,
     sessionError,
-    messages,
-    sendMessage,
-    uploadAudio,
-    connectionState,
-    chatError,
     audioEnabled,
     isUpdatingContext,
     toggleAudioEnabled,

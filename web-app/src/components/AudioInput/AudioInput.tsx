@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAudioRecording } from '../../hooks/useAudioRecording';
 import { useAgentState } from '../../hooks/useAgentState';
 import { useSessionContext } from '../../context/SessionContext';
+import { sendVoiceMessage } from '../../api/sessions/sessions.api';
 import { BsMic, BsArrowRepeat } from 'react-icons/bs';
 import { Button, Box } from '@chakra-ui/react';
 
@@ -17,7 +18,7 @@ const MotionBox = motion.create(Box);
 
 export function AudioInput({ isActive, onActivate }: AudioInputProps) {
   const { isRecording, startRecording, stopRecording } = useAudioRecording();
-  const { uploadAudio } = useSessionContext();
+  const { sessionId } = useSessionContext();
   const agentState = useAgentState();
   const [isUploading, setIsUploading] = useState(false);
 
@@ -45,10 +46,10 @@ export function AudioInput({ isActive, onActivate }: AudioInputProps) {
   const handleMouseUp = async () => {
     if (isActive && isRecording && !isUploading) {
       const audioBlob = await stopRecording();
-      if (audioBlob) {
+      if (audioBlob && sessionId) {
         try {
           setIsUploading(true);
-          await uploadAudio(audioBlob);
+          await sendVoiceMessage(sessionId, audioBlob);
         } catch (error) {
           console.error('Failed to upload audio:', error);
         } finally {

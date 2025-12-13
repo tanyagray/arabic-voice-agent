@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { SessionProvider, useSessionContext } from '../../context/SessionContext';
+import { useStore } from '../../store';
 import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
@@ -18,9 +19,11 @@ export function ActiveSession() {
 const MotionBox = motion.create(Box);
 
 function ActiveSessionContent() {
-  const { isCreating, sessionError, connectionState, chatError } = useSessionContext();
-  const error = sessionError || chatError;
-  const isLoading = isCreating || connectionState === 'connecting';
+  const { isCreating, sessionError } = useSessionContext();
+  const socketStatus = useStore((state) => state.socket.status);
+  const socketError = useStore((state) => state.socket.error);
+  const error = sessionError || socketError;
+  const isLoading = isCreating || socketStatus === 'connecting';
 
   return (
     <MotionBox
@@ -32,7 +35,7 @@ function ActiveSessionContent() {
       w="full"
       h="full"
     >
-      {connectionState === 'disconnected' || connectionState === 'error' ? (
+      {socketStatus === 'idle' || socketStatus === 'error' || socketStatus === 'connecting' ? (
         <>
           {isLoading && <LoadingState />}
           {error && <ErrorState error={error} />}

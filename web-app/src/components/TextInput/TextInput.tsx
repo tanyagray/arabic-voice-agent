@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, type FormEvent } from 'react';
-import { useSessionContext } from '../../context/SessionContext';
+import { useStore } from '../../store';
 import { BsSend, BsPencil } from 'react-icons/bs';
 import { Box, IconButton, Input } from '@chakra-ui/react';
 
@@ -13,7 +13,7 @@ const MotionBox = motion.create(Box);
 const MotionIconButton = motion.create(IconButton);
 
 export function TextInput({ isActive, onActivate }: TextInputProps) {
-  const { sendMessage } = useSessionContext();
+  const send = useStore((state) => state.socket.send);
   const [textMessage, setTextMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
 
@@ -26,7 +26,7 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
     if (textMessage.trim() && !isSending) {
       setIsSending(true);
       try {
-        sendMessage(textMessage);
+        send(textMessage);
         setTextMessage('');
       } finally {
         setIsSending(false);

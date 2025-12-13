@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useSessionContext } from '../context/SessionContext';
+import { useStore } from '../store';
 import type { AgentState } from '../types/chat';
 
 export function useAgentState(): AgentState {
-  const { messages, connectionState } = useSessionContext();
+  const messages = useStore((state) => state.session.messages);
+  const socketStatus = useStore((state) => state.socket.status);
   const [state, setState] = useState<AgentState>('idle');
 
   useEffect(() => {
-    if (connectionState !== 'connected') {
+    if (socketStatus !== 'connected') {
       setState('idle');
       return;
     }
@@ -21,13 +22,13 @@ export function useAgentState(): AgentState {
     const lastMessage = messages[messages.length - 1];
 
     // If last message is from user, agent is thinking
-    if (lastMessage.type === 'user') {
+    if (lastMessage.role === 'user') {
       setState('thinking');
     } else {
       // If last message is from agent, we're idle (ready for next input)
       setState('idle');
     }
-  }, [messages, connectionState]);
+  }, [messages, socketStatus]);
 
   return state;
 }

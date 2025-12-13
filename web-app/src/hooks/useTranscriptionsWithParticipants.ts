@@ -1,4 +1,4 @@
-import { useSessionContext } from '../context/SessionContext';
+import { useStore } from '../store';
 
 interface TranscriptionEntry {
   text: string;
@@ -8,8 +8,13 @@ interface TranscriptionEntry {
 }
 
 export function useTranscriptionsWithParticipants(): TranscriptionEntry[] {
-  const { messages } = useSessionContext();
+  const messages = useStore((state) => state.session.messages);
 
-  // Messages from SessionContext already have the correct format
-  return messages;
+  // Map ChatMessage to TranscriptionEntry format
+  return messages.map((msg) => ({
+    text: msg.text,
+    participantIdentity: msg.role,
+    timestamp: msg.timestamp.getTime(),
+    type: msg.role === 'user' ? 'user' : 'agent',
+  }));
 }
