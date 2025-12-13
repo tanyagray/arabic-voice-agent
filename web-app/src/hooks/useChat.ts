@@ -91,7 +91,7 @@ export function useChat(sessionId: string | null): UseChatReturn {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     // Convert http(s) to ws(s)
     const wsUrl = apiUrl.replace(/^http/, 'ws');
-    const url = `${wsUrl}/sessions/${sessionId}?token=${encodeURIComponent(session.access_token)}`;
+    const url = `${wsUrl}/realtime-session/${sessionId}?token=${encodeURIComponent(session.access_token)}`;
 
     setConnectionState('connecting');
     setError(null);

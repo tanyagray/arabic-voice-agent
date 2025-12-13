@@ -1,10 +1,10 @@
 """Session management routes and models."""
 
-from fastapi import APIRouter, HTTPException, WebSocket, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from pydantic import BaseModel, Field
 
 from services import session_service, agent_service, context_service, websocket_service, soniox_service
-from dependencies.auth import get_current_user_token, get_websocket_token
+from dependencies.auth import get_current_user_token
 
 
 # Models
@@ -96,27 +96,6 @@ async def list_user_sessions(access_token: str = Depends(get_current_user_token)
     """
     sessions = session_service.list_user_sessions(access_token)
     return SessionListResponse(sessions=sessions)
-
-
-@router.websocket("/{session_id}")
-async def open_session_websocket(websocket: WebSocket, session_id: str, access_token: str = Depends(get_websocket_token)):
-
-    # Retrieve the session
-    session = session_service.get_session(session_id, user_access_token=access_token)
-    if not session:
-        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
-
-    # Accept the connection
-    await websocket.accept()
-
-    # Register the WebSocket connection
-    websocket_service.register_websocket(session_id, websocket)
-
-    try:
-        await agent_service.start_realtime_agent(websocket, session_id, access_token)
-    finally:
-        # Unregister the WebSocket connection when it closes
-        websocket_service.unregister_websocket(session_id)
 
 
 @router.post("/{session_id}/chat", response_model=TextResponse)
