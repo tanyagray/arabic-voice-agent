@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiClient } from '../services/api-client';
+import { apiClient } from '../api/api-client';
 import { useAuth } from './useAuth';
 
 interface SessionResponse {

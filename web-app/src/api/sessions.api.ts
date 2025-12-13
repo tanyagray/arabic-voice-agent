@@ -5,7 +5,7 @@
  * Backend routes defined in: web-api/routes/session.py
  */
 
-import { apiClient } from '@/services/api-client';
+import { apiClient } from '@/api/api-client';
 import type {
   CreateSessionResponse,
   SendMessageRequest,
