@@ -20,7 +20,7 @@ import type { ChatMessage } from '@/api/sessions/sessions.types';
  * function ChatComponent() {
  *   const {
  *     messages,
- *     sessionId,
+ *     activeSession,
  *     sendMessage,
  *     createNewSession,
  *     isLoading,
@@ -43,10 +43,10 @@ import type { ChatMessage } from '@/api/sessions/sessions.types';
  */
 export function useChat() {
   const {
-    sessionId,
+    activeSession,
     messages,
     currentInput,
-    setSessionId,
+    setActiveSession,
     addMessage,
     setCurrentInput,
     reset,
@@ -56,17 +56,20 @@ export function useChat() {
   const createSessionMutation = useMutation({
     mutationFn: createSession,
     onSuccess: (newSessionId) => {
-      setSessionId(newSessionId);
+      setActiveSession({
+        session_id: newSessionId,
+        created_at: new Date().toISOString(),
+      });
     },
   });
 
   // Mutation for sending messages
   const sendMessageMutation = useMutation({
     mutationFn: async (message: string) => {
-      if (!sessionId) {
+      if (!activeSession) {
         throw new Error('No active session. Create a session first.');
       }
-      return sendMessage(sessionId, message);
+      return sendMessage(activeSession.session_id, message);
     },
     onMutate: (message) => {
       // Optimistically add user message to the store
@@ -96,7 +99,7 @@ export function useChat() {
 
   return {
     // State
-    sessionId,
+    activeSession,
     messages,
     currentInput,
 

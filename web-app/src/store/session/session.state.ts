@@ -6,13 +6,13 @@ import type { ChatMessage, Session } from '@/api/sessions/sessions.types';
 
 export interface SessionState {
   // State
-  sessionId: string | null;
+  activeSession: Session | null;
   sessions: Session[];
   messages: ChatMessage[];
   currentInput: string;
 
   // Actions
-  setSessionId: (sessionId: string) => void;
+  setActiveSession: (session: Session | null) => void;
   loadSessions: () => Promise<void>;
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;

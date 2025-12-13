@@ -15,22 +15,24 @@ import type { SessionState } from './session.state';
  *
  * Usage:
  * ```tsx
- * const { messages, addMessage, sessionId } = useSessionStore();
+ * const { messages, addMessage, activeSession } = useSessionStore();
  * ```
  */
 export const useSessionStore = create<SessionState>()(
   devtools(
     (set) => ({
-  sessionId: null,
+  activeSession: null,
   sessions: [],
   messages: [],
   currentInput: '',
 
-  setSessionId: (sessionId) => set({ sessionId }),
+  setActiveSession: (session) => set({ activeSession: session }),
 
   loadSessions: async () => {
     const sessions = await getSessions();
-    set({ sessions });
+    // Set the most recent session as active (assuming sessions are sorted by created_at descending)
+    const mostRecentSession = sessions.length > 0 ? sessions[0] : null;
+    set({ sessions, activeSession: mostRecentSession });
   },
 
   addMessage: (message) =>
@@ -46,7 +48,7 @@ export const useSessionStore = create<SessionState>()(
 
   reset: () =>
     set({
-      sessionId: null,
+      activeSession: null,
       messages: [],
       currentInput: '',
     }),
