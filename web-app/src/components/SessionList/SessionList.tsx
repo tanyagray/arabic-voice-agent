@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
-import { useSessionStore } from '@/store/session/session.store';
+import { useStore } from '@/store';
 import { useEffect } from 'react';
 
 interface SessionListProps {
@@ -18,10 +18,10 @@ export function SessionList({
   width = "300px",
   height = "100%",
 }: SessionListProps) {
-  const sessions = useSessionStore((s) => s.sessions);
-  const activeSession = useSessionStore((s) => s.activeSession);
-  const loadSessions = useSessionStore((s) => s.loadSessions);
-  const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const sessions = useStore((s) => s.session.sessions);
+  const activeSession = useStore((s) => s.session.activeSession);
+  const loadSessions = useStore((s) => s.session.loadSessions);
+  const setActiveSession = useStore((s) => s.session.setActiveSession);
 
   // load the list of sessions on mount
   useEffect(() => {

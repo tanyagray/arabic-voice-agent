@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useSession } from '../hooks/useSession';
 import { useChat } from '../hooks/useChat';
-import { useSessionStore } from '../store/session/session.store';
+import { useStore } from '../store';
 import type { Message, ConnectionState } from '../types/chat';
 
 interface SessionContextValue {
@@ -26,7 +26,7 @@ interface SessionProviderProps {
 }
 
 export function SessionProvider({ children }: SessionProviderProps) {
-  const { activeSession } = useSessionStore();
+  const activeSession = useStore((state) => state.session.activeSession);
   const {
     isCreating,
     error: sessionError,

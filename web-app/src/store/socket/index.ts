@@ -2,5 +2,6 @@
  * Socket store exports.
  */
 
-export { useSocketStore } from './socket.store';
+export { createSocketSlice } from './socket.store';
+export type { SocketSlice } from './socket.store';
 export type { SocketState, SocketStatus } from './socket.state';
