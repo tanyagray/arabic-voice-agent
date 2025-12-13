@@ -1,9 +1,9 @@
-import { useSessionContext } from '../../context/SessionContext';
+import { useSession } from '../../hooks/useSession';
 import { BsVolumeUp, BsVolumeMute } from 'react-icons/bs';
 import { IconButton } from '@chakra-ui/react';
 
 export function AudioToggle() {
-  const { audioEnabled, isUpdatingContext, toggleAudioEnabled } = useSessionContext();
+  const { audioEnabled, isUpdatingContext, toggleAudioEnabled } = useSession();
 
   const handleToggle = async () => {
     await toggleAudioEnabled();

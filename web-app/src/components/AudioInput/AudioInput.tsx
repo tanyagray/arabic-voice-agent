@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { useAudioRecording } from '../../hooks/useAudioRecording';
 import { useAgentState } from '../../hooks/useAgentState';
-import { useSessionContext } from '../../context/SessionContext';
+import { useStore } from '../../store';
 import { sendVoiceMessage } from '../../api/sessions/sessions.api';
 import { BsMic, BsArrowRepeat } from 'react-icons/bs';
 import { Button, Box } from '@chakra-ui/react';
@@ -18,7 +18,8 @@ const MotionBox = motion.create(Box);
 
 export function AudioInput({ isActive, onActivate }: AudioInputProps) {
   const { isRecording, startRecording, stopRecording } = useAudioRecording();
-  const { sessionId } = useSessionContext();
+  const activeSession = useStore((state) => state.session.activeSession);
+  const sessionId = activeSession?.session_id ?? null;
   const agentState = useAgentState();
   const [isUploading, setIsUploading] = useState(false);
 

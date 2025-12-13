@@ -1,27 +1,41 @@
 import { motion } from 'motion/react';
-import { useState } from 'react';
-import { SessionProvider, useSessionContext } from '../../context/SessionContext';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../store';
+import { useSession } from '../../hooks/useSession';
 import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
 import { AudioToggle } from '../AudioToggle/AudioToggle';
 import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
 
-export function ActiveSession() {
-  return (
-    <SessionProvider>
-      <ActiveSessionContent />
-    </SessionProvider>
-  );
-}
-
 const MotionBox = motion.create(Box);
 
-function ActiveSessionContent() {
-  const { isCreating, sessionError } = useSessionContext();
+export function ActiveSession() {
+  const { isCreating, error: sessionError } = useSession();
+  const activeSession = useStore((state) => state.session.activeSession);
   const socketStatus = useStore((state) => state.socket.status);
   const socketError = useStore((state) => state.socket.error);
+  const socketConnect = useStore((state) => state.socket.connect);
+  const socketDisconnect = useStore((state) => state.socket.disconnect);
+
+  // Manage socket connection based on active session
+  useEffect(() => {
+    const sessionId = activeSession?.session_id ?? null;
+
+    // Disconnect any existing socket connection
+    socketDisconnect();
+
+    // Connect to new session if session ID exists
+    if (sessionId) {
+      socketConnect(sessionId);
+    }
+
+    // Cleanup: disconnect on unmount or when session changes
+    return () => {
+      socketDisconnect();
+    };
+  }, [activeSession?.session_id, socketConnect, socketDisconnect]);
+
   const error = sessionError || socketError;
   const isLoading = isCreating || socketStatus === 'connecting';
 

@@ -25,6 +25,6 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// Note: ActiveSession now creates its own SessionContext internally
+// Note: ActiveSession uses the global store and useSession hook
 // To see it work, ensure VITE_API_URL is set to point to your running API
 export const Default: Story = {};
