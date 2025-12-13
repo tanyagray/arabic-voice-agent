@@ -164,5 +164,18 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
       };
       addMessage(assistantMessage);
     },
+
+    onWebSocketTranscript: (message: any) => {
+      const { session } = get();
+      const { addMessage } = session;
+
+      const transcriptMessage: ChatMessage = {
+        id: `transcript-${Date.now()}`,
+        text: message.data.text,
+        role: message.data.source,
+        timestamp: new Date(),
+      };
+      addMessage(transcriptMessage);
+    }
   },
 });

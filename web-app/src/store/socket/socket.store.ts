@@ -6,9 +6,10 @@
  * message handling.
  */
 
-import type { StateCreator } from 'zustand';
+import { type StateCreator } from 'zustand';
 import type { SocketState } from './socket.state';
 import type { WebSocketMessage } from '@/types/chat';
+import { useStore } from '../index';
 
 // Module-level variables to maintain WebSocket state across slice instances
 let messageHandler: ((message: WebSocketMessage) => void) | null = null;
@@ -34,13 +35,14 @@ export const createSocketSlice: StateCreator<SocketSlice> = (set, get) => ({
     error: null,
 
     connect: async (sessionId: string) => {
-      // Don't connect if already connected or connecting
-      const currentSocket = get().socket.socket;
-      if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
-        console.log('WebSocket already connected');
-        return;
+
+      // Close existing socket if any
+      const activeSocket = get().socket.socket;    
+      if (activeSocket) {
+        await get().socket.disconnect();
       }
 
+      // Update state to connecting
       set((state) => ({
         socket: {
           ...state.socket,
@@ -121,10 +123,12 @@ export const createSocketSlice: StateCreator<SocketSlice> = (set, get) => ({
           try {
             const message: WebSocketMessage = JSON.parse(event.data);
 
-            // Call registered message handler if available
-            if (messageHandler) {
-              messageHandler(message);
+            switch (message.kind) {
+              case 'transcript':
+                useStore.getState().session.onWebSocketTranscript(message);
+                break;
             }
+            
           } catch (err) {
             console.error('Error parsing WebSocket message:', err);
           }
