@@ -8,22 +8,18 @@
 import { create } from 'zustand';
 import type { SessionState } from './session.state';
 
-const initialState = {
-  sessionId: null,
-  messages: [],
-  currentInput: '',
-};
-
 /**
- * Chat store hook.
+ * Session store hook.
  *
  * Usage:
  * ```tsx
- * const { messages, addMessage, sessionId } = useChatStore();
+ * const { messages, addMessage, sessionId } = useSessionStore();
  * ```
  */
-export const useChatStore = create<SessionState>((set) => ({
-  ...initialState,
+export const useSessionStore = create<SessionState>((set) => ({
+  sessionId: null,
+  messages: [],
+  currentInput: '',
 
   setSessionId: (sessionId) => set({ sessionId }),
 
@@ -38,5 +34,10 @@ export const useChatStore = create<SessionState>((set) => ({
 
   setCurrentInput: (input) => set({ currentInput: input }),
 
-  reset: () => set(initialState),
+  reset: () =>
+    set({
+      sessionId: null,
+      messages: [],
+      currentInput: '',
+    }),
 }));

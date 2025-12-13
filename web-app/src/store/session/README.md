@@ -85,10 +85,10 @@ function ChatComponent() {
 You can also access the store directly in any component:
 
 ```tsx
-import { useChatStore } from '@/store/session/session.store';
+import { useSessionStore } from '@/store/session/session.store';
 
 function MessageCount() {
-  const messages = useChatStore((state) => state.messages);
+  const messages = useSessionStore((state) => state.messages);
   return <div>Messages: {messages.length}</div>;
 }
 ```
@@ -191,7 +191,7 @@ If you want to persist chat messages across page refreshes, you can use Zustand'
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export const useChatStore = create<ChatState>()(
+export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
       // ... your store implementation

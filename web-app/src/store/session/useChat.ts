@@ -6,7 +6,7 @@
  */
 
 import { useMutation } from '@tanstack/react-query';
-import { useChatStore } from './session.store';
+import { useSessionStore } from './session.store';
 import { createSession, sendMessage } from '@/api/sessions/sessions.api';
 import type { ChatMessage } from '@/api/sessions/sessions.types';
 
@@ -50,7 +50,7 @@ export function useChat() {
     addMessage,
     setCurrentInput,
     reset,
-  } = useChatStore();
+  } = useSessionStore();
 
   // Mutation for creating a new session
   const createSessionMutation = useMutation({
