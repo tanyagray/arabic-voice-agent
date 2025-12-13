@@ -23,7 +23,7 @@ import { useSessionStore } from '@/store/session/session.store';
 import { useState } from 'react';
 
 function ChatComponent() {
-  const { messages, activeSession, sendMessage, createNewSession } = useSessionStore();
+  const { messages, activeSessionId, sendMessage, createNewSession } = useSessionStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,7 +40,7 @@ function ChatComponent() {
   };
 
   const handleSendMessage = async (text: string) => {
-    if (!activeSession) {
+    if (!activeSessionId) {
       alert('Create a session first!');
       return;
     }
@@ -57,13 +57,13 @@ function ChatComponent() {
 
   return (
     <div>
-      {!activeSession && (
+      {!activeSessionId && (
         <button onClick={handleCreateSession} disabled={isLoading}>
           Start New Chat
         </button>
       )}
 
-      {activeSession && (
+      {activeSessionId && (
         <>
           <div className="messages">
             {messages.map((msg) => (
@@ -130,13 +130,13 @@ Returns an object with the following properties:
 
 #### State
 
-- `activeSession: Session | null` - Current active session
+- `activeSessionId: string | null` - ID of the current active session
 - `sessions: Session[]` - Array of all sessions
 - `messages: ChatMessage[]` - Array of chat messages
 
 #### Actions
 
-- `setActiveSession: (session: Session | null) => void` - Set the active session
+- `setActiveSessionId: (sessionId: string | null) => void` - Set the active session ID
 - `loadSessions: () => Promise<void>` - Load all sessions from the API
 - `addMessage: (message: ChatMessage) => void` - Add a message to the store
 - `setMessages: (messages: ChatMessage[]) => void` - Replace all messages

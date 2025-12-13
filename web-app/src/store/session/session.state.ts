@@ -12,13 +12,13 @@ export interface SessionContext {
 
 export interface SessionState {
   // State
-  activeSession: Session | null;
+  activeSessionId: string | null;
   sessions: Session[];
   messages: ChatMessage[];
   context: SessionContext;
 
   // Actions
-  setActiveSession: (session: Session | null) => void;
+  setActiveSessionId: (sessionId: string | null) => void;
   loadSessions: () => Promise<void>;
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;

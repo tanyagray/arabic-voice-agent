@@ -18,8 +18,7 @@ const MotionBox = motion.create(Box);
 
 export function AudioInput({ isActive, onActivate }: AudioInputProps) {
   const { isRecording, startRecording, stopRecording } = recordAudio();
-  const activeSession = useStore((state) => state.session.activeSession);
-  const sessionId = activeSession?.session_id ?? null;
+  const sessionId = useStore((state) => state.session.activeSessionId);
   const agentState = useAgentState();
   const [isUploading, setIsUploading] = useState(false);
 

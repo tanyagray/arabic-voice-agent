@@ -74,14 +74,14 @@ import { useSocketStore } from '@/store/socket';
 import { useEffect } from 'react';
 
 function RealtimeChat() {
-  const { activeSession, addMessage } = useSessionStore();
+  const { activeSessionId, addMessage } = useSessionStore();
   const { status, connect, disconnect, send, onMessage } = useSocketStore();
 
   useEffect(() => {
-    if (!activeSession?.session_id) return;
+    if (!activeSessionId) return;
 
     // Connect to WebSocket
-    connect(activeSession.session_id);
+    connect(activeSessionId);
 
     // Handle incoming messages
     onMessage((message) => {
@@ -99,7 +99,7 @@ function RealtimeChat() {
     return () => {
       disconnect();
     };
-  }, [activeSession?.session_id, connect, disconnect, onMessage, addMessage]);
+  }, [activeSessionId, connect, disconnect, onMessage, addMessage]);
 
   const handleSendText = (text: string) => {
     if (status === 'connected') {

@@ -12,7 +12,7 @@ import type { ChatMessage } from '../../api/sessions/sessions.types';
 const MotionBox = motion.create(Box);
 
 export function ActiveSession() {
-  const activeSession = useStore((state) => state.session.activeSession);
+  const activeSessionId = useStore((state) => state.session.activeSessionId);
   const socketStatus = useStore((state) => state.socket.status);
   const socketError = useStore((state) => state.socket.error);
   const socketConnect = useStore((state) => state.socket.connect);
@@ -55,21 +55,19 @@ export function ActiveSession() {
 
   // Manage socket connection based on active session
   useEffect(() => {
-    const sessionId = activeSession?.session_id ?? null;
-
     // Disconnect any existing socket connection
     socketDisconnect();
 
     // Connect to new session if session ID exists
-    if (sessionId) {
-      socketConnect(sessionId);
+    if (activeSessionId) {
+      socketConnect(activeSessionId);
     }
 
     // Cleanup: disconnect on unmount or when session changes
     return () => {
       socketDisconnect();
     };
-  }, [activeSession?.session_id, socketConnect, socketDisconnect]);
+  }, [activeSessionId, socketConnect, socketDisconnect]);
 
   const error = socketError;
   const isLoading = socketStatus === 'connecting';

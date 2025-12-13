@@ -30,7 +30,7 @@ export interface SessionSlice {
  */
 export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
   session: {
-    activeSession: null,
+    activeSessionId: null,
     sessions: [],
     messages: [],
     context: {
@@ -39,23 +39,23 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
       audio_enabled: false,
     },
 
-    setActiveSession: (session) =>
+    setActiveSessionId: (sessionId) =>
       set((state) => ({
         session: {
           ...state.session,
-          activeSession: session,
+          activeSessionId: sessionId,
         },
       })),
 
     loadSessions: async () => {
       const sessions = await getSessions();
       // Set the most recent session as active (assuming sessions are sorted by created_at descending)
-      const mostRecentSession = sessions.length > 0 ? sessions[0] : null;
+      const mostRecentSessionId = sessions.length > 0 ? sessions[0].session_id : null;
       set((state) => ({
         session: {
           ...state.session,
           sessions,
-          activeSession: mostRecentSession,
+          activeSessionId: mostRecentSessionId,
         },
       }));
     },
@@ -99,27 +99,18 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
       set((state) => ({
         session: {
           ...state.session,
-          activeSession: null,
+          activeSessionId: null,
           messages: [],
         },
       })),
 
     createNewSession: async () => {
-      const newSessionId = await createSession();
-      set((state) => ({
-        session: {
-          ...state.session,
-          activeSession: {
-            session_id: newSessionId,
-            created_at: new Date().toISOString(),
-          },
-        },
-      }));
+      await createSession();
     },
 
     setAudioEnabled: async (enabled: boolean) => {
       const { session } = get();
-      const sessionId = session.activeSession?.session_id;
+      const sessionId = session.activeSessionId;
 
       if (!sessionId) {
         console.error('Cannot update audio: no session ID');
@@ -140,9 +131,9 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
 
     sendMessage: async (message: string) => {
       const { session } = get();
-      const { activeSession, addMessage } = session;
+      const { activeSessionId, addMessage } = session;
 
-      if (!activeSession) {
+      if (!activeSessionId) {
         throw new Error('No active session. Create a session first.');
       }
 
@@ -155,7 +146,7 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
       };
       addMessage(userMessage);
 
-      const responseText = await sendMessageApi(activeSession.session_id, message);
+      const responseText = await sendMessageApi(activeSessionId, message);
 
       // Add assistant response
       const assistantMessage: ChatMessage = {

@@ -25,13 +25,13 @@ export type AppStore = SessionSlice & SocketSlice;
  * Usage:
  * ```tsx
  * // Session state and actions (namespaced under 'session')
- * const { activeSession, messages, createNewSession } = useStore((state) => state.session);
+ * const { activeSessionId, messages, createNewSession } = useStore((state) => state.session);
  *
  * // Socket state and actions (namespaced under 'socket')
  * const { status, connect, disconnect } = useStore((state) => state.socket);
  *
  * // Or destructure directly
- * const activeSession = useStore((state) => state.session.activeSession);
+ * const activeSessionId = useStore((state) => state.session.activeSessionId);
  * const socketStatus = useStore((state) => state.socket.status);
  * ```
  */

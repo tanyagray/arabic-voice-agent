@@ -19,14 +19,14 @@ export function SessionList({
   height = "100%",
 }: SessionListProps) {
   const sessions = useStore((s) => s.session.sessions);
-  const activeSession = useStore((s) => s.session.activeSession);
+  const activeSessionId = useStore((s) => s.session.activeSessionId);
   const loadSessions = useStore((s) => s.session.loadSessions);
-  const setActiveSession = useStore((s) => s.session.setActiveSession);
+  const setActiveSessionId = useStore((s) => s.session.setActiveSessionId);
 
   // load the list of sessions on mount
   useEffect(() => {
     loadSessions();
-  }, [loadSessions]);
+  }, []);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -111,7 +111,7 @@ export function SessionList({
       </Box>
       <Box flex={1} overflowY="auto">
         {sessions.map((session, index) => {
-          const isActive = session.session_id === activeSession?.session_id;
+          const isActive = session.session_id === activeSessionId;
 
           return (
             <MotionBox
@@ -121,7 +121,7 @@ export function SessionList({
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
               onClick={() => {
-                setActiveSession(session);
+                setActiveSessionId(session.session_id);
                 onSessionSelect?.(session.session_id);
               }}
               w="full"
