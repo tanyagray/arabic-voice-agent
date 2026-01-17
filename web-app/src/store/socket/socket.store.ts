@@ -11,8 +11,7 @@ import type { SocketState } from './socket.state';
 import type { WebSocketMessage } from '@/types/chat';
 import { useStore } from '../index';
 
-// Module-level variables to maintain WebSocket state across slice instances
-let messageHandler: ((message: WebSocketMessage) => void) | null = null;
+// Module-level variable to maintain reconnect timeout across slice instances
 let reconnectTimeout: NodeJS.Timeout | null = null;
 
 /**
@@ -202,14 +201,6 @@ export const createSocketSlice: StateCreator<SocketSlice> = (set, get) => ({
           },
         }));
       }
-    },
-
-    onMessage: (handler: (message: WebSocketMessage) => void) => {
-      messageHandler = handler;
-    },
-
-    removeMessageHandler: () => {
-      messageHandler = null;
     },
   },
 });

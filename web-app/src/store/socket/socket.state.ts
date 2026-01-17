@@ -2,8 +2,6 @@
  * Type definitions for socket state management.
  */
 
-import type { WebSocketMessage } from '@/types/chat';
-
 export type SocketStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
 export interface SocketState {
@@ -17,7 +15,4 @@ export interface SocketState {
   disconnect: () => void;
   send: (data: any) => void;
 
-  // Message handler registration
-  onMessage: (handler: (message: WebSocketMessage) => void) => void;
-  removeMessageHandler: () => void;
 }

@@ -22,7 +22,7 @@ export function useAgentState(): AgentState {
     const lastMessage = messages[messages.length - 1];
 
     // If last message is from user, agent is thinking
-    if (lastMessage.role === 'user') {
+    if (lastMessage.message_source === 'user') {
       setState('thinking');
     } else {
       // If last message is from agent, we're idle (ready for next input)
