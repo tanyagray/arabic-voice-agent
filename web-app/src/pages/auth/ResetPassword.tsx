@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Box, Button, Input, VStack, Text, Alert, Heading, Stack } from '@chakra-ui/react';
+import { Box, Button, Input, VStack, Text, Alert, Heading, Stack, Image } from '@chakra-ui/react';
 import { Field } from "@/components/ui/field"
 
 const ResetPassword: React.FC = () => {
