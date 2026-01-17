@@ -6,7 +6,6 @@ import {
   VStack,
   Text,
   Button,
-  Image,
   Heading,
   PinInput,
   Link,
@@ -137,12 +136,14 @@ const VerifyEmail: React.FC = () => {
   return (
     <VStack gap={10} py={8} maxW="md" mx="auto">
       <VStack gap={12} textAlign="center">
-        <Image
-          src="/logo.svg"
-          alt="Arabic Voice Agent"
-          h={32}
-          mx="auto"
-        />
+        <Heading
+          as="h1"
+          fontSize="3xl"
+          fontWeight="bold"
+          color="white"
+        >
+          Arabic Voice Agent
+        </Heading>
         <VStack gap={6}>
           <Heading fontSize="2xl" color="white" fontWeight="bold">
             Enter your verification code

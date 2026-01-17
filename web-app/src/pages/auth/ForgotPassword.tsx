@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Box, Button, Input, VStack, Image, Text, Link, Alert, Heading } from '@chakra-ui/react';
+import { Box, Button, Input, VStack, Text, Link, Alert, Heading } from '@chakra-ui/react';
 import { Field } from "@/components/ui/field"
 
 const ForgotPassword: React.FC = () => {
@@ -29,13 +29,15 @@ const ForgotPassword: React.FC = () => {
     return (
       <VStack gap={6}>
         <Box textAlign="center" pt={6}>
-          <Image
-            src="/logo.svg"
-            alt="Arabic Voice Agent"
-            h={32}
-            mx="auto"
+          <Heading
+            as="h1"
+            fontSize="3xl"
+            fontWeight="bold"
+            color="white"
             mb={2}
-          />
+          >
+            Arabic Voice Agent
+          </Heading>
         </Box>
         <VStack textAlign="center" gap={4}>
           <Alert.Root status="success" variant="surface">
