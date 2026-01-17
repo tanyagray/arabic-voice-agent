@@ -1,0 +1,6 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/web-api/.venv/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/web-api"
+  ]
+}

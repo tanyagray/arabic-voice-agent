@@ -2,6 +2,14 @@
 
 This document contains guidelines and conventions for working with this project using Claude Code.
 
+## Starting the App
+
+When asked to "start the app", run the **"Start All Services"** launch configuration in VS Code. This starts all three services (Supabase, web-api, web-app) in separate terminals for log monitoring.
+
+You can trigger this via:
+- Keyboard: `Cmd+Shift+B` (default build task)
+- Command Palette: `Tasks: Run Task` → `Start All Services`
+
 ## Git Commit Conventions
 
 All git commits **MUST** follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
