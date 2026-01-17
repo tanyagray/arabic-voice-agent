@@ -14,8 +14,6 @@ jobs:
       (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
     runs-on: ubuntu-latest
 
-    environment: dev
-
     permissions:
       contents: write
       issues: write
