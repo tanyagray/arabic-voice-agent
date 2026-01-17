@@ -32,6 +32,6 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
           supabase link --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
-          supabase config push
+          yes | supabase config push
           supabase secrets set
           supabase db push --include-seed
