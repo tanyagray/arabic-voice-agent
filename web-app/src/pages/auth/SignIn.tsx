@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Box, Button, Input, VStack, Image, Link, Stack, Alert } from '@chakra-ui/react';
+import { Box, Button, Input, VStack, Link, Stack, Alert, Heading } from '@chakra-ui/react';
 import { Field } from "@/components/ui/field"
 
 const SignIn: React.FC = () => {
@@ -29,14 +29,15 @@ const SignIn: React.FC = () => {
   return (
     <VStack gap={6}>
       <Box textAlign="center" pt={6}>
-        <Image
-          src="/logo.svg"
-          alt="Arabic Voice Agent"
-          h={32}
-          w="auto"
-          mx="auto"
+        <Heading
+          as="h1"
+          fontSize="3xl"
+          fontWeight="bold"
+          color="white"
           mb={2}
-        />
+        >
+          Arabic Voice Agent
+        </Heading>
       </Box>
       <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         <VStack gap={4} w="full">
