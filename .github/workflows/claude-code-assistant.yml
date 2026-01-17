@@ -113,37 +113,11 @@ jobs:
           PROMPT_EOF
 
           # Run Claude Code in non-interactive mode
-          claude -p "$(cat /tmp/prompt.txt)" --output-format stream-json 2>&1 | tee /tmp/claude_output.txt || true
+          # Use text output format which works with --print mode
+          claude -p "$(cat /tmp/prompt.txt)" --output-format text 2>&1 | tee /tmp/claude_output.txt || true
 
-          # Extract the response text from the JSON output
-          # Claude outputs JSON lines, we need to extract the text content
-          python3 << 'EOF' > /tmp/response.txt
-          import json
-          import sys
-
-          response_parts = []
-          try:
-              with open('/tmp/claude_output.txt', 'r') as f:
-                  for line in f:
-                      line = line.strip()
-                      if not line:
-                          continue
-                      try:
-                          data = json.loads(line)
-                          if data.get('type') == 'assistant' and 'message' in data:
-                              for content in data['message'].get('content', []):
-                                  if content.get('type') == 'text':
-                                      response_parts.append(content.get('text', ''))
-                          elif data.get('type') == 'result' and 'result' in data:
-                              response_parts.append(data['result'])
-                      except json.JSONDecodeError:
-                          # Not JSON, might be plain text output
-                          response_parts.append(line)
-          except Exception as e:
-              print(f"Error processing output: {e}", file=sys.stderr)
-
-          print('\n'.join(response_parts))
-          EOF
+          # Copy the text output directly to the response file
+          cp /tmp/claude_output.txt /tmp/response.txt
 
           # Check if changes were made (look for git status changes)
           if git status --porcelain | grep -q .; then
