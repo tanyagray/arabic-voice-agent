@@ -1,0 +1,255 @@
+name: Claude Code Assistant
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened]
+
+jobs:
+  claude-assistant:
+    # Only run if the comment mentions @claude or the issue body mentions @claude
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Extract prompt from comment or issue
+        id: extract
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let prompt, context;
+
+            if (context = '${{ github.event_name }}' === 'issue_comment') {
+              prompt = `${{ github.event.comment.body }}`;
+            } else {
+              prompt = `${{ github.event.issue.body }}`;
+            }
+
+            // Remove @claude mention from prompt
+            prompt = prompt.replace(/@claude\s*/gi, '').trim();
+
+            // Get issue details for context
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.issue.number }}
+            });
+
+            const issueContext = `
+            Issue #${{ github.event.issue.number }}: ${issue.data.title}
+
+            Issue Description:
+            ${issue.data.body || 'No description provided'}
+
+            User Request:
+            ${prompt}
+            `;
+
+            core.setOutput('prompt', issueContext);
+
+      - name: Add reaction to indicate processing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reactionTarget = '${{ github.event_name }}' === 'issue_comment'
+              ? { comment_id: ${{ github.event.comment.id || 0 }} }
+              : { issue_number: ${{ github.event.issue.number }} };
+
+            if ('${{ github.event_name }}' === 'issue_comment') {
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: ${{ github.event.comment.id || 0 }},
+                content: 'eyes'
+              });
+            } else {
+              await github.rest.reactions.createForIssue({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ github.event.issue.number }},
+                content: 'eyes'
+              });
+            }
+
+      - name: Run Claude Code
+        id: claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Create a prompt file to avoid shell escaping issues
+          cat << 'PROMPT_EOF' > /tmp/prompt.txt
+          You are helping with a GitHub issue. Please analyze the codebase and respond to the following request.
+
+          If the user is asking a question about the code, provide a detailed answer.
+
+          If the user is asking you to fix something or implement a feature, do the following:
+          1. Analyze the issue and understand what needs to be done
+          2. Make the necessary code changes
+          3. After making changes, output a summary starting with "CHANGES_MADE:" followed by a description
+
+          Context:
+          ${{ steps.extract.outputs.prompt }}
+          PROMPT_EOF
+
+          # Run Claude Code in non-interactive mode
+          claude -p "$(cat /tmp/prompt.txt)" --output-format stream-json 2>&1 | tee /tmp/claude_output.txt || true
+
+          # Extract the response text from the JSON output
+          # Claude outputs JSON lines, we need to extract the text content
+          python3 << 'EOF' > /tmp/response.txt
+          import json
+          import sys
+
+          response_parts = []
+          try:
+              with open('/tmp/claude_output.txt', 'r') as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line:
+                          continue
+                      try:
+                          data = json.loads(line)
+                          if data.get('type') == 'assistant' and 'message' in data:
+                              for content in data['message'].get('content', []):
+                                  if content.get('type') == 'text':
+                                      response_parts.append(content.get('text', ''))
+                          elif data.get('type') == 'result' and 'result' in data:
+                              response_parts.append(data['result'])
+                      except json.JSONDecodeError:
+                          # Not JSON, might be plain text output
+                          response_parts.append(line)
+          except Exception as e:
+              print(f"Error processing output: {e}", file=sys.stderr)
+
+          print('\n'.join(response_parts))
+          EOF
+
+          # Check if changes were made (look for git status changes)
+          if git status --porcelain | grep -q .; then
+            echo "changes_made=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes_made=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR if changes were made
+        if: steps.claude.outputs.changes_made == 'true'
+        id: create-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create a new branch
+          BRANCH_NAME="claude/issue-${{ github.event.issue.number }}-$(date +%s)"
+          git checkout -b "$BRANCH_NAME"
+
+          # Add and commit changes
+          git add -A
+          git commit -m "fix: address issue #${{ github.event.issue.number }}
+
+          Changes proposed by Claude Code Assistant.
+
+          Closes #${{ github.event.issue.number }}
+
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+
+          # Push the branch
+          git push origin "$BRANCH_NAME"
+
+          # Create PR
+          PR_URL=$(gh pr create \
+            --title "fix: address issue #${{ github.event.issue.number }}" \
+            --body "## Summary
+
+          This PR was automatically generated by Claude Code Assistant in response to issue #${{ github.event.issue.number }}.
+
+          ## Changes
+
+          Please review the changes carefully before merging.
+
+          ---
+          🤖 Generated with [Claude Code](https://claude.ai/claude-code)" \
+            --head "$BRANCH_NAME" \
+            --base main)
+
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+
+      - name: Post response as comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let response = '';
+
+            try {
+              response = fs.readFileSync('/tmp/response.txt', 'utf8').trim();
+            } catch (e) {
+              response = 'I encountered an error processing your request. Please check the workflow logs for details.';
+            }
+
+            // Truncate if too long (GitHub has a 65536 character limit for comments)
+            if (response.length > 60000) {
+              response = response.substring(0, 60000) + '\n\n... (response truncated)';
+            }
+
+            let comment = `## 🤖 Claude Code Response\n\n${response}`;
+
+            // Add PR link if one was created
+            const prUrl = '${{ steps.create-pr.outputs.pr_url }}';
+            if (prUrl) {
+              comment += `\n\n---\n📝 I've created a PR with the proposed changes: ${prUrl}`;
+            }
+
+            comment += '\n\n---\n<sub>Generated by Claude Code Assistant</sub>';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.issue.number }},
+              body: comment
+            });
+
+      - name: Add completion reaction
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reaction = '${{ job.status }}' === 'success' ? 'rocket' : 'confused';
+
+            if ('${{ github.event_name }}' === 'issue_comment') {
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: ${{ github.event.comment.id || 0 }},
+                content: reaction
+              });
+            } else {
+              await github.rest.reactions.createForIssue({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ github.event.issue.number }},
+                content: reaction
+              });
+            }
