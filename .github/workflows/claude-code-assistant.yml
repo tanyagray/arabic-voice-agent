@@ -37,9 +37,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            let prompt, context;
+            let prompt;
+            const isComment = '${{ github.event_name }}' === 'issue_comment';
 
-            if (context = '${{ github.event_name }}' === 'issue_comment') {
+            if (isComment) {
               prompt = `${{ github.event.comment.body }}`;
             } else {
               prompt = `${{ github.event.issue.body }}`;
