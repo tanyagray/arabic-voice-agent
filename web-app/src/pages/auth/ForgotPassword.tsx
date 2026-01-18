@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Box, Button, Input, VStack, Text, Link, Alert, Heading } from '@chakra-ui/react';
+import { Box, Button, Input, VStack, Text, Link, Alert, Heading, Image } from '@chakra-ui/react';
 import { Field } from "@/components/ui/field"
 
 const ForgotPassword: React.FC = () => {
