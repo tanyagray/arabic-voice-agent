@@ -3,7 +3,7 @@ import { ChakraProvider } from "@chakra-ui/react"
 import { withThemeByClassName } from "@storybook/addon-themes"
 import { MemoryRouter } from "react-router-dom"
 import type { Preview } from '@storybook/react-vite'
-import { AuthProvider } from '../src/contexts/AuthContext'
+import { AuthProvider } from '../src/context/AuthContext'
 import { system } from '../src/theme'
 import '../src/index.css'
 
