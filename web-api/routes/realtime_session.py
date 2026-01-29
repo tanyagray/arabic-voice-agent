@@ -51,11 +51,17 @@ async def open_session_websocket(websocket: WebSocket, session_id: str):
             await websocket.close(code=1008, reason="Session not found")
             return
 
+        # Switch session to admin client now that user is authenticated.
+        # The user token expires after ~1 hour, but WebSocket sessions are
+        # long-lived. Using the admin client avoids JWT expiration errors
+        # during the session.
+        session_service.upgrade_session_to_admin(session_id)
+
         # Register the WebSocket connection
         websocket_service.register_websocket(session_id, websocket)
 
         try:
-            await agent_service.start_realtime_agent(websocket, session_id, token)
+            await agent_service.start_realtime_agent(websocket, session_id)
         finally:
             # Unregister the WebSocket connection when it closes
             websocket_service.unregister_websocket(session_id)

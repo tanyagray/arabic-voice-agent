@@ -72,6 +72,17 @@ def get_session(session_id: str, user_access_token: Optional[str] = None) -> Opt
         return None
 
 
+def upgrade_session_to_admin(session_id: str) -> None:
+    """
+    Upgrade a cached session's Supabase client to the admin client.
+
+    Used for long-lived WebSocket connections where the user's JWT may expire
+    but the session has already been authenticated.
+    """
+    if session_id in _sessions:
+        _sessions[session_id].supabase = get_supabase_admin_client()
+
+
 def delete_session(session_id: str, user_access_token: Optional[str] = None) -> bool:
     """
     Delete an agent session by its ID.

@@ -175,7 +175,7 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None, u
         )
 
 
-async def start_realtime_agent(websocket: WebSocket, session_id: str, user_access_token: str | None = None) -> None:
+async def start_realtime_agent(websocket: WebSocket, session_id: str) -> None:
     """
     Start a realtime agent that processes messages from a WebSocket connection.
 
@@ -186,7 +186,6 @@ async def start_realtime_agent(websocket: WebSocket, session_id: str, user_acces
     Args:
         websocket: The WebSocket connection to receive/send messages
         session_id: The session identifier
-        user_access_token: Optional user's access token for Supabase authentication
     """
     base_timeout = 5.0  # seconds
     max_followups = 3
@@ -217,12 +216,12 @@ async def start_realtime_agent(websocket: WebSocket, session_id: str, user_acces
                 print(f"[Agent] Failed to save user message to database: {e}")
 
             # Process the user message
-            await trigger_agent_turn(session_id, user_message, user_access_token)
+            await trigger_agent_turn(session_id, user_message)
         except asyncio.TimeoutError:
             # Timeout reached - check if we can send more followups
             if followup_count < max_followups:
                 # Send agent followup
-                await trigger_agent_turn(session_id, user_access_token=user_access_token)
+                await trigger_agent_turn(session_id)
                 followup_count += 1
                 # Increase timeout for next followup (exponential backoff)
                 current_timeout *= 2
