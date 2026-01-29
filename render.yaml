@@ -22,12 +22,13 @@ services:
       - key: GOOGLE_GENAI_API_KEY
         sync: false
     healthCheckPath: /health
-    previewsEnabled: true
-    previewsExpireAfterDays: 7
+    previews:
+      generation: automatic
 
   # Frontend Web App Service
-  - type: static
+  - type: web
     name: arabic-voice-agent-web-app
+    runtime: static
     region: oregon
     plan: starter
     buildCommand: npm ci && npm run build
@@ -42,5 +43,5 @@ services:
         sync: false
       - key: VITE_SUPABASE_PUBLISHABLE_KEY
         sync: false
-    previewsEnabled: true
-    previewsExpireAfterDays: 7
+    previews:
+      generation: automatic
