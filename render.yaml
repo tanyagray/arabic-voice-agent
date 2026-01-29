@@ -7,8 +7,6 @@ services:
     name: arabic-voice-agent-api
     env: python
     region: oregon
-    plan: starter
-    previewPlan: starter
     buildCommand: pip install uv && uv sync
     startCommand: uv run uvicorn main:app --host 0.0.0.0 --port $PORT
     rootDir: web-api
@@ -31,8 +29,6 @@ services:
   - type: web
     name: arabic-voice-agent-web-app
     runtime: static
-    plan: starter
-    previewPlan: starter
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     rootDir: web-app
