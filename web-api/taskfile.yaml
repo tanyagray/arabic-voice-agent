@@ -19,7 +19,19 @@ tasks:
       - uv run uvicorn main:app --host 0.0.0.0 --port 8000
 
   test:
-    desc: Test the API endpoints
+    desc: Run unit tests with pytest
+    deps: [install]
+    cmds:
+      - uv run pytest
+
+  test:watch:
+    desc: Run unit tests in watch mode
+    deps: [install]
+    cmds:
+      - uv run pytest-watch
+
+  health-check:
+    desc: Test the API health endpoint
     cmds:
       - |
         echo "Testing /health endpoint..."
@@ -30,4 +42,5 @@ tasks:
     cmds:
       - rm -rf __pycache__
       - rm -rf .pytest_cache
-      - rm -rf *.pyc
+      - find . -type f -name "*.pyc" -delete
+      - find . -type d -name "__pycache__" -delete

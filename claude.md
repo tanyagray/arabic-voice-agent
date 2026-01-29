@@ -18,8 +18,11 @@ cd web-api
 task install          # Install dependencies (uv sync)
 task dev              # Dev server with debugpy on :5678, uvicorn on :8000
 task start            # Production server
-uv run pytest         # Run tests
-uv run pytest tests/test_foo.py::test_bar  # Single test
+
+# Testing
+task test             # Run all unit tests with pytest
+task test:watch       # Run tests in watch mode (auto-rerun on changes)
+uv run pytest tests/test_foo.py::test_bar  # Run single test directly
 ```
 
 ### web-app (TypeScript, npm)
@@ -69,6 +72,30 @@ React 19 + Vite + TypeScript. Uses Chakra UI, Zustand for state, TanStack React 
 
 ### Database
 PostgreSQL via Supabase. Migrations in `supabase/migrations/`. Key tables: `profiles`, `conversations`, `messages`, `agent_sessions`, `personas`, `transcript_messages`.
+
+## Testing
+
+### web-api Testing
+
+The web-api uses **pytest** (same as Pipecat) for unit and integration testing.
+
+**Test Structure:**
+```
+web-api/tests/
+├── conftest.py              # Shared fixtures (TestClient, mocks, etc.)
+├── test_routes/             # API endpoint tests
+├── test_services/           # Service layer tests
+└── test_agent/              # Agent logic tests
+```
+
+**Key Testing Practices:**
+- Use FastAPI's `TestClient` for route testing
+- Mock external services (Supabase, OpenAI, ElevenLabs, Deepgram)
+- Use fixtures from `conftest.py` for common setup
+- Test both success and error scenarios
+- Use `pytest-asyncio` for async tests
+
+See `web-api/tests/README.md` for detailed testing documentation.
 
 ## Git Commit Conventions
 
