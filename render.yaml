@@ -12,7 +12,7 @@ services:
     rootDir: web-api
     envVars:
       - key: PYTHON_VERSION
-        value: "3.13"
+        value: "3.13.7"
       - key: PORT
         generateValue: true
       - key: SUPABASE_URL
