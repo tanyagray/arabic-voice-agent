@@ -1,3 +1,6 @@
+previews:
+  generation: automatic
+
 services:
   # Backend API Service
   - type: web
@@ -5,6 +8,7 @@ services:
     env: python
     region: oregon
     plan: starter
+    previewPlan: free
     buildCommand: pip install uv && uv sync
     startCommand: uv run uvicorn main:app --host 0.0.0.0 --port $PORT
     rootDir: web-api
@@ -22,14 +26,14 @@ services:
       - key: GOOGLE_GENAI_API_KEY
         sync: false
     healthCheckPath: /health
-    previewsEnabled: true
-    previewsExpireAfterDays: 7
 
   # Frontend Web App Service
-  - type: static
+  - type: web
     name: arabic-voice-agent-web-app
+    runtime: static
     region: oregon
     plan: starter
+    previewPlan: free
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     rootDir: web-app
@@ -42,5 +46,3 @@ services:
         sync: false
       - key: VITE_SUPABASE_PUBLISHABLE_KEY
         sync: false
-    previewsEnabled: true
-    previewsExpireAfterDays: 7
