@@ -26,19 +26,16 @@ services:
     previewsExpireAfterDays: 7
 
   # Frontend Web App Service
-  - type: web
+  - type: static
     name: arabic-voice-agent-web-app
-    env: node
     region: oregon
     plan: starter
     buildCommand: npm ci && npm run build
-    startCommand: npm run preview -- --host 0.0.0.0 --port $PORT
+    staticPublishPath: ./dist
     rootDir: web-app
     envVars:
       - key: NODE_VERSION
         value: "20"
-      - key: PORT
-        generateValue: true
       - key: VITE_API_URL
         sync: false
       - key: VITE_SUPABASE_URL
