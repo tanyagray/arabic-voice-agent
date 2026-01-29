@@ -2,16 +2,15 @@
 name = "web-api"
 version = "0.1.0"
 description = "Arabic Voice Agent backend API"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.115.5",
     "uvicorn[standard]>=0.34.0",
-    "livekit-api>=1.0.7",
+    "pipecat-ai[openai,elevenlabs,deepgram,websocket,silero]>=0.0.100",
     "pydantic>=2.10.3",
     "python-dotenv>=1.0.1",
     "openai-agents>=0.4.1",
     "google-genai>=1.0.0",
-    "websockets>=15.0.1",
     "httpx>=0.28.1",
     "supabase>=2.24.0",
     "debugpy>=1.8.0",

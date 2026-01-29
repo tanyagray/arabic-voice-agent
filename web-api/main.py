@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from routes.session import router as session_router
 from routes.realtime_session import router as realtime_session_router
+from routes.realtime_pipecat import router as realtime_pipecat_router
 from routes.content import router as content_router
 from routes.webhooks import router as webhooks_router
 
@@ -38,6 +39,7 @@ app.add_middleware(
 # Include routes
 app.include_router(session_router)
 app.include_router(realtime_session_router)
+app.include_router(realtime_pipecat_router)
 app.include_router(content_router)
 app.include_router(webhooks_router)
 

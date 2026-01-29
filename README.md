@@ -6,10 +6,11 @@ A multilingual voice and text chat application for Arabic language learning, sup
 
 - **Web App**: React + Vite marketing website with voice demo
 - **Mobile Apps**: Flutter (iOS + Android)
-- **Web API**: FastAPI (voice and chat interactions)
+- **Web API**: FastAPI with Pipecat for real-time voice pipelines
+- **Voice Pipeline**: Pipecat framework orchestrating STT → LLM → TTS
 - **LLM**: OpenAI GPT-4o
 - **Text-to-Speech**: ElevenLabs (Multilingual v2)
-- **Speech-to-Text**: Soniox (Arabic/English language identification)
+- **Speech-to-Text**: Deepgram (real-time) / Soniox (async with webhooks)
 - **Auth & Database**: Supabase (PostgreSQL + Google OAuth)
 
 ## 📁 Monorepo Structure
@@ -29,11 +30,11 @@ See [docs/SETUP.md](docs/SETUP.md) for detailed setup instructions.
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.10+
 - Flutter 3.24+
 - Node.js 18+
 - Supabase account
-- API keys: OpenAI, ElevenLabs, Soniox
+- API keys: OpenAI, ElevenLabs, Deepgram (for pipecat endpoints), Soniox (optional, for legacy endpoints)
 
 ### Environment Setup
 
