@@ -4,6 +4,7 @@ FastAPI application for Arabic Voice Agent backend.
 This server provides API endpoints for session management, content delivery, and webhooks.
 """
 
+import os
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,4 +67,7 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    HOST = os.getenv("HOST", "0.0.0.0")
+    PORT = os.getenv("PORT", 8000)
+    uvicorn.run(app, host=HOST, port=PORT)
