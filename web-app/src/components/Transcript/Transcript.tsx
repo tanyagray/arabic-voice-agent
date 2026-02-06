@@ -76,10 +76,8 @@ function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubblePr
 export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
   ({ messages, emptyText = 'No messages yet', style, ...props }, ref) => {
     return (
-      <Flex
+      <Box
         ref={ref}
-        direction="column"
-        gap={3}
         h="full"
         w="full"
         overflowY="auto"
@@ -93,15 +91,17 @@ export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
         {...props}
       >
         {messages.length > 0 ? (
-          messages.map((message, index) => (
-            <TranscriptBubble
-              key={message.id}
-              text={message.text}
-              isUser={message.isUser}
-              timestamp={message.timestamp}
-              index={index}
-            />
-          ))
+          <Flex direction="column" gap={3}>
+            {messages.map((message, index) => (
+              <TranscriptBubble
+                key={message.id}
+                text={message.text}
+                isUser={message.isUser}
+                timestamp={message.timestamp}
+                index={index}
+              />
+            ))}
+          </Flex>
         ) : (
           <Flex h="full" align="center" justify="center">
             <Text color="white" opacity={0.5}>
@@ -109,7 +109,7 @@ export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
             </Text>
           </Flex>
         )}
-      </Flex>
+      </Box>
     );
   }
 );
