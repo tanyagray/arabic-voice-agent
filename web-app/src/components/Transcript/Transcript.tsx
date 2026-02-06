@@ -1,14 +1,29 @@
 import { motion } from 'motion/react';
 import { forwardRef, type HTMLAttributes } from 'react';
-import { useStore } from '../../store';
-import { useTranscriptMessages } from '@/hooks/useTranscriptMessages';
-import { BsPlus, BsMic } from 'react-icons/bs';
+import { BsPersonFill, BsMic } from 'react-icons/bs';
 import { Box, Flex, Text, Icon } from '@chakra-ui/react';
+
+/**
+ * A single message in the transcript.
+ */
+export interface TranscriptMessage {
+  id: string;
+  text: string;
+  isUser: boolean;
+  timestamp?: number;
+}
+
+export interface TranscriptProps extends HTMLAttributes<HTMLDivElement> {
+  /** Messages to display in the transcript */
+  messages: TranscriptMessage[];
+  /** Text to show when there are no messages */
+  emptyText?: string;
+}
 
 interface TranscriptBubbleProps {
   text: string;
   isUser: boolean;
-  timestamp: number;
+  timestamp?: number;
   index: number;
 }
 
@@ -17,7 +32,7 @@ const MotionBox = motion.create(Box);
 function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubbleProps) {
   return (
     <MotionBox
-      key={`${timestamp}-${index}`}
+      key={`${timestamp ?? index}-${index}`}
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: 'auto', opacity: 1 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -40,7 +55,7 @@ function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubblePr
             {isUser ? 'You' : 'Agent'}
           </Text>
           {isUser ? (
-            <Icon as={BsPlus} w={4} h={4} opacity={0.7} />
+            <Icon as={BsPersonFill} w={4} h={4} opacity={0.7} />
           ) : (
             <Icon as={BsMic} w={4} h={4} opacity={0.7} />
           )}
@@ -53,22 +68,13 @@ function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubblePr
   );
 }
 
-export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
-  ({ className = '', style, ...props }, ref) => {
-    // Subscribe to transcript messages via Supabase Realtime
-    useTranscriptMessages();
-
-    // Get messages from store (populated by the hook above)
-    const messages = useStore((state) => state.session.messages);
-
-    // Map messages to display format
-    const allMessages = messages.map((m) => ({
-      id: m.message_id,
-      text: m.message_content,
-      isUser: m.message_source === 'user',
-      timestamp: new Date(m.created_at).getTime(),
-    }));
-
+/**
+ * Transcript component displays a list of chat messages.
+ *
+ * This is a presentational component - data should be passed via the `messages` prop.
+ */
+export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
+  ({ messages, emptyText = 'No messages yet', style, ...props }, ref) => {
     return (
       <Flex
         ref={ref}
@@ -86,10 +92,10 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
         }}
         {...props}
       >
-        {allMessages.length > 0 ? (
-          allMessages.map((message, index) => (
+        {messages.length > 0 ? (
+          messages.map((message, index) => (
             <TranscriptBubble
-              key={`${message.id}-${index}`}
+              key={message.id}
               text={message.text}
               isUser={message.isUser}
               timestamp={message.timestamp}
@@ -99,7 +105,7 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
         ) : (
           <Flex h="full" align="center" justify="center">
             <Text color="white" opacity={0.5}>
-              No messages yet
+              {emptyText}
             </Text>
           </Flex>
         )}
