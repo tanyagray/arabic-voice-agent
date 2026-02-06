@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import type { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
-import { signInAnonymously as anonSignIn, isAnonymousUser } from '@/lib/auth';
+import type { User, Session, SupabaseClient } from '@supabase/supabase-js';
+import { useSupabaseOptional } from './SupabaseContext';
+import { isAnonymousUser } from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -23,11 +23,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const supabase = useSupabaseOptional();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // If Supabase is not configured, skip auth initialization
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session loaded:', {
@@ -41,13 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // DUAL AUTH: If no session exists, auto-sign in anonymously
       if (!session) {
         console.log('No session found, signing in anonymously...');
-        return anonSignIn().then((data) => {
+        return supabase.auth.signInAnonymously().then(({ data, error }) => {
+          if (error) {
+            console.error('Auth initialization error:', error);
+            setLoading(false);
+            return;
+          }
           console.log('Anonymous sign-in successful:', data.user?.id);
           setSession(data.session);
           setUser(data.user);
-          setLoading(false);
-        }).catch((err) => {
-          console.error('Auth initialization error:', err);
           setLoading(false);
         });
       }
@@ -68,16 +77,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [supabase]);
+
+  // Helper to ensure Supabase is available for auth operations
+  const requireSupabase = (): SupabaseClient => {
+    if (!supabase) {
+      throw new Error('Supabase is not configured');
+    }
+    return supabase;
+  };
 
   // Email auth methods
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const client = requireSupabase();
+    const { error } = await client.auth.signInWithPassword({ email, password });
     if (error) throw error;
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const client = requireSupabase();
+    const { error } = await client.auth.signUp({
       email,
       password,
       options: {
@@ -87,28 +106,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
+  const signOutUser = async () => {
+    const client = requireSupabase();
+    const { error } = await client.auth.signOut();
     if (error) throw error;
 
     // After sign out, auto sign-in anonymously
-    await signInAnonymously();
+    await signInAnonymouslyInternal(client);
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const client = requireSupabase();
+    const { error } = await client.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) throw error;
   };
 
   const updatePassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
+    const client = requireSupabase();
+    const { error } = await client.auth.updateUser({ password });
     if (error) throw error;
   };
 
   const verifyOtp = async (email: string, token: string) => {
-    const { error } = await supabase.auth.verifyOtp({
+    const client = requireSupabase();
+    const { error } = await client.auth.verifyOtp({
       email,
       token,
       type: 'email'
@@ -117,7 +140,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resendVerification = async (email: string) => {
-    const { error } = await supabase.auth.resend({
+    const client = requireSupabase();
+    const { error } = await client.auth.resend({
       type: 'signup',
       email,
       options: {
@@ -127,10 +151,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
-  const signInAnonymously = async () => {
-    const data = await anonSignIn();
+  const signInAnonymouslyInternal = async (client: SupabaseClient) => {
+    const { data, error } = await client.auth.signInAnonymously();
+    if (error) throw error;
     setSession(data.session);
     setUser(data.user);
+  };
+
+  const signInAnonymously = async () => {
+    const client = requireSupabase();
+    await signInAnonymouslyInternal(client);
   };
 
   return (
@@ -141,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAnonymous: isAnonymousUser(user),
       signIn,
       signUp,
-      signOut,
+      signOut: signOutUser,
       resetPassword,
       updatePassword,
       verifyOtp,

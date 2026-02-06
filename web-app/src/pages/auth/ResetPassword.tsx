@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/context/SupabaseContext';
 import { Box, Button, Input, VStack, Text, Alert, Heading, Stack, Image } from '@chakra-ui/react';
 import { Field } from "@/components/ui/field"
 
 const ResetPassword: React.FC = () => {
+  const supabase = useSupabase();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);

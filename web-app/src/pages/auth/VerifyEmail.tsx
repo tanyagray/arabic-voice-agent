@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/context/SupabaseContext';
 import {
   VStack,
   Text,
@@ -13,6 +13,7 @@ import {
 } from '@chakra-ui/react';
 
 const VerifyEmail: React.FC = () => {
+  const supabase = useSupabase();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);

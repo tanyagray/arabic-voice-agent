@@ -3,6 +3,7 @@ import { ChakraProvider } from "@chakra-ui/react"
 import { withThemeByClassName } from "@storybook/addon-themes"
 import { MemoryRouter } from "react-router-dom"
 import type { Preview } from '@storybook/react-vite'
+import { SupabaseProvider } from '../src/context/SupabaseContext'
 import { AuthProvider } from '../src/context/AuthContext'
 import { system } from '../src/theme'
 import '../src/index.css'
@@ -32,13 +33,15 @@ const preview: Preview = {
   },
   decorators: [
     (Story) => (
-      <AuthProvider>
-        <MemoryRouter>
-          <ChakraProvider value={system}>
-            <Story />
-          </ChakraProvider>
-        </MemoryRouter>
-      </AuthProvider>
+      <SupabaseProvider>
+        <AuthProvider>
+          <MemoryRouter>
+            <ChakraProvider value={system}>
+              <Story />
+            </ChakraProvider>
+          </MemoryRouter>
+        </AuthProvider>
+      </SupabaseProvider>
     ),
     withThemeByClassName({
       defaultTheme: "light",

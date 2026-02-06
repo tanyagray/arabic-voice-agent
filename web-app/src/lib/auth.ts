@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { getSupabaseClient } from './supabase'
 import type { User, Session } from '@supabase/supabase-js'
 
 // Alias Session as UserSession to distinguish from AgentSession
@@ -15,6 +15,7 @@ export interface AuthState {
  * Creates a temporary anonymous user session
  */
 export async function signInAnonymously() {
+  const supabase = getSupabaseClient()
   const { data, error } = await supabase.auth.signInAnonymously()
 
   if (error) {
@@ -29,6 +30,7 @@ export async function signInAnonymously() {
  * Get the current session
  */
 export async function getSession() {
+  const supabase = getSupabaseClient()
   const { data, error } = await supabase.auth.getSession()
 
   if (error) {
@@ -43,6 +45,7 @@ export async function getSession() {
  * Sign out the current user
  */
 export async function signOut() {
+  const supabase = getSupabaseClient()
   const { error } = await supabase.auth.signOut()
 
   if (error) {
@@ -55,6 +58,7 @@ export async function signOut() {
  * Listen to authentication state changes
  */
 export function onAuthStateChange(callback: (session: Session | null) => void) {
+  const supabase = getSupabaseClient()
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     callback(session)
   })

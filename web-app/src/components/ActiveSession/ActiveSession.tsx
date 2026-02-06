@@ -10,7 +10,7 @@ import {
   usePipecatClient,
   usePipecatClientTransportState,
 } from '@pipecat-ai/client-react';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/context/SupabaseContext';
 
 const MotionBox = motion.create(Box);
 
@@ -44,6 +44,7 @@ function RoomUI({
   inputMode: InputMode;
   setInputMode: (mode: InputMode) => void;
 }) {
+  const supabase = useSupabase();
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
   const activeSessionId = useStore((s) => s.session.activeSessionId);

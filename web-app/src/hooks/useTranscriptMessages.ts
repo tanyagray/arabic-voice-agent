@@ -5,11 +5,12 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useSupabaseOptional } from '@/context/SupabaseContext';
 import { useStore } from '@/store';
 import type { ChatMessage } from '@/api/sessions/sessions.types';
 
 export function useTranscriptMessages() {
+  const supabase = useSupabaseOptional();
   const activeSessionId = useStore((s) => s.session.activeSessionId);
   const messages = useStore((s) => s.session.messages);
   const setMessages = useStore((s) => s.session.setMessages);
@@ -19,7 +20,8 @@ export function useTranscriptMessages() {
   const seenMessageIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!activeSessionId) {
+    // Skip if Supabase is not configured or no active session
+    if (!supabase || !activeSessionId) {
       setMessages([]);
       seenMessageIds.current.clear();
       return;
@@ -75,7 +77,7 @@ export function useTranscriptMessages() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeSessionId, setMessages, addMessage]);
+  }, [supabase, activeSessionId, setMessages, addMessage]);
 
   // Update seen IDs when messages change (e.g., from optimistic updates)
   useEffect(() => {
