@@ -32,7 +32,7 @@ function HomePage() {
       }}
     >
       <Header />
-      <Box flex={1} pt="80px" px={6} pb={6} position="relative" zIndex={1}>
+      <Box flex={1} minH={0} pt="80px" px={6} pb={6} position="relative" zIndex={1}>
         <PipecatProvider>
           <ActiveSession />
         </PipecatProvider>
