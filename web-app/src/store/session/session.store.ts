@@ -13,7 +13,6 @@ import {
   patchSessionContext,
 } from '@/api/sessions/sessions.api';
 import type { SessionState } from './session.state';
-import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 
 /**
  * Namespaced session slice state.

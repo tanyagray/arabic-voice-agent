@@ -4,7 +4,6 @@ import { useStore } from '../../store';
 import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
-import { AudioToggle } from '../AudioToggle/AudioToggle';
 import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
 import {
   usePipecatClient,
@@ -124,7 +123,6 @@ function RoomUI({
 
       {/* Control buttons */}
       <Flex justify="center" gap={4} align="center" flexShrink={0}>
-        <AudioToggle />
         <TextInput
           isActive={inputMode === 'text'}
           onActivate={() => setInputMode('text')}
