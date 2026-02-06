@@ -67,8 +67,8 @@ function ChatComponent() {
         <>
           <div className="messages">
             {messages.map((msg) => (
-              <div key={msg.id} className={msg.role}>
-                <strong>{msg.role}:</strong> {msg.text}
+              <div key={msg.message_id} className={msg.message_source}>
+                <strong>{msg.message_source}:</strong> {msg.message_content}
               </div>
             ))}
           </div>
@@ -132,14 +132,14 @@ Returns an object with the following properties:
 
 - `activeSessionId: string | null` - ID of the current active session
 - `sessions: Session[]` - Array of all sessions
-- `messages: ChatMessage[]` - Array of chat messages
+- `messages: TranscriptMessage[]` - Array of chat messages
 
 #### Actions
 
 - `setActiveSessionId: (sessionId: string | null) => void` - Set the active session ID
 - `loadSessions: () => Promise<void>` - Load all sessions from the API
-- `addMessage: (message: ChatMessage) => void` - Add a message to the store
-- `setMessages: (messages: ChatMessage[]) => void` - Replace all messages
+- `addMessage: (message: TranscriptMessage) => void` - Add a message to the store
+- `setMessages: (messages: TranscriptMessage[]) => void` - Replace all messages
 - `clearMessages: () => void` - Clear all messages
 - `reset: () => void` - Reset the entire chat state
 - `createNewSession: () => Promise<void>` - Create a new chat session (API call)
@@ -150,11 +150,16 @@ Returns an object with the following properties:
 ### Types
 
 ```typescript
-interface ChatMessage {
-  id: string;
-  text: string;
-  role: 'user' | 'assistant';
-  timestamp: Date;
+// Matches the transcript_messages table in Supabase
+interface TranscriptMessage {
+  message_id: string;
+  session_id: string;
+  user_id: string;
+  message_source: 'user' | 'tutor' | 'system';
+  message_kind: string;
+  message_content: string;
+  created_at: string;
+  updated_at: string;
 }
 ```
 

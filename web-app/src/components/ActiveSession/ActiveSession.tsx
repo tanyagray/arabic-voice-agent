@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useStore } from '../../store';
-import { Transcript, type TranscriptMessage } from '../Transcript/Transcript';
+import { Transcript } from '../Transcript/Transcript';
 import { TextInput } from '../TextInput/TextInput';
 import { AudioInput } from '../AudioInput/AudioInput';
 import { AudioToggle } from '../AudioToggle/AudioToggle';
@@ -49,23 +49,11 @@ function RoomUI({
   const client = usePipecatClient();
   const transportState = usePipecatClientTransportState();
   const activeSessionId = useStore((s) => s.session.activeSessionId);
-  const storeMessages = useStore((s) => s.session.messages);
+  const messages = useStore((s) => s.session.messages);
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
   // Subscribe to transcript messages via Supabase Realtime
   useTranscriptMessages();
-
-  // Transform store messages to TranscriptMessage format
-  const transcriptMessages: TranscriptMessage[] = useMemo(
-    () =>
-      storeMessages.map((m) => ({
-        id: m.message_id,
-        text: m.message_content,
-        isUser: m.message_source === 'user',
-        timestamp: new Date(m.created_at).getTime(),
-      })),
-    [storeMessages]
-  );
 
   const isVoiceConnecting = transportState === 'connecting' || transportState === 'initializing';
   const isVoiceConnected = transportState === 'ready';
@@ -99,7 +87,7 @@ function RoomUI({
     <Flex direction="column" flex={1} gap={6} minH={0}>
       {/* Transcript - fills available space */}
       <Box flex={1} minH={0} w="full">
-        <Transcript messages={transcriptMessages} />
+        <Transcript messages={messages} />
       </Box>
 
       {/* Voice connection status */}

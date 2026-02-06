@@ -7,7 +7,7 @@
 import { useEffect, useRef } from 'react';
 import { useSupabaseOptional } from '@/context/SupabaseContext';
 import { useStore } from '@/store';
-import type { ChatMessage } from '@/api/sessions/sessions.types';
+import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 
 export function useTranscriptMessages() {
   const supabase = useSupabaseOptional();
@@ -43,7 +43,7 @@ export function useTranscriptMessages() {
       if (data) {
         // Track all fetched message IDs
         seenMessageIds.current = new Set(data.map((m) => m.message_id));
-        setMessages(data as ChatMessage[]);
+        setMessages(data as TranscriptMessage[]);
       }
     };
 
@@ -61,7 +61,7 @@ export function useTranscriptMessages() {
           filter: `session_id=eq.${activeSessionId}`,
         },
         (payload) => {
-          const newMessage = payload.new as ChatMessage;
+          const newMessage = payload.new as TranscriptMessage;
 
           // Skip if we've already seen this message
           if (seenMessageIds.current.has(newMessage.message_id)) {

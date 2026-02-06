@@ -2,16 +2,9 @@ import { motion } from 'motion/react';
 import { forwardRef, type HTMLAttributes } from 'react';
 import { BsPersonFill, BsMic } from 'react-icons/bs';
 import { Box, Flex, Text, Icon } from '@chakra-ui/react';
+import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 
-/**
- * A single message in the transcript.
- */
-export interface TranscriptMessage {
-  id: string;
-  text: string;
-  isUser: boolean;
-  timestamp?: number;
-}
+export type { TranscriptMessage };
 
 export interface TranscriptProps extends HTMLAttributes<HTMLDivElement> {
   /** Messages to display in the transcript */
@@ -21,18 +14,18 @@ export interface TranscriptProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 interface TranscriptBubbleProps {
-  text: string;
-  isUser: boolean;
-  timestamp?: number;
+  message: TranscriptMessage;
   index: number;
 }
 
 const MotionBox = motion.create(Box);
 
-function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubbleProps) {
+function TranscriptBubble({ message, index }: TranscriptBubbleProps) {
+  const isUser = message.message_source === 'user';
+
   return (
     <MotionBox
-      key={`${timestamp ?? index}-${index}`}
+      key={`${message.created_at}-${index}`}
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: 'auto', opacity: 1 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -61,7 +54,7 @@ function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubblePr
           )}
         </Flex>
         <Text fontSize="lg" lineHeight="relaxed">
-          {text}
+          {message.message_content}
         </Text>
       </Box>
     </MotionBox>
@@ -94,10 +87,8 @@ export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
           <Flex direction="column" gap={3}>
             {messages.map((message, index) => (
               <TranscriptBubble
-                key={message.id}
-                text={message.text}
-                isUser={message.isUser}
-                timestamp={message.timestamp}
+                key={message.message_id}
+                message={message}
                 index={index}
               />
             ))}

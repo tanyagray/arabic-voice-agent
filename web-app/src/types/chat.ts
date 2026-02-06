@@ -21,14 +21,3 @@ export interface AudioMessageData {
   audio_data: string; // Base64 encoded audio
   format: 'mp3' | 'wav' | 'webm';
 }
-
-export interface TranscriptMessageData {
-  message_id: string;
-  session_id: string;
-  user_id: string;
-  message_source: 'user' | 'tutor' | 'system';
-  message_kind: string;
-  message_content: string;
-  created_at: string;
-  updated_at: string;
-}

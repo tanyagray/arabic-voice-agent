@@ -5,10 +5,10 @@
  */
 
 /**
- * Represents a single chat message in the conversation.
+ * Represents a single transcript message.
  * Matches the transcript_messages table schema in the database.
  */
-export interface ChatMessage {
+export interface TranscriptMessage {
   message_id: string;
   session_id: string;
   user_id: string;

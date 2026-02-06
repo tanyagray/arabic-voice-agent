@@ -13,7 +13,7 @@ import {
   patchSessionContext,
 } from '@/api/sessions/sessions.api';
 import type { SessionState } from './session.state';
-import type { ChatMessage } from '@/api/sessions/sessions.types';
+import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 
 /**
  * Namespaced session slice state.
@@ -145,7 +145,7 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
       }
 
       // Optimistically add user message
-      const userMessage: ChatMessage = {
+      const userMessage: TranscriptMessage = {
         message_id: `user-${Date.now()}`,
         session_id: activeSessionId,
         user_id: '', // Will be populated by backend
@@ -160,7 +160,7 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
       const responseText = await sendMessageApi(activeSessionId, message);
 
       // Add assistant response
-      const assistantMessage: ChatMessage = {
+      const assistantMessage: TranscriptMessage = {
         message_id: `assistant-${Date.now()}`,
         session_id: activeSessionId,
         user_id: '', // Will be populated by backend
