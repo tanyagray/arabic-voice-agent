@@ -21,7 +21,13 @@ export function ActiveSession() {
   const activeSessionId = useStore((s) => s.session.activeSessionId);
   const [inputMode, setInputMode] = useState<InputMode>('text');
 
-  if (!activeSessionId) return null;
+  if (!activeSessionId) {
+    return (
+      <Flex w="full" h="full" align="center" justify="center">
+        <Spinner size="xl" color="white" />
+      </Flex>
+    );
+  }
 
   return (
     <MotionBox
