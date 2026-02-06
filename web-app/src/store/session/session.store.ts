@@ -138,39 +138,14 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
 
     sendMessage: async (message: string) => {
       const { session } = get();
-      const { activeSessionId, addMessage } = session;
+      const { activeSessionId } = session;
 
       if (!activeSessionId) {
         throw new Error('No active session. Create a session first.');
       }
 
-      // Optimistically add user message
-      const userMessage: TranscriptMessage = {
-        message_id: `user-${Date.now()}`,
-        session_id: activeSessionId,
-        user_id: '', // Will be populated by backend
-        message_source: 'user',
-        message_kind: 'text',
-        message_content: message,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      addMessage(userMessage);
-
-      const responseText = await sendMessageApi(activeSessionId, message);
-
-      // Add assistant response
-      const assistantMessage: TranscriptMessage = {
-        message_id: `assistant-${Date.now()}`,
-        session_id: activeSessionId,
-        user_id: '', // Will be populated by backend
-        message_source: 'tutor',
-        message_kind: 'text',
-        message_content: responseText,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      addMessage(assistantMessage);
+      // Messages are added via Supabase Realtime subscription in useTranscriptMessages
+      await sendMessageApi(activeSessionId, message);
     },
 
   },

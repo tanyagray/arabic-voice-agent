@@ -134,6 +134,18 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
     # Generate the agent response
     response = await agent_service.generate_agent_response(session_id, request.message, access_token)
 
+    # Save the agent's response to the database
+    try:
+        await transcript_service.create_transcript_message(
+            session_id=session_id,
+            message_source="tutor",
+            message_kind="text",
+            message_content=response,
+        )
+    except Exception as e:
+        # Log the error but continue - don't fail the request if DB insert fails
+        print(f"[Session] Failed to save agent response to database: {e}")
+
     return TextResponse(text=response)
 
 
