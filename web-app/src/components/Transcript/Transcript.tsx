@@ -1,18 +1,9 @@
 import { motion } from 'motion/react';
-import { forwardRef, useCallback, useState, type HTMLAttributes } from 'react';
+import { forwardRef, type HTMLAttributes } from 'react';
 import { useStore } from '../../store';
-import { useRTVIClientEvent } from '@pipecat-ai/client-react';
-import { RTVIEvent } from '@pipecat-ai/client-js';
+import { useTranscriptMessages } from '@/hooks/useTranscriptMessages';
 import { BsPlus, BsMic } from 'react-icons/bs';
 import { Box, Flex, Text, Icon } from '@chakra-ui/react';
-
-interface TranscriptEntry {
-  id: string;
-  text: string;
-  isUser: boolean;
-  timestamp: number;
-  final: boolean;
-}
 
 interface TranscriptBubbleProps {
   text: string;
@@ -64,62 +55,19 @@ function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubblePr
 
 export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className = '', style, ...props }, ref) => {
-    // Messages from HTTP text chat (session store)
-    const httpMessages = useStore((state) => state.session.messages);
+    // Subscribe to transcript messages via Supabase Realtime
+    useTranscriptMessages();
 
-    // Messages from RTVI voice events (local state)
-    const [voiceMessages, setVoiceMessages] = useState<TranscriptEntry[]>([]);
+    // Get messages from store (populated by the hook above)
+    const messages = useStore((state) => state.session.messages);
 
-    // Listen for user transcriptions from the voice pipeline
-    useRTVIClientEvent(
-      RTVIEvent.UserTranscript,
-      useCallback((data: { text: string; final: boolean; timestamp: string; user_id: string }) => {
-        if (!data.final) return; // Only show final transcripts
-        setVoiceMessages((prev) => [
-          ...prev,
-          {
-            id: `voice-user-${Date.now()}`,
-            text: data.text,
-            isUser: true,
-            timestamp: Date.now(),
-            final: true,
-          },
-        ]);
-      }, [])
-    );
-
-    // Listen for bot output from the voice pipeline
-    useRTVIClientEvent(
-      RTVIEvent.BotOutput,
-      useCallback((data: { text: string; spoken: boolean }) => {
-        setVoiceMessages((prev) => [
-          ...prev,
-          {
-            id: `voice-bot-${Date.now()}`,
-            text: data.text,
-            isUser: false,
-            timestamp: Date.now(),
-            final: true,
-          },
-        ]);
-      }, [])
-    );
-
-    // Combine HTTP messages and voice messages, sorted by time
-    const allMessages = [
-      ...httpMessages.map((m) => ({
-        id: m.message_id,
-        text: m.message_content,
-        isUser: m.message_source === 'user',
-        timestamp: new Date(m.created_at).getTime(),
-      })),
-      ...voiceMessages.map((m) => ({
-        id: m.id,
-        text: m.text,
-        isUser: m.isUser,
-        timestamp: m.timestamp,
-      })),
-    ].sort((a, b) => a.timestamp - b.timestamp);
+    // Map messages to display format
+    const allMessages = messages.map((m) => ({
+      id: m.message_id,
+      text: m.message_content,
+      isUser: m.message_source === 'user',
+      timestamp: new Date(m.created_at).getTime(),
+    }));
 
     return (
       <Flex
