@@ -14,6 +14,9 @@
   "dependencies": {
     "@chakra-ui/react": "^3.31.0",
     "@emotion/react": "^11.14.0",
+    "@pipecat-ai/client-js": "^1.5.0",
+    "@pipecat-ai/client-react": "^1.1.0",
+    "@pipecat-ai/websocket-transport": "^1.5.0",
     "@supabase/supabase-js": "^2.90.1",
     "@tanstack/react-query": "^5.90.18",
     "axios": "^1.13.2",

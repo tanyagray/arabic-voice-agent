@@ -26,7 +26,6 @@ export interface SessionState {
   reset: () => void;
   setContext: (context: Partial<SessionContext>) => void;
   setAudioEnabled: (enabled: boolean) => Promise<void>;
-  onWebSocketTranscript: (message: any) => void;
 
   // API Actions
   createNewSession: () => Promise<void>;

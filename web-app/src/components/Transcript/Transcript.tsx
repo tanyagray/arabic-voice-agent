@@ -1,8 +1,18 @@
 import { motion } from 'motion/react';
-import { forwardRef, type HTMLAttributes } from 'react';
+import { forwardRef, useCallback, useState, type HTMLAttributes } from 'react';
 import { useStore } from '../../store';
+import { useRTVIClientEvent } from '@pipecat-ai/client-react';
+import { RTVIEvent } from '@pipecat-ai/client-js';
 import { BsPlus, BsMic } from 'react-icons/bs';
 import { Box, Flex, Text, Icon } from '@chakra-ui/react';
+
+interface TranscriptEntry {
+  id: string;
+  text: string;
+  isUser: boolean;
+  timestamp: number;
+  final: boolean;
+}
 
 interface TranscriptBubbleProps {
   text: string;
@@ -54,9 +64,62 @@ function TranscriptBubble({ text, isUser, timestamp, index }: TranscriptBubblePr
 
 export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className = '', style, ...props }, ref) => {
-    const messages = useStore((state) => state.session.messages);
+    // Messages from HTTP text chat (session store)
+    const httpMessages = useStore((state) => state.session.messages);
 
-    console.log('Transcript rendering with messages:', messages);
+    // Messages from RTVI voice events (local state)
+    const [voiceMessages, setVoiceMessages] = useState<TranscriptEntry[]>([]);
+
+    // Listen for user transcriptions from the voice pipeline
+    useRTVIClientEvent(
+      RTVIEvent.UserTranscript,
+      useCallback((data: { text: string; final: boolean; timestamp: string; user_id: string }) => {
+        if (!data.final) return; // Only show final transcripts
+        setVoiceMessages((prev) => [
+          ...prev,
+          {
+            id: `voice-user-${Date.now()}`,
+            text: data.text,
+            isUser: true,
+            timestamp: Date.now(),
+            final: true,
+          },
+        ]);
+      }, [])
+    );
+
+    // Listen for bot output from the voice pipeline
+    useRTVIClientEvent(
+      RTVIEvent.BotOutput,
+      useCallback((data: { text: string; spoken: boolean }) => {
+        setVoiceMessages((prev) => [
+          ...prev,
+          {
+            id: `voice-bot-${Date.now()}`,
+            text: data.text,
+            isUser: false,
+            timestamp: Date.now(),
+            final: true,
+          },
+        ]);
+      }, [])
+    );
+
+    // Combine HTTP messages and voice messages, sorted by time
+    const allMessages = [
+      ...httpMessages.map((m) => ({
+        id: m.message_id,
+        text: m.message_content,
+        isUser: m.message_source === 'user',
+        timestamp: new Date(m.created_at).getTime(),
+      })),
+      ...voiceMessages.map((m) => ({
+        id: m.id,
+        text: m.text,
+        isUser: m.isUser,
+        timestamp: m.timestamp,
+      })),
+    ].sort((a, b) => a.timestamp - b.timestamp);
 
     return (
       <Flex
@@ -75,20 +138,16 @@ export const Transcript = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
         }}
         {...props}
       >
-        {messages && messages.length > 0 ? (
-          messages.map((message, index) => {
-            const isUser = message.message_source === 'user';
-            console.log('Rendering message:', message);
-            return (
-              <TranscriptBubble
-                key={`${message.message_id}-${index}`}
-                text={message.message_content}
-                isUser={isUser}
-                timestamp={new Date(message.created_at).getTime()}
-                index={index}
-              />
-            );
-          })
+        {allMessages.length > 0 ? (
+          allMessages.map((message, index) => (
+            <TranscriptBubble
+              key={`${message.id}-${index}`}
+              text={message.text}
+              isUser={message.isUser}
+              timestamp={message.timestamp}
+              index={index}
+            />
+          ))
         ) : (
           <Flex h="full" align="center" justify="center">
             <Text color="white" opacity={0.5}>

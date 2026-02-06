@@ -13,9 +13,7 @@ const MotionBox = motion.create(Box);
 const MotionIconButton = motion.create(IconButton);
 
 export function TextInput({ isActive, onActivate }: TextInputProps) {
-  const send = useStore((state) => state.socket.send);
-  const addMessage = useStore((state) => state.session.addMessage);
-  const activeSessionId = useStore((state) => state.session.activeSessionId);
+  const sendMessage = useStore((state) => state.session.sendMessage);
   const [textMessage, setTextMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
 
@@ -28,23 +26,7 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
     if (textMessage.trim() && !isSending) {
       setIsSending(true);
       try {
-        // Add user message to local state immediately
-        if (activeSessionId) {
-          const userMessage = {
-            message_id: `user-${Date.now()}`,
-            session_id: activeSessionId,
-            user_id: '',
-            message_source: 'user' as const,
-            message_kind: 'text',
-            message_content: textMessage,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          addMessage(userMessage);
-        }
-
-        // Send message through WebSocket
-        send(textMessage);
+        await sendMessage(textMessage);
         setTextMessage('');
       } finally {
         setIsSending(false);

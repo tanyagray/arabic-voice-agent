@@ -173,22 +173,5 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
       addMessage(assistantMessage);
     },
 
-    onWebSocketTranscript: (message: any) => {
-      const { session } = get();
-      const { addMessage } = session;
-
-      // The backend now sends the full message format matching the database schema
-      const transcriptMessage: ChatMessage = {
-        message_id: message.data.message_id,
-        session_id: message.data.session_id,
-        user_id: message.data.user_id,
-        message_source: message.data.message_source,
-        message_kind: message.data.message_kind,
-        message_content: message.data.message_content,
-        created_at: message.data.created_at,
-        updated_at: message.data.updated_at,
-      };
-      addMessage(transcriptMessage);
-    }
   },
 });

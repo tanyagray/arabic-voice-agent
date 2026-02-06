@@ -1,6 +1,5 @@
 """Pipecat service for real-time voice agent pipeline."""
 
-import asyncio
 import os
 from typing import Optional
 
@@ -13,7 +12,7 @@ from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
-from pipecat.services.deepgram.stt import DeepgramSTTService
+from pipecat.services.soniox.stt import SonioxSTTService, SonioxInputParams
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.websocket.fastapi import (
@@ -25,6 +24,7 @@ from pipecat.serializers.protobuf import ProtobufFrameSerializer
 
 from .context_service import get_context
 from .session_service import get_session
+from .transcript_service import create_transcript_message
 
 
 async def run_pipecat_agent(
@@ -56,10 +56,10 @@ async def run_pipecat_agent(
 
     # Map language to voice and STT settings
     language_map = {
-        "ar-AR": {"elevenlabs_voice": "cgSgspJ2msm6clMCkdW9", "deepgram_lang": "ar"},
-        "es-MX": {"elevenlabs_voice": "m7yTemJqdIqrcNleANfX", "deepgram_lang": "es"},
-        "ru-RU": {"elevenlabs_voice": "cgSgspJ2msm6clMCkdW9", "deepgram_lang": "ru"},
-        "mi-NZ": {"elevenlabs_voice": "BHhU6fTKdSX6bN7T1tpz", "deepgram_lang": "en"},
+        "ar-AR": {"elevenlabs_voice": "cgSgspJ2msm6clMCkdW9", "soniox_lang": "ar"},
+        "es-MX": {"elevenlabs_voice": "m7yTemJqdIqrcNleANfX", "soniox_lang": "es"},
+        "ru-RU": {"elevenlabs_voice": "cgSgspJ2msm6clMCkdW9", "soniox_lang": "ru"},
+        "mi-NZ": {"elevenlabs_voice": "BHhU6fTKdSX6bN7T1tpz", "soniox_lang": "en"},
     }
     lang_config = language_map.get(language, language_map["ar-AR"])
 
@@ -70,17 +70,17 @@ async def run_pipecat_agent(
             audio_in_enabled=True,
             audio_out_enabled=True,
             add_wav_header=False,
-            vad_enabled=True,
             vad_analyzer=SileroVADAnalyzer(),
-            vad_audio_passthrough=True,
             serializer=ProtobufFrameSerializer(),
         ),
     )
 
-    # Configure STT (Deepgram)
-    stt = DeepgramSTTService(
-        api_key=os.getenv("DEEPGRAM_API_KEY"),
-        language=lang_config["deepgram_lang"],
+    # Configure STT (Soniox)
+    stt = SonioxSTTService(
+        api_key=os.getenv("SONIOX_API_KEY"),
+        params=SonioxInputParams(
+            language_hints=[lang_config["soniox_lang"]],
+        ),
     )
 
     # Configure LLM (OpenAI)
@@ -125,6 +125,52 @@ async def run_pipecat_agent(
             enable_usage_metrics=True,
         ),
     )
+
+    # Debug: Log STT events
+    @stt.event_handler("on_transcription")
+    async def on_transcription(stt_service, frame):
+        logger.debug(f"STT transcription (interim): {frame.text}")
+
+    @stt.event_handler("on_final_transcription")
+    async def on_final_transcription(stt_service, frame):
+        logger.info(f"STT transcription (final): {frame.text}")
+
+    # Debug: Log user aggregator events
+    @user_aggregator.event_handler("on_user_turn_started")
+    async def on_user_turn_started(aggregator, strategy):
+        logger.debug(f"User turn started (strategy: {type(strategy).__name__})")
+
+    # Persist transcript updates to database via aggregator events
+    @user_aggregator.event_handler("on_user_turn_stopped")
+    async def on_user_turn_stopped(aggregator, strategy, message):
+        logger.info(f"User turn stopped: {message.content}")
+        try:
+            await create_transcript_message(
+                session_id=session_id,
+                message_source="user",
+                message_kind="transcript",
+                message_content=message.content,
+            )
+        except Exception as e:
+            logger.error(f"Failed to persist user transcript: {e}")
+
+    # Debug: Log assistant aggregator events
+    @assistant_aggregator.event_handler("on_assistant_turn_started")
+    async def on_assistant_turn_started(aggregator):
+        logger.debug("Assistant turn started")
+
+    @assistant_aggregator.event_handler("on_assistant_turn_stopped")
+    async def on_assistant_turn_stopped(aggregator, message):
+        logger.info(f"Assistant turn stopped: {message.content}")
+        try:
+            await create_transcript_message(
+                session_id=session_id,
+                message_source="tutor",
+                message_kind="transcript",
+                message_content=message.content,
+            )
+        except Exception as e:
+            logger.error(f"Failed to persist assistant transcript: {e}")
 
     # Event handlers
     @transport.event_handler("on_client_connected")

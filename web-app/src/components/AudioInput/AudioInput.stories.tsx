@@ -19,11 +19,6 @@ const meta = {
       control: 'boolean',
       description: 'Whether audio input mode is active',
     },
-    state: {
-      control: 'select',
-      options: ['idle', 'listening', 'thinking', 'speaking'],
-      description: 'Current agent state',
-    },
   },
   args: {
     onActivate: fn(),
@@ -36,6 +31,5 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: {
     isActive: true,
-    state: 'idle',
   },
 };

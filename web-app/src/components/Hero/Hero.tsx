@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActiveSession } from '../ActiveSession/ActiveSession';
 import { SessionList } from '../SessionList/SessionList';
 import { HeroCTA } from '../HeroCTA/HeroCTA';
+import { PipecatProvider } from '../../providers/PipecatProvider';
 import { Box, Flex, Container } from '@chakra-ui/react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -69,7 +70,9 @@ export function Hero() {
                 alignSelf="stretch"
                 alignItems="stretch"
               >
-                <ActiveSession />
+                <PipecatProvider>
+                  <ActiveSession />
+                </PipecatProvider>
               </MotionBox>
             )}
           </AnimatePresence>
