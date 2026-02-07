@@ -6,8 +6,9 @@ from typing import Optional
 from fastapi import WebSocket
 from loguru import logger
 
-from pipecat.frames.frames import EndFrame
+from pipecat.frames.frames import EndFrame, TTSStartedFrame, TTSStoppedFrame, TTSTextFrame
 from pipecat.pipeline.pipeline import Pipeline
+from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -30,6 +31,47 @@ from pipecat.processors.frameworks.rtvi import (
 from .context_service import get_context
 from .session_service import get_session
 from .transcript_service import create_transcript_message
+
+
+class TTSTranscriptProcessor(FrameProcessor):
+    """Captures TTS text per-sentence and saves to database."""
+
+    def __init__(self, session_id: str):
+        super().__init__()
+        self._session_id = session_id
+        self._current_sentence: list[str] = []
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, TTSStartedFrame):
+            # New sentence starting
+            logger.debug(f"TTSTranscriptProcessor: TTSStartedFrame received")
+            self._current_sentence = []
+        elif isinstance(frame, TTSTextFrame):
+            # Accumulate words
+            logger.debug(f"TTSTranscriptProcessor: TTSTextFrame received: '{frame.text}'")
+            if frame.text.strip():
+                self._current_sentence.append(frame.text.strip())
+        elif isinstance(frame, TTSStoppedFrame):
+            # Sentence complete - save to database
+            logger.debug(f"TTSTranscriptProcessor: TTSStoppedFrame received, accumulated: {self._current_sentence}")
+            if self._current_sentence:
+                sentence_text = " ".join(self._current_sentence)
+                logger.info(f"TTS sentence complete: {sentence_text}")
+                try:
+                    await create_transcript_message(
+                        session_id=self._session_id,
+                        message_source="tutor",
+                        message_kind="transcript",
+                        message_content=sentence_text,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to persist TTS transcript: {e}")
+                self._current_sentence = []
+
+        # Always pass the frame downstream
+        await self.push_frame(frame, direction)
 
 
 async def run_pipecat_agent(
@@ -121,6 +163,9 @@ async def run_pipecat_agent(
         ),
     )
 
+    # Create TTS transcript processor to save per-sentence transcripts
+    tts_transcript = TTSTranscriptProcessor(session_id)
+
     # Build pipeline
     pipeline = Pipeline(
         [
@@ -130,6 +175,7 @@ async def run_pipecat_agent(
             user_aggregator,  # User context aggregation
             llm,  # Language model
             tts,  # Text-to-speech
+            tts_transcript,  # Capture TTS sentences for database
             transport.output(),  # WebSocket output
             assistant_aggregator,  # Assistant context aggregation
         ]
@@ -181,16 +227,8 @@ async def run_pipecat_agent(
 
     @assistant_aggregator.event_handler("on_assistant_turn_stopped")
     async def on_assistant_turn_stopped(aggregator, message):
-        logger.info(f"Assistant turn stopped: {message.content}")
-        try:
-            await create_transcript_message(
-                session_id=session_id,
-                message_source="tutor",
-                message_kind="transcript",
-                message_content=message.content,
-            )
-        except Exception as e:
-            logger.error(f"Failed to persist assistant transcript: {e}")
+        # Note: Transcript is saved per-sentence by TTSTranscriptProcessor
+        logger.debug(f"Assistant turn stopped (full response): {message.content}")
 
     # RTVI event handlers
     @rtvi.event_handler("on_client_ready")

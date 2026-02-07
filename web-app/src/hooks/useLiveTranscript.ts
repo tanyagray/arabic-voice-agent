@@ -31,8 +31,7 @@ function createTranscriptMessage(
 /**
  * Hook that provides real-time transcript messages from the Pipecat connection.
  * Handles streaming STT results for user speech and word-synchronized TTS for agent speech.
- * Agent speech uses BotTts events which fire per-sentence, so we avoid creating new messages
- * if one already exists to handle multi-sentence responses.
+ * Each TTS sentence becomes a separate message, matching the database structure.
  */
 export function useLiveTranscript(sessionId: string | null) {
   const [liveMessages, setLiveMessages] = useState<LiveMessage[]>([]);
@@ -100,24 +99,24 @@ export function useLiveTranscript(sessionId: string | null) {
     }, [])
   );
 
-  // Handle bot TTS started - create new message or continue existing one
-  // (TTS fires per-sentence, so we keep appending to the same message)
+  // Handle bot TTS started - create a new message
+  // Also finalizes any previous message since events can arrive out of order
   useRTVIClientEvent(
     RTVIEvent.BotTtsStarted,
     useCallback(() => {
+      console.log('[TTS] BotTtsStarted, previous msgId:', currentBotMessageId.current);
+
+      // Finalize previous message if exists (handles out-of-order events)
       if (currentBotMessageId.current) {
-        // Continue existing message - just set streaming back to true
         setLiveMessages((prev) =>
           prev.map((msg) =>
             msg.id === currentBotMessageId.current
-              ? { ...msg, isStreaming: true }
+              ? { ...msg, isStreaming: false }
               : msg
           )
         );
-        return;
       }
 
-      // Create new message
       const id = `bot-${Date.now()}`;
       currentBotMessageId.current = id;
       botTextBuffer.current = '';
@@ -138,7 +137,11 @@ export function useLiveTranscript(sessionId: string | null) {
   useRTVIClientEvent(
     RTVIEvent.BotTtsText,
     useCallback((data: BotTTSTextData) => {
-      if (!currentBotMessageId.current) return;
+      console.log('[TTS] BotTtsText:', data.text, 'msgId:', currentBotMessageId.current);
+      if (!currentBotMessageId.current) {
+        console.log('[TTS] BotTtsText DROPPED - no currentBotMessageId');
+        return;
+      }
 
       // Words arrive as they're spoken - append with proper spacing
       const newWord = data.text.trim();
@@ -154,7 +157,7 @@ export function useLiveTranscript(sessionId: string | null) {
       setLiveMessages((prev) =>
         prev.map((msg) =>
           msg.id === currentBotMessageId.current
-            ? { ...msg, content: currentText }
+            ? { ...msg, content: currentText, isStreaming: true }
             : msg
         )
       );
@@ -162,10 +165,11 @@ export function useLiveTranscript(sessionId: string | null) {
   );
 
   // Handle bot TTS stopped - mark as not streaming but keep message ID
-  // (more sentences may follow in the same response)
+  // (more text events may arrive out of order)
   useRTVIClientEvent(
     RTVIEvent.BotTtsStopped,
     useCallback(() => {
+      console.log('[TTS] BotTtsStopped, msgId:', currentBotMessageId.current, 'buffer:', botTextBuffer.current);
       if (!currentBotMessageId.current) return;
 
       setLiveMessages((prev) =>
@@ -175,14 +179,15 @@ export function useLiveTranscript(sessionId: string | null) {
             : msg
         )
       );
-      // Don't reset currentBotMessageId - more sentences may come
+      // Don't reset - more text events may arrive after this due to out-of-order delivery
     }, [])
   );
 
-  // Reset bot message when user starts speaking (new turn)
+  // Reset when user starts speaking (new turn)
   useRTVIClientEvent(
     RTVIEvent.UserStartedSpeaking,
     useCallback(() => {
+      console.log('[TTS] UserStartedSpeaking - resetting bot message');
       currentBotMessageId.current = null;
       botTextBuffer.current = '';
     }, [])
