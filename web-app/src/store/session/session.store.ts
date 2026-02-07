@@ -10,7 +10,6 @@ import {
   getSessions,
   createSession,
   sendMessage as sendMessageApi,
-  patchSessionContext,
 } from '@/api/sessions/sessions.api';
 import type { SessionState } from './session.state';
 
@@ -35,7 +34,6 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
     context: {
       active_tool: null,
       language: 'en',
-      audio_enabled: false,
     },
 
     setActiveSessionId: (sessionId) =>
@@ -112,27 +110,6 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
 
     createNewSession: async () => {
       await createSession();
-    },
-
-    setAudioEnabled: async (enabled: boolean) => {
-      const { session } = get();
-      const sessionId = session.activeSessionId;
-
-      if (!sessionId) {
-        console.error('Cannot update audio: no session ID');
-        return;
-      }
-
-      const response = await patchSessionContext(sessionId, { audio_enabled: enabled });
-      set((state) => ({
-        session: {
-          ...state.session,
-          context: {
-            ...state.session.context,
-            audio_enabled: response.audio_enabled,
-          },
-        },
-      }));
     },
 
     sendMessage: async (message: string) => {

@@ -7,7 +7,6 @@ import type { TranscriptMessage, Session } from '@/api/sessions/sessions.types';
 export interface SessionContext {
   active_tool: string | null;
   language: string;
-  audio_enabled: boolean;
 }
 
 export interface SessionState {
@@ -25,7 +24,6 @@ export interface SessionState {
   clearMessages: () => void;
   reset: () => void;
   setContext: (context: Partial<SessionContext>) => void;
-  setAudioEnabled: (enabled: boolean) => Promise<void>;
 
   // API Actions
   createNewSession: () => Promise<void>;

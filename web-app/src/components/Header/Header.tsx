@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Box, Button, Container, Flex, Heading, Text, HStack } from '@chakra-ui/react';
-import { AudioToggle } from '../AudioToggle/AudioToggle';
 
 export function Header() {
   const { user, isAnonymous, signOut } = useAuth();
@@ -20,12 +19,9 @@ export function Header() {
     >
       <Container maxW="7xl" px={0}>
         <Flex justify="space-between" align="center">
-          <HStack gap={4}>
-            <AudioToggle />
-            <Heading as="h1" size="md" fontWeight="bold" color="white">
-              Arabic Voice Agent
-            </Heading>
-          </HStack>
+          <Heading as="h1" size="md" fontWeight="bold" color="white">
+            Arabic Voice Agent
+          </Heading>
           <Box>
             {isAnonymous ? (
               <HStack spaceX={3}>

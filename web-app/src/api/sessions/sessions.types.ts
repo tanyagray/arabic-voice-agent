@@ -61,7 +61,6 @@ export interface GetSessionsResponse {
  * Request payload for updating session context.
  */
 export interface PatchSessionContextRequest {
-  audio_enabled?: boolean;
   language?: string;
   active_tool?: string | null;
 }
@@ -71,7 +70,6 @@ export interface PatchSessionContextRequest {
  */
 export interface SessionContextResponse {
   session_id: string;
-  audio_enabled: boolean;
   language: string;
   active_tool: string | null;
 }
