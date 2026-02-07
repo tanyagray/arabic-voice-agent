@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { usePipecatClientMicControl } from '@pipecat-ai/client-react';
-import { BsMic, BsMicMute } from 'react-icons/bs';
+import { BsMic, BsMicMute, BsTelephone } from 'react-icons/bs';
 import { Button } from '@chakra-ui/react';
 
 interface AudioInputProps {
@@ -56,7 +56,7 @@ export function AudioInput({ isActive, onActivate }: AudioInputProps) {
       whileTap={{ scale: 0.95 }}
     >
       {isTextMode ? (
-        <BsMic className="w-5 h-5" />
+        <BsTelephone className="w-5 h-5" />
       ) : (
         <>
           <AnimatePresence mode="wait">

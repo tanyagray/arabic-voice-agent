@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { useStore } from '../../store';
 import { Transcript } from '../Transcript/Transcript';
 import { Box, Flex, Input, IconButton } from '@chakra-ui/react';
-import { BsSend, BsMic } from 'react-icons/bs';
+import { BsSend, BsTelephone } from 'react-icons/bs';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 
 const MotionBox = motion.create(Box);
@@ -90,16 +90,16 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
           type="button"
           onClick={onStartCall}
           aria-label="Start voice call"
-          bg="green.500"
+          bg="white/10"
           color="white"
-          _hover={{ bg: 'green.600' }}
+          _hover={{ bg: 'white/20' }}
           rounded="full"
           size="lg"
           shadow="lg"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          <BsMic />
+          <BsTelephone />
         </MotionIconButton>
       </Flex>
     </Flex>
