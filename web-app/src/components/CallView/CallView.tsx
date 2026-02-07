@@ -3,11 +3,14 @@ import { motion } from 'motion/react';
 import { usePipecatClientMicControl } from '@pipecat-ai/client-react';
 import { Box, Flex, Text, Spinner, IconButton } from '@chakra-ui/react';
 import { BsMic, BsMicMute, BsTelephoneX } from 'react-icons/bs';
+import { Transcript } from '@/components/Transcript/Transcript';
+import { useLiveTranscript } from '@/hooks/useLiveTranscript';
 
 const MotionBox = motion.create(Box);
 const MotionIconButton = motion.create(IconButton);
 
 interface CallViewProps {
+  sessionId: string | null;
   isConnecting: boolean;
   isConnected: boolean;
   error: string | null;
@@ -15,12 +18,14 @@ interface CallViewProps {
 }
 
 export function CallView({
+  sessionId,
   isConnecting,
   isConnected,
   error,
   onEndCall,
 }: CallViewProps) {
   const { enableMic, isMicEnabled } = usePipecatClientMicControl();
+  const { messages, clearMessages } = useLiveTranscript(sessionId);
 
   // Auto-enable mic when call connects
   useEffect(() => {
@@ -33,30 +38,30 @@ export function CallView({
     enableMic(!isMicEnabled);
   };
 
+  const handleEndCall = () => {
+    clearMessages();
+    onEndCall();
+  };
+
   return (
-    <Flex
-      direction="column"
-      flex={1}
-      align="center"
-      justify="center"
-      gap={8}
-      minH={0}
-    >
+    <Flex direction="column" flex={1} minH={0} gap={4}>
       {/* Connecting state */}
       {isConnecting && (
-        <MotionBox
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          gap={4}
-        >
-          <Spinner size="xl" color="white" />
-          <Text color="white" fontSize="lg" fontWeight="medium">
-            Connecting...
-          </Text>
-        </MotionBox>
+        <Flex flex={1} align="center" justify="center">
+          <MotionBox
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            gap={4}
+          >
+            <Spinner size="xl" color="white" />
+            <Text color="white" fontSize="lg" fontWeight="medium">
+              Connecting...
+            </Text>
+          </MotionBox>
+        </Flex>
       )}
 
       {/* Error state */}
@@ -73,58 +78,50 @@ export function CallView({
           rounded="lg"
           fontSize="md"
           textAlign="center"
+          mx="auto"
         >
           {error}
         </MotionBox>
       )}
 
-      {/* Connected state - call controls */}
+      {/* Connected state - transcript and controls */}
       {isConnected && (
-        <MotionBox
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          gap={6}
-        >
-          {/* Visual indicator for active call */}
-          <MotionBox
-            animate={{
-              scale: [1, 1.1, 1],
-              opacity: [0.5, 1, 0.5],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-            w="120px"
-            h="120px"
-            rounded="full"
-            bg={isMicEnabled ? 'green.500/30' : 'gray.500/30'}
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            borderWidth="2px"
-            borderColor={isMicEnabled ? 'green.500/50' : 'gray.500/50'}
-          >
-            {isMicEnabled ? (
-              <BsMic size={48} color="white" />
-            ) : (
-              <BsMicMute size={48} color="white" />
-            )}
-          </MotionBox>
+        <>
+          {/* Transcript area */}
+          <Box flex={1} minH={0} px={4}>
+            <Transcript
+              messages={messages}
+              emptyText="Start speaking..."
+            />
+          </Box>
 
-          <Text color="white/70" fontSize="sm">
-            {isMicEnabled ? 'Listening...' : 'Muted'}
-          </Text>
-        </MotionBox>
+          {/* Call status indicator */}
+          <Flex justify="center" align="center" gap={2}>
+            <MotionBox
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.5, 1, 0.5],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              w={3}
+              h={3}
+              rounded="full"
+              bg={isMicEnabled ? 'green.500' : 'gray.500'}
+            />
+            <Text color="white/70" fontSize="sm">
+              {isMicEnabled ? 'Listening...' : 'Muted'}
+            </Text>
+          </Flex>
+        </>
       )}
 
       {/* Call controls - always show when not in connecting state */}
       {!isConnecting && (
-        <Flex gap={4} align="center">
+        <Flex gap={4} align="center" justify="center" py={4}>
           {/* Mute toggle */}
           <MotionIconButton
             type="button"
@@ -145,7 +142,7 @@ export function CallView({
           {/* End Call button */}
           <MotionIconButton
             type="button"
-            onClick={onEndCall}
+            onClick={handleEndCall}
             aria-label="End call"
             bg="red.500"
             color="white"

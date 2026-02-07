@@ -15,17 +15,15 @@ export interface TranscriptProps extends HTMLAttributes<HTMLDivElement> {
 
 interface TranscriptBubbleProps {
   message: TranscriptMessage;
-  index: number;
 }
 
 const MotionBox = motion.create(Box);
 
-function TranscriptBubble({ message, index }: TranscriptBubbleProps) {
+function TranscriptBubble({ message }: TranscriptBubbleProps) {
   const isUser = message.message_source === 'user';
 
   return (
     <MotionBox
-      key={`${message.created_at}-${index}`}
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: 'auto', opacity: 1 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -85,12 +83,8 @@ export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
       >
         {messages.length > 0 ? (
           <Flex direction="column" gap={3}>
-            {messages.map((message, index) => (
-              <TranscriptBubble
-                key={message.message_id}
-                message={message}
-                index={index}
-              />
+            {messages.map((message) => (
+              <TranscriptBubble key={message.message_id} message={message} />
             ))}
           </Flex>
         ) : (

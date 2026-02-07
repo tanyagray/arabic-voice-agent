@@ -21,6 +21,11 @@ from pipecat.transports.websocket.fastapi import (
 )
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.serializers.protobuf import ProtobufFrameSerializer
+from pipecat.processors.frameworks.rtvi import (
+    RTVIProcessor,
+    RTVIObserver,
+    RTVIObserverParams,
+)
 
 from .context_service import get_context
 from .session_service import get_session
@@ -103,10 +108,24 @@ async def run_pipecat_agent(
     llm_context = LLMContext(messages)
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(llm_context)
 
+    # Create RTVI processor and observer for real-time transcription
+    rtvi = RTVIProcessor(transport=transport)
+    rtvi_observer = RTVIObserver(
+        rtvi=rtvi,
+        params=RTVIObserverParams(
+            user_transcription_enabled=True,
+            bot_llm_enabled=True,
+            bot_tts_enabled=True,
+            bot_speaking_enabled=True,
+            user_speaking_enabled=True,
+        ),
+    )
+
     # Build pipeline
     pipeline = Pipeline(
         [
             transport.input(),  # WebSocket input
+            rtvi,  # RTVI protocol handler
             stt,  # Speech-to-text
             user_aggregator,  # User context aggregation
             llm,  # Language model
@@ -116,7 +135,7 @@ async def run_pipecat_agent(
         ]
     )
 
-    # Create pipeline task
+    # Create pipeline task with RTVI observer
     task = PipelineTask(
         pipeline,
         params=PipelineParams(
@@ -124,6 +143,7 @@ async def run_pipecat_agent(
             enable_metrics=True,
             enable_usage_metrics=True,
         ),
+        observers=[rtvi_observer],
     )
 
     # Debug: Log STT events
@@ -171,6 +191,13 @@ async def run_pipecat_agent(
             )
         except Exception as e:
             logger.error(f"Failed to persist assistant transcript: {e}")
+
+    # RTVI event handlers
+    @rtvi.event_handler("on_client_ready")
+    async def on_client_ready(processor):
+        """Handle RTVI client ready - send bot ready response."""
+        logger.info(f"RTVI client ready for session {session_id}")
+        await processor.set_bot_ready()
 
     # Event handlers
     @transport.event_handler("on_client_connected")

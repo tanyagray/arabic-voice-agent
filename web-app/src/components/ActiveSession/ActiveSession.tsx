@@ -136,6 +136,7 @@ function SessionContent({
             minH={0}
           >
             <CallView
+              sessionId={activeSessionId}
               isConnecting={isVoiceConnecting}
               isConnected={isVoiceConnected}
               error={voiceError}
