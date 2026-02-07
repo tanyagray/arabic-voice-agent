@@ -1,10 +1,9 @@
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
 import { useStore } from '../../store';
-import { Transcript } from '../Transcript/Transcript';
-import { TextInput } from '../TextInput/TextInput';
-import { AudioInput } from '../AudioInput/AudioInput';
-import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
+import { ChatView } from '../ChatView/ChatView';
+import { CallView } from '../CallView/CallView';
+import { Box, Flex, Spinner } from '@chakra-ui/react';
 import {
   usePipecatClient,
   usePipecatClientTransportState,
@@ -14,11 +13,11 @@ import { useTranscriptMessages } from '@/hooks/useTranscriptMessages';
 
 const MotionBox = motion.create(Box);
 
-export type InputMode = 'audio' | 'text';
+export type ViewMode = 'chat' | 'call';
 
 export function ActiveSession() {
   const activeSessionId = useStore((s) => s.session.activeSessionId);
-  const [inputMode, setInputMode] = useState<InputMode>('text');
+  const [viewMode, setViewMode] = useState<ViewMode>('chat');
 
   if (!activeSessionId) {
     return (
@@ -38,17 +37,17 @@ export function ActiveSession() {
       w="full"
       h="full"
     >
-      <RoomUI inputMode={inputMode} setInputMode={setInputMode} />
+      <SessionContent viewMode={viewMode} setViewMode={setViewMode} />
     </MotionBox>
   );
 }
 
-function RoomUI({
-  inputMode,
-  setInputMode,
+function SessionContent({
+  viewMode,
+  setViewMode,
 }: {
-  inputMode: InputMode;
-  setInputMode: (mode: InputMode) => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
 }) {
   const supabase = useSupabase();
   const client = usePipecatClient();
@@ -60,17 +59,21 @@ function RoomUI({
   // Subscribe to transcript messages via Supabase Realtime
   useTranscriptMessages();
 
-  const isVoiceConnecting = transportState === 'connecting' || transportState === 'initializing';
+  const isVoiceConnecting =
+    transportState === 'connecting' || transportState === 'initializing';
   const isVoiceConnected = transportState === 'ready';
 
-  const handleActivateAudio = async () => {
-    setInputMode('audio');
+  const handleStartCall = async () => {
+    // Immediately switch to call view
+    setViewMode('call');
+    setVoiceError(null);
 
     // Connect to pipecat if not already connected
     if (!isVoiceConnected && !isVoiceConnecting && client && activeSessionId) {
       try {
-        setVoiceError(null);
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (!session?.access_token) {
           setVoiceError('Authentication required');
           return;
@@ -83,55 +86,64 @@ function RoomUI({
           wsUrl: `${wsUrl}/pipecat/session/${activeSessionId}?token=${encodeURIComponent(session.access_token)}`,
         });
       } catch (err) {
-        setVoiceError(err instanceof Error ? err.message : 'Failed to connect voice');
+        setVoiceError(
+          err instanceof Error ? err.message : 'Failed to connect voice'
+        );
       }
     }
   };
 
+  const handleEndCall = async () => {
+    // Disconnect from pipecat
+    if (client && (isVoiceConnected || isVoiceConnecting)) {
+      try {
+        await client.disconnect();
+      } catch (err) {
+        console.error('Error disconnecting:', err);
+      }
+    }
+
+    // Switch back to chat view
+    setViewMode('chat');
+    setVoiceError(null);
+  };
+
   return (
-    <Flex direction="column" flex={1} gap={6} minH={0}>
-      {/* Transcript - fills available space */}
-      <Box flex={1} minH={0} w="full">
-        <Transcript messages={messages} />
-      </Box>
-
-      {/* Voice connection status */}
-      {inputMode === 'audio' && isVoiceConnecting && (
-        <Flex justify="center" align="center" gap={2} color="white" opacity={0.7}>
-          <Spinner size="sm" />
-          <Text fontSize="sm">Connecting voice...</Text>
-        </Flex>
-      )}
-      {voiceError && (
-        <Flex justify="center">
+    <Flex direction="column" flex={1} minH={0}>
+      <AnimatePresence mode="wait">
+        {viewMode === 'chat' ? (
           <MotionBox
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            bg="red.500/20"
-            borderColor="red.500/50"
-            borderWidth="1px"
-            color="white"
-            px={4}
-            py={2}
-            rounded="lg"
-            fontSize="sm"
+            key="chat-view"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            flex={1}
+            display="flex"
+            minH={0}
           >
-            {voiceError}
+            <ChatView messages={messages} onStartCall={handleStartCall} />
           </MotionBox>
-        </Flex>
-      )}
-
-      {/* Control buttons */}
-      <Flex justify="center" gap={4} align="center" flexShrink={0}>
-        <TextInput
-          isActive={inputMode === 'text'}
-          onActivate={() => setInputMode('text')}
-        />
-        <AudioInput
-          isActive={inputMode === 'audio'}
-          onActivate={handleActivateAudio}
-        />
-      </Flex>
+        ) : (
+          <MotionBox
+            key="call-view"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            flex={1}
+            display="flex"
+            minH={0}
+          >
+            <CallView
+              isConnecting={isVoiceConnecting}
+              isConnected={isVoiceConnected}
+              error={voiceError}
+              onEndCall={handleEndCall}
+            />
+          </MotionBox>
+        )}
+      </AnimatePresence>
     </Flex>
   );
 }
