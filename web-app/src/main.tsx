@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SupabaseProvider } from './context/SupabaseContext'
 import { AuthProvider } from './context/AuthContext'
 import { Provider } from './components/ui/provider'
+import './typography.css'
 import './index.css'
 import App from './App.tsx'
 

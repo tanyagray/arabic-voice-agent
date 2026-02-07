@@ -1,0 +1,7 @@
+/* Google Fonts - Noto Sans Arabic */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@100..900&display=swap');
+
+/* Apply Noto Sans Arabic for Arabic text */
+:root {
+  --font-arabic: 'Noto Sans Arabic', sans-serif;
+}

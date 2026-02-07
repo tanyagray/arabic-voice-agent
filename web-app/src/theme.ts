@@ -30,8 +30,8 @@ const config = defineConfig({
                 },
             },
             fonts: {
-                heading: { value: "'Inter var', system-ui, sans-serif" },
-                body: { value: "'Inter var', system-ui, sans-serif" },
+                heading: { value: "'Noto Sans Arabic', 'Inter var', system-ui, sans-serif" },
+                body: { value: "'Noto Sans Arabic', 'Inter var', system-ui, sans-serif" },
             },
         },
     },
