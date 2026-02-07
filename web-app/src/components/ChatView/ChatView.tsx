@@ -36,7 +36,7 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
     <Flex direction="column" flex={1} gap={6} minH={0}>
       {/* Transcript - fills available space */}
       <Box flex={1} minH={0} w="full">
-        <Transcript messages={messages} />
+        <Transcript messages={messages.filter((m) => m.message_kind === 'text')} />
       </Box>
 
       {/* Input controls */}
