@@ -46,9 +46,15 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
           onSubmit={handleSendMessage}
           display="flex"
           alignItems="center"
-          gap={2}
           flex={1}
           maxW="600px"
+          bg="white/10"
+          rounded="full"
+          borderWidth="1px"
+          borderColor="white/20"
+          css={{ transition: "all 0.2s" }}
+          _focusWithin={{ borderColor: 'accent.400' }}
+          px={2}
         >
           <Input
             value={textMessage}
@@ -56,30 +62,27 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
             placeholder="Type a message..."
             disabled={isSending}
             flex={1}
-            bg="white/10"
+            bg="transparent"
             color="white"
             _placeholder={{ color: 'white/50' }}
             px={4}
             size="lg"
-            rounded="full"
-            borderColor="white/20"
-            _focus={{ borderColor: 'accent.400', outline: 'none' }}
-            transition="all 0.2s"
+            border="none"
+            _focus={{ outline: 'none', boxShadow: 'none' }}
             _disabled={{ opacity: 0.5 }}
           />
           <MotionIconButton
             type="submit"
             aria-label="Send message"
             disabled={!textMessage.trim() || isSending}
-            bg="accent.500"
-            color="white"
-            _hover={{ bg: 'accent.600' }}
+            bg="transparent"
+            color="white/60"
+            _hover={{ color: 'white' }}
             rounded="full"
-            size="lg"
-            shadow="lg"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            _disabled={{ opacity: 0.5, cursor: 'not-allowed' }}
+            size="md"
+            variant="ghost"
+            whileTap={{ scale: 0.9 }}
+            _disabled={{ opacity: 0.3, cursor: 'not-allowed' }}
           >
             <BsSend />
           </MotionIconButton>
