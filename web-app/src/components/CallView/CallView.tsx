@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { usePipecatClientMicControl } from '@pipecat-ai/client-react';
-import { Box, Flex, Text, Spinner, Button, IconButton } from '@chakra-ui/react';
+import { Box, Flex, Text, Spinner, IconButton } from '@chakra-ui/react';
 import { BsMic, BsMicMute, BsTelephoneX } from 'react-icons/bs';
 
 const MotionBox = motion.create(Box);
-const MotionButton = motion.create(Button);
 const MotionIconButton = motion.create(IconButton);
 
 interface CallViewProps {
@@ -127,35 +126,21 @@ export function CallView({
       {!isConnecting && (
         <Flex gap={4} align="center">
           {/* Mute toggle */}
-          <MotionButton
+          <MotionIconButton
             type="button"
             onClick={handleToggleMic}
+            aria-label={isMicEnabled ? 'Mute' : 'Unmute'}
             rounded="full"
-            fontWeight="semibold"
-            fontSize="sm"
+            size="lg"
             shadow="lg"
-            display="flex"
-            alignItems="center"
-            gap={2}
-            borderWidth="1px"
             color="white"
-            h="auto"
-            py={3}
-            px={6}
-            minW="140px"
-            bg={isMicEnabled ? 'green.500/30' : 'gray.500'}
-            borderColor={isMicEnabled ? 'green.500/50' : 'transparent'}
-            _hover={{ bg: isMicEnabled ? 'green.500/40' : 'gray.600' }}
+            bg={isMicEnabled ? 'green.500' : 'gray.500'}
+            _hover={{ bg: isMicEnabled ? 'green.600' : 'gray.600' }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            {isMicEnabled ? (
-              <BsMic className="w-5 h-5" />
-            ) : (
-              <BsMicMute className="w-5 h-5" />
-            )}
-            <span>{isMicEnabled ? 'Mute' : 'Unmute'}</span>
-          </MotionButton>
+            {isMicEnabled ? <BsMic /> : <BsMicMute />}
+          </MotionIconButton>
 
           {/* End Call button */}
           <MotionIconButton
