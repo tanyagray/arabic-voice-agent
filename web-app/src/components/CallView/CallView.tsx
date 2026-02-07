@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { usePipecatClientMicControl } from '@pipecat-ai/client-react';
 import { Box, Flex, Text, Spinner, Button, IconButton } from '@chakra-ui/react';
@@ -21,6 +22,13 @@ export function CallView({
   onEndCall,
 }: CallViewProps) {
   const { enableMic, isMicEnabled } = usePipecatClientMicControl();
+
+  // Auto-enable mic when call connects
+  useEffect(() => {
+    if (isConnected) {
+      enableMic(true);
+    }
+  }, [isConnected, enableMic]);
 
   const handleToggleMic = () => {
     enableMic(!isMicEnabled);
