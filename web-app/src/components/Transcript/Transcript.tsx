@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { forwardRef, type HTMLAttributes } from 'react';
 import { BsPersonFill, BsMic } from 'react-icons/bs';
 import { Box, Flex, Text, Icon } from '@chakra-ui/react';
@@ -26,6 +26,7 @@ function TranscriptBubble({ message }: TranscriptBubbleProps) {
     <MotionBox
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: 'auto', opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
       display="flex"
       justifyContent={isUser ? 'flex-end' : 'flex-start'}
@@ -83,9 +84,11 @@ export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
       >
         {messages.length > 0 ? (
           <Flex direction="column" gap={3}>
-            {messages.map((message) => (
-              <TranscriptBubble key={message.message_id} message={message} />
-            ))}
+            <AnimatePresence initial={false}>
+              {messages.map((message) => (
+                <TranscriptBubble key={message.message_id} message={message} />
+              ))}
+            </AnimatePresence>
           </Flex>
         ) : (
           <Flex h="full" align="center" justify="center">
