@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { forwardRef, type HTMLAttributes } from 'react';
+import { forwardRef, useEffect, useRef, type HTMLAttributes } from 'react';
 import { BsPersonFill, BsMic } from 'react-icons/bs';
 import { Box, Flex, Text, Icon } from '@chakra-ui/react';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
@@ -24,13 +24,12 @@ function TranscriptBubble({ message }: TranscriptBubbleProps) {
 
   return (
     <MotionBox
-      initial={{ height: 0, opacity: 0 }}
-      animate={{ height: 'auto', opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
       display="flex"
       justifyContent={isUser ? 'flex-end' : 'flex-start'}
-      overflow="hidden"
     >
       <Box
         maxW="80%"
@@ -67,9 +66,31 @@ function TranscriptBubble({ message }: TranscriptBubbleProps) {
  */
 export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
   ({ messages, emptyText = 'No messages yet', style, ...props }, ref) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to bottom when new messages are added
+    useEffect(() => {
+      if (containerRef.current) {
+        containerRef.current.scrollTo({
+          top: containerRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
+    }, [messages.length]);
+
+    // Combine internal ref with forwarded ref
+    const setRefs = (element: HTMLDivElement | null) => {
+      containerRef.current = element;
+      if (typeof ref === 'function') {
+        ref(element);
+      } else if (ref) {
+        ref.current = element;
+      }
+    };
+
     return (
       <Box
-        ref={ref}
+        ref={setRefs}
         h="full"
         w="full"
         overflowY="auto"
