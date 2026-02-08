@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import { useStore } from '../../store';
 import { BsSend, BsPencil } from 'react-icons/bs';
 import { Box, IconButton, Input } from '@chakra-ui/react';
@@ -16,6 +16,7 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
   const sendMessage = useStore((state) => state.session.sendMessage);
   const [textMessage, setTextMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleToggleToText = () => {
     onActivate();
@@ -23,11 +24,13 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (textMessage.trim() && !isSending) {
+    const message = textMessage.trim();
+    if (message && !isSending) {
+      setTextMessage('');
+      inputRef.current?.focus();
       setIsSending(true);
       try {
-        await sendMessage(textMessage);
-        setTextMessage('');
+        await sendMessage(message);
       } finally {
         setIsSending(false);
       }
@@ -57,6 +60,7 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
           px={2}
         >
           <Input
+            ref={inputRef}
             value={textMessage}
             onChange={(e) => setTextMessage(e.target.value)}
             placeholder="Type a message..."

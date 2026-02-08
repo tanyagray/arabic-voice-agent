@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import { useStore } from '../../store';
 import { Transcript } from '../Transcript/Transcript';
 import { Box, Flex, Input, IconButton } from '@chakra-ui/react';
@@ -18,14 +18,17 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
   const sendMessage = useStore((state) => state.session.sendMessage);
   const [textMessage, setTextMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (textMessage.trim() && !isSending) {
+    const message = textMessage.trim();
+    if (message && !isSending) {
+      setTextMessage('');
+      inputRef.current?.focus();
       setIsSending(true);
       try {
-        await sendMessage(textMessage);
-        setTextMessage('');
+        await sendMessage(message);
       } finally {
         setIsSending(false);
       }
@@ -57,10 +60,10 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
           px={2}
         >
           <Input
+            ref={inputRef}
             value={textMessage}
             onChange={(e) => setTextMessage(e.target.value)}
             placeholder="Type a message..."
-            disabled={isSending}
             flex={1}
             bg="transparent"
             color="white"
@@ -69,7 +72,6 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
             size="lg"
             border="none"
             _focus={{ outline: 'none', boxShadow: 'none' }}
-            _disabled={{ opacity: 0.5 }}
           />
           <MotionIconButton
             type="submit"
