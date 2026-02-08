@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { useState, useRef, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useStore } from '../../store';
 import { Transcript } from '../Transcript/Transcript';
 import { Box, Flex, Input, IconButton } from '@chakra-ui/react';
@@ -17,40 +17,35 @@ interface ChatViewProps {
 export function ChatView({ messages, onStartCall }: ChatViewProps) {
   const sendMessage = useStore((state) => state.session.sendMessage);
   const [textMessage, setTextMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSendMessage = async (e: FormEvent) => {
+  const handleSendMessage = (e: FormEvent) => {
     e.preventDefault();
     const message = textMessage.trim();
-    if (message && !isSending) {
+    if (message) {
       setTextMessage('');
       inputRef.current?.focus();
-      setIsSending(true);
-      try {
-        await sendMessage(message);
-      } finally {
-        setIsSending(false);
-      }
+      // Fire and forget - don't block on response
+      // New messages will interrupt pending requests via AbortController
+      sendMessage(message);
     }
   };
 
   return (
-    <Flex direction="column" flex={1} gap={6} minH={0}>
+    <Flex direction="column" flex={1} gap={6} minH={0} maxW="680px" mx="auto" w="full" px={4}>
       {/* Transcript - fills available space */}
       <Box flex={1} minH={0} w="full">
         <Transcript messages={messages.filter((m) => m.message_kind === 'text')} />
       </Box>
 
       {/* Input controls */}
-      <Flex justify="center" gap={3} align="center" flexShrink={0} px={4}>
+      <Flex gap={3} align="center" flexShrink={0}>
         <MotionBox
           as="form"
           onSubmit={handleSendMessage}
           display="flex"
           alignItems="center"
           flex={1}
-          maxW="600px"
           bg="white/10"
           rounded="full"
           borderWidth="1px"
@@ -76,7 +71,7 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
           <MotionIconButton
             type="submit"
             aria-label="Send message"
-            disabled={!textMessage.trim() || isSending}
+            disabled={!textMessage.trim()}
             bg="transparent"
             color="white/60"
             _hover={{ color: 'white' }}

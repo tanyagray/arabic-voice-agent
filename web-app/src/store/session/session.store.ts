@@ -5,6 +5,7 @@
  * session information, and UI state.
  */
 
+import axios from 'axios';
 import type { StateCreator } from 'zustand';
 import {
   getSessions,
@@ -12,6 +13,9 @@ import {
   sendMessage as sendMessageApi,
 } from '@/api/sessions/sessions.api';
 import type { SessionState } from './session.state';
+
+// Track the current pending message request's AbortController
+let pendingMessageController: AbortController | null = null;
 
 /**
  * Namespaced session slice state.
@@ -120,8 +124,30 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
         throw new Error('No active session. Create a session first.');
       }
 
-      // Messages are added via Supabase Realtime subscription in useTranscriptMessages
-      await sendMessageApi(activeSessionId, message);
+      // Cancel any pending message request (interruption)
+      if (pendingMessageController) {
+        pendingMessageController.abort();
+      }
+
+      // Create a new AbortController for this request
+      const controller = new AbortController();
+      pendingMessageController = controller;
+
+      try {
+        // Messages are added via Supabase Realtime subscription in useTranscriptMessages
+        await sendMessageApi(activeSessionId, message, controller.signal);
+      } catch (error) {
+        // Ignore cancellation errors (user interrupted with a new message)
+        if (axios.isCancel(error)) {
+          return;
+        }
+        throw error;
+      } finally {
+        // Clear the controller if this was the active request
+        if (pendingMessageController === controller) {
+          pendingMessageController = null;
+        }
+      }
     },
 
   },

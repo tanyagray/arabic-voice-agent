@@ -47,6 +47,7 @@ export async function createSession(): Promise<string> {
  *
  * @param sessionId - The session ID to send the message to
  * @param message - The text message to send
+ * @param signal - Optional AbortSignal to cancel the request
  * @returns Promise resolving to the agent's response text
  * @throws Error if the request fails or session not found (404)
  *
@@ -54,13 +55,15 @@ export async function createSession(): Promise<string> {
  */
 export async function sendMessage(
   sessionId: string,
-  message: string
+  message: string,
+  signal?: AbortSignal
 ): Promise<string> {
   const payload: SendMessageRequest = { message };
 
   const response = await apiClient.post<SendMessageResponse>(
     `/sessions/${sessionId}/chat`,
-    payload
+    payload,
+    { signal }
   );
 
   return response.data.text;

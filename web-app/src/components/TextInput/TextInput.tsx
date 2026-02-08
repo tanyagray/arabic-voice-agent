@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { useState, useRef, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useStore } from '../../store';
 import { BsSend, BsPencil } from 'react-icons/bs';
 import { Box, IconButton, Input } from '@chakra-ui/react';
@@ -15,25 +15,21 @@ const MotionIconButton = motion.create(IconButton);
 export function TextInput({ isActive, onActivate }: TextInputProps) {
   const sendMessage = useStore((state) => state.session.sendMessage);
   const [textMessage, setTextMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleToggleToText = () => {
     onActivate();
   };
 
-  const handleSendMessage = async (e: FormEvent) => {
+  const handleSendMessage = (e: FormEvent) => {
     e.preventDefault();
     const message = textMessage.trim();
-    if (message && !isSending) {
+    if (message) {
       setTextMessage('');
       inputRef.current?.focus();
-      setIsSending(true);
-      try {
-        await sendMessage(message);
-      } finally {
-        setIsSending(false);
-      }
+      // Fire and forget - don't block on response
+      // New messages will interrupt pending requests via AbortController
+      sendMessage(message);
     }
   };
 
@@ -64,7 +60,6 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
             value={textMessage}
             onChange={(e) => setTextMessage(e.target.value)}
             placeholder="Type a message..."
-            disabled={isSending}
             flex={1}
             bg="transparent"
             color="white"
@@ -73,13 +68,12 @@ export function TextInput({ isActive, onActivate }: TextInputProps) {
             size="lg"
             border="none"
             _focus={{ outline: "none", boxShadow: "none" }}
-            _disabled={{ opacity: 0.5 }}
             autoFocus
           />
           <MotionIconButton
             type="submit"
             aria-label="Send message"
-            disabled={!textMessage.trim() || isSending}
+            disabled={!textMessage.trim()}
             bg="transparent"
             color="white/60"
             _hover={{ color: "white" }}
