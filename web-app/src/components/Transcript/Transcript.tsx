@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { forwardRef, useEffect, useRef, type HTMLAttributes } from 'react';
+import { forwardRef, memo, useEffect, useRef, type HTMLAttributes } from 'react';
 import { Box, Flex, Text } from '@chakra-ui/react';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 
@@ -76,7 +76,7 @@ function groupMessages(messages: TranscriptMessage[]): TranscriptMessage[][] {
  *
  * This is a presentational component - data should be passed via the `messages` prop.
  */
-export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
+export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
   ({ messages, emptyText = 'No messages yet', style, ...props }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const hasScrolledRef = useRef(false);
@@ -144,6 +144,6 @@ export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
       </Box>
     );
   }
-);
+));
 
 Transcript.displayName = 'Transcript';

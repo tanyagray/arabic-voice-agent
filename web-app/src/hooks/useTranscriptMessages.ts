@@ -12,7 +12,6 @@ import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 export function useTranscriptMessages() {
   const supabase = useSupabaseOptional();
   const activeSessionId = useStore((s) => s.session.activeSessionId);
-  const messages = useStore((s) => s.session.messages);
   const setMessages = useStore((s) => s.session.setMessages);
   const addMessage = useStore((s) => s.session.addMessage);
 
@@ -78,9 +77,4 @@ export function useTranscriptMessages() {
       supabase.removeChannel(channel);
     };
   }, [supabase, activeSessionId, setMessages, addMessage]);
-
-  // Update seen IDs when messages change (e.g., from optimistic updates)
-  useEffect(() => {
-    messages.forEach((m) => seenMessageIds.current.add(m.message_id));
-  }, [messages]);
 }

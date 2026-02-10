@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { useRef, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useStore } from '../../store';
 import { Transcript } from '../Transcript/Transcript';
 import { Box, Flex, Input, IconButton } from '@chakra-ui/react';
@@ -19,6 +19,12 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
   const [textMessage, setTextMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Memoize filtered messages so Transcript doesn't re-render on every keystroke
+  const textMessages = useMemo(
+    () => messages.filter((m) => m.message_kind === 'text'),
+    [messages]
+  );
+
   const handleSendMessage = (e: FormEvent) => {
     e.preventDefault();
     const message = textMessage.trim();
@@ -35,7 +41,7 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
     <Flex direction="column" flex={1} gap={6} minH={0} maxW="680px" mx="auto" w="full" px={4}>
       {/* Transcript - fills available space */}
       <Box flex={1} minH={0} w="full">
-        <Transcript messages={messages.filter((m) => m.message_kind === 'text')} />
+        <Transcript messages={textMessages} />
       </Box>
 
       {/* Input controls */}
