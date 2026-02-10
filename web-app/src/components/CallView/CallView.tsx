@@ -44,7 +44,7 @@ export function CallView({
   };
 
   return (
-    <Flex direction="column" flex={1} minH={0} gap={4}>
+    <Flex direction="column" flex={1} minH={0} gap={4} maxW="680px" mx="auto" w="full" px={4}>
       {/* Connecting state */}
       {isConnecting && (
         <Flex flex={1} align="center" justify="center">
@@ -88,7 +88,7 @@ export function CallView({
       {isConnected && (
         <>
           {/* Transcript area */}
-          <Box flex={1} minH={0} px={4}>
+          <Box flex={1} minH={0} w="full">
             <Transcript
               messages={messages}
               emptyText="Start speaking..."
