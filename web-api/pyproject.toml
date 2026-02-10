@@ -27,3 +27,8 @@ test = [
 [project.scripts]
 dev = "python -m debugpy --listen 0.0.0.0:5678 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 test = "pytest"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
