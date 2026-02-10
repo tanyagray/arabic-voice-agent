@@ -14,12 +14,20 @@ export interface TranscriptProps extends HTMLAttributes<HTMLDivElement> {
 
 interface TranscriptBubbleProps {
   message: TranscriptMessage;
+  isFirstInGroup: boolean;
 }
 
 const MotionBox = motion.create(Box);
 
-function TranscriptBubble({ message }: TranscriptBubbleProps) {
+function TranscriptBubble({ message, isFirstInGroup }: TranscriptBubbleProps) {
   const isUser = message.message_source === 'user';
+
+  // First in group: small corner only on bottom (tail side)
+  // Non-first: small corners on both top and bottom (tail side)
+  const roundedTopRight = !isFirstInGroup && isUser ? 'sm' : '2xl';
+  const roundedTopLeft = !isFirstInGroup && !isUser ? 'sm' : '2xl';
+  const roundedBottomRight = isUser ? 'sm' : '2xl';
+  const roundedBottomLeft = isUser ? '2xl' : 'sm';
 
   return (
     <MotionBox
@@ -32,13 +40,14 @@ function TranscriptBubble({ message }: TranscriptBubbleProps) {
     >
       <Box
         maxW="80%"
-        rounded="2xl"
         px={4}
         py={2}
         bg={isUser ? 'accent.500' : 'white/20'}
         color="white"
-        roundedBottomRight={isUser ? 'sm' : '2xl'}
-        roundedBottomLeft={isUser ? '2xl' : 'sm'}
+        roundedTopRight={roundedTopRight}
+        roundedTopLeft={roundedTopLeft}
+        roundedBottomRight={roundedBottomRight}
+        roundedBottomLeft={roundedBottomLeft}
       >
         <Text fontSize="lg" lineHeight="relaxed">
           {message.message_content}
@@ -46,6 +55,20 @@ function TranscriptBubble({ message }: TranscriptBubbleProps) {
       </Box>
     </MotionBox>
   );
+}
+
+/** Group consecutive messages from the same source */
+function groupMessages(messages: TranscriptMessage[]): TranscriptMessage[][] {
+  const groups: TranscriptMessage[][] = [];
+  for (const message of messages) {
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup && lastGroup[0].message_source === message.message_source) {
+      lastGroup.push(message);
+    } else {
+      groups.push([message]);
+    }
+  }
+  return groups;
 }
 
 /**
@@ -97,11 +120,19 @@ export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
       >
         {messages.length > 0 ? (
           <Flex direction="column" gap={3}>
-            <AnimatePresence initial={false}>
-              {messages.map((message) => (
-                <TranscriptBubble key={message.message_id} message={message} />
-              ))}
-            </AnimatePresence>
+            {groupMessages(messages).map((group) => (
+              <Flex key={group[0].message_id} direction="column" gap={1}>
+                <AnimatePresence initial={false}>
+                  {group.map((message, i) => (
+                    <TranscriptBubble
+                      key={message.message_id}
+                      message={message}
+                      isFirstInGroup={i === 0}
+                    />
+                  ))}
+                </AnimatePresence>
+              </Flex>
+            ))}
           </Flex>
         ) : (
           <Flex h="full" align="center" justify="center">
