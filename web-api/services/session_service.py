@@ -52,8 +52,10 @@ def get_session(session_id: str, user_access_token: Optional[str] = None) -> Opt
     Returns:
         AgentSession: The session object if found, None otherwise
     """
-    # If session is in memory, return it
+    # If session is in memory, update its Supabase client with the latest token and return it
     if session_id in _sessions:
+        if user_access_token:
+            _sessions[session_id].supabase = get_supabase_user_client(user_access_token)
         return _sessions[session_id]
 
     # Otherwise, try to load from Supabase
