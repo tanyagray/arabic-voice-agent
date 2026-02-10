@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { usePipecatClientMicControl } from '@pipecat-ai/client-react';
 import { Box, Flex, Text, Spinner, IconButton } from '@chakra-ui/react';
@@ -25,7 +25,13 @@ export function CallView({
   onEndCall,
 }: CallViewProps) {
   const { enableMic, isMicEnabled } = usePipecatClientMicControl();
-  const { messages, clearMessages } = useLiveTranscript(sessionId);
+  const { messages } = useLiveTranscript(sessionId);
+  const hasConnected = useRef(false);
+
+  // Track whether we've ever been connected so the UI stays stable during exit
+  if (isConnected) {
+    hasConnected.current = true;
+  }
 
   // Auto-enable mic when call connects
   useEffect(() => {
@@ -39,7 +45,6 @@ export function CallView({
   };
 
   const handleEndCall = () => {
-    clearMessages();
     onEndCall();
   };
 
@@ -84,8 +89,8 @@ export function CallView({
         </MotionBox>
       )}
 
-      {/* Connected state - transcript and controls */}
-      {isConnected && (
+      {/* Connected state - transcript and controls (keep visible during exit animation) */}
+      {hasConnected.current && (
         <>
           {/* Transcript area */}
           <Box flex={1} minH={0} w="full">
