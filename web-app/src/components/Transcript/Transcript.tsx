@@ -1,7 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { forwardRef, useEffect, useRef, type HTMLAttributes } from 'react';
-import { BsPersonFill, BsMic } from 'react-icons/bs';
-import { Box, Flex, Text, Icon } from '@chakra-ui/react';
+import { Box, Flex, Text } from '@chakra-ui/react';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 
 export type { TranscriptMessage };
@@ -41,16 +40,6 @@ function TranscriptBubble({ message }: TranscriptBubbleProps) {
         roundedBottomRight={isUser ? 'sm' : '2xl'}
         roundedBottomLeft={isUser ? '2xl' : 'sm'}
       >
-        <Flex align="center" gap={2} mb={1}>
-          <Text fontSize="sm" fontWeight="medium" opacity={0.7}>
-            {isUser ? 'You' : 'Agent'}
-          </Text>
-          {isUser ? (
-            <Icon as={BsPersonFill} w={4} h={4} opacity={0.7} />
-          ) : (
-            <Icon as={BsMic} w={4} h={4} opacity={0.7} />
-          )}
-        </Flex>
         <Text fontSize="lg" lineHeight="relaxed">
           {message.message_content}
         </Text>
