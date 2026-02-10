@@ -67,14 +67,17 @@ function TranscriptBubble({ message }: TranscriptBubbleProps) {
 export const Transcript = forwardRef<HTMLDivElement, TranscriptProps>(
   ({ messages, emptyText = 'No messages yet', style, ...props }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const hasScrolledRef = useRef(false);
 
     // Scroll to bottom when new messages are added
     useEffect(() => {
-      if (containerRef.current) {
+      if (containerRef.current && messages.length > 0) {
+        const behavior = hasScrolledRef.current ? 'smooth' : 'instant';
         containerRef.current.scrollTo({
           top: containerRef.current.scrollHeight,
-          behavior: 'smooth',
+          behavior,
         });
+        hasScrolledRef.current = true;
       }
     }, [messages.length]);
 
