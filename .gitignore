@@ -9,6 +9,9 @@ node_modules/
 .env.*.local
 .env.*
 !.env.example
+# dotenvx: encrypted env files are safe to commit; keys file is not
+!supabase/.env.preview
+supabase/.env.keys
 
 # IDEs and editors
 .idea/

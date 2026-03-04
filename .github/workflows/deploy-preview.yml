@@ -72,6 +72,16 @@ jobs:
           echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
           echo "service_key=$SERVICE_KEY" >> "$GITHUB_OUTPUT"
 
+      - name: Set SITE_URL on Supabase preview branch
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          BRANCH_REF="${{ steps.supabase.outputs.branch_ref }}"
+          SITE_URL="https://arabic-voice-agent-web-app-pr-$PR_NUMBER.onrender.com"
+          supabase secrets set --project-ref "$BRANCH_REF" SITE_URL="$SITE_URL"
+          echo "Set SITE_URL=$SITE_URL on Supabase branch $BRANCH_REF"
+
       - name: Update Render preview env vars and redeploy
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
