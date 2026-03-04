@@ -1,0 +1,172 @@
+name: Deploy Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  wait-for-supabase:
+    name: Wait for Supabase preview branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Supabase Preview check
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: check
+        with:
+          checkName: Supabase Preview
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          timeoutSeconds: 600
+          intervalSeconds: 15
+
+      - name: Fail if Supabase branch failed
+        if: steps.check.outputs.conclusion == 'failure'
+        run: exit 1
+
+  configure-render-preview:
+    name: Configure Render preview with Supabase branch credentials
+    needs: wait-for-supabase
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.33.7
+
+      - name: Get Supabase branch credentials
+        id: supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          PROJECT_REF="${{ vars.SUPABASE_PROJECT_REF }}"
+
+          # Find the preview branch matching our git branch
+          BRANCH_JSON=$(supabase branches list --project-ref "$PROJECT_REF" --output json)
+          BRANCH_REF=$(echo "$BRANCH_JSON" | jq -r \
+            ".[] | select(.git_branch == \"$BRANCH_NAME\") | .project_ref // .ref" | head -1)
+
+          if [ -z "$BRANCH_REF" ]; then
+            echo "No Supabase branch found for git branch: $BRANCH_NAME"
+            exit 1
+          fi
+          echo "Found Supabase branch ref: $BRANCH_REF"
+
+          # Get API keys for the branch project via Management API
+          KEYS_JSON=$(curl -sf \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$BRANCH_REF/api-keys")
+
+          ANON_KEY=$(echo "$KEYS_JSON" | jq -r '.[] | select(.name == "anon") | .api_key')
+          SERVICE_KEY=$(echo "$KEYS_JSON" | jq -r '.[] | select(.name == "service_role") | .api_key')
+          BRANCH_URL="https://$BRANCH_REF.supabase.co"
+
+          # Mask secrets so they don't appear in logs
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_KEY"
+
+          echo "branch_ref=$BRANCH_REF" >> "$GITHUB_OUTPUT"
+          echo "url=$BRANCH_URL" >> "$GITHUB_OUTPUT"
+          echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
+          echo "service_key=$SERVICE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Update Render preview env vars and redeploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SUPABASE_URL: ${{ steps.supabase.outputs.url }}
+          SUPABASE_ANON_KEY: ${{ steps.supabase.outputs.anon_key }}
+          SUPABASE_SERVICE_KEY: ${{ steps.supabase.outputs.service_key }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          # Find a Render service by exact name, retrying until Render has created the preview.
+          # Render auto-creates previews asynchronously after the PR webhook — this can take a few minutes.
+          find_service() {
+            local name="$1"
+            for i in {1..10}; do
+              SERVICE_ID=$(curl -sf \
+                -H "Authorization: Bearer $RENDER_API_KEY" \
+                "https://api.render.com/v1/services?name=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$name'))")&limit=5" \
+                | jq -r --arg name "$name" '.[] | select(.service.name == $name) | .service.id' | head -1)
+              if [ -n "$SERVICE_ID" ]; then
+                echo "$SERVICE_ID"
+                return 0
+              fi
+              echo "Waiting for Render preview service '$name' to be created... (attempt $i/10)" >&2
+              sleep 30
+            done
+            echo "ERROR: Render preview service '$name' not found after retries." >&2
+            return 1
+          }
+
+          # Fetch existing env vars for a service, merge new ones in (new values win on key conflicts),
+          # then PUT the merged set back. Required because Render's PUT replaces all env vars.
+          update_env_vars() {
+            local service_id="$1"
+            local new_vars_json="$2"
+
+            EXISTING=$(curl -sf \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$service_id/env-vars" \
+              | jq '[.[] | {key: .envVar.key, value: .envVar.value}]')
+
+            MERGED=$(echo "$EXISTING $new_vars_json" | jq -s '
+              (.[0] + .[1]) | group_by(.key) | map(last)
+            ')
+
+            curl -sf -X PUT \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              "https://api.render.com/v1/services/$service_id/env-vars" \
+              -d "$MERGED"
+          }
+
+          # NOTE: Verify these names match your actual Render preview service names.
+          # Render typically names previews as "{service-name}-pr-{pr-number}".
+          # Check your Render dashboard after the first PR to confirm the pattern.
+          API_SERVICE_NAME="arabic-voice-agent-api-pr-$PR_NUMBER"
+          WEB_SERVICE_NAME="arabic-voice-agent-web-app-pr-$PR_NUMBER"
+
+          echo "Looking for Render preview services..."
+          API_SERVICE_ID=$(find_service "$API_SERVICE_NAME")
+          WEB_SERVICE_ID=$(find_service "$WEB_SERVICE_NAME")
+
+          echo "Updating API service ($API_SERVICE_ID) env vars..."
+          update_env_vars "$API_SERVICE_ID" "$(jq -n \
+            --arg url "$SUPABASE_URL" \
+            --arg anon "$SUPABASE_ANON_KEY" \
+            --arg service "$SUPABASE_SERVICE_KEY" \
+            '[
+              {key: "SUPABASE_URL", value: $url},
+              {key: "SUPABASE_PUBLISHABLE_KEY", value: $anon},
+              {key: "SUPABASE_SECRET_KEY", value: $service}
+            ]')"
+
+          echo "Updating web app service ($WEB_SERVICE_ID) env vars..."
+          update_env_vars "$WEB_SERVICE_ID" "$(jq -n \
+            --arg url "$SUPABASE_URL" \
+            --arg anon "$SUPABASE_ANON_KEY" \
+            '[
+              {key: "VITE_SUPABASE_URL", value: $url},
+              {key: "VITE_SUPABASE_PUBLISHABLE_KEY", value: $anon}
+            ]')"
+
+          echo "Triggering redeployments..."
+          curl -sf -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/$API_SERVICE_ID/deploys" \
+            -d '{"clearCache": "do_not_clear"}'
+
+          curl -sf -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/$WEB_SERVICE_ID/deploys" \
+            -d '{"clearCache": "do_not_clear"}'
+
+          echo "Done! Preview redeployment triggered for PR #$PR_NUMBER."
+          echo "  API service:     $API_SERVICE_ID"
+          echo "  Web app service: $WEB_SERVICE_ID"
+          echo "  Supabase URL:    $SUPABASE_URL"
