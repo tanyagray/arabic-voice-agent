@@ -136,15 +136,15 @@ jobs:
               -d "$MERGED"
           }
 
-          # NOTE: Verify these names match your actual Render preview service names.
-          # Render typically names previews as "{service-name}-pr-{pr-number}".
-          # Check your Render dashboard after the first PR to confirm the pattern.
-          API_SERVICE_NAME="arabic-voice-agent-api-pr-$PR_NUMBER"
-          WEB_SERVICE_NAME="arabic-voice-agent-web-app-pr-$PR_NUMBER"
+          # Render blueprint previews are named "{service-name} PR #{number}"
+          API_SERVICE_NAME="arabic-voice-agent-api PR #$PR_NUMBER"
+          WEB_SERVICE_NAME="arabic-voice-agent-web-app PR #$PR_NUMBER"
+          ADMIN_SERVICE_NAME="arabic-voice-agent-admin PR #$PR_NUMBER"
 
           echo "Looking for Render preview services..."
           API_SERVICE_ID=$(find_service "$API_SERVICE_NAME")
           WEB_SERVICE_ID=$(find_service "$WEB_SERVICE_NAME")
+          ADMIN_SERVICE_ID=$(find_service "$ADMIN_SERVICE_NAME")
 
           echo "Updating API service ($API_SERVICE_ID) env vars..."
           update_env_vars "$API_SERVICE_ID" "$(jq -n \
@@ -166,20 +166,26 @@ jobs:
               {key: "VITE_SUPABASE_PUBLISHABLE_KEY", value: $anon}
             ]')"
 
-          echo "Triggering redeployments..."
-          curl -sf -X POST \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            "https://api.render.com/v1/services/$API_SERVICE_ID/deploys" \
-            -d '{"clearCache": "do_not_clear"}'
+          echo "Updating admin service ($ADMIN_SERVICE_ID) env vars..."
+          update_env_vars "$ADMIN_SERVICE_ID" "$(jq -n \
+            --arg url "$SUPABASE_URL" \
+            --arg anon "$SUPABASE_ANON_KEY" \
+            '[
+              {key: "VITE_SUPABASE_URL", value: $url},
+              {key: "VITE_SUPABASE_ANON_KEY", value: $anon}
+            ]')"
 
-          curl -sf -X POST \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            "https://api.render.com/v1/services/$WEB_SERVICE_ID/deploys" \
-            -d '{"clearCache": "do_not_clear"}'
+          echo "Triggering redeployments..."
+          for SERVICE_ID in "$API_SERVICE_ID" "$WEB_SERVICE_ID" "$ADMIN_SERVICE_ID"; do
+            curl -sf -X POST \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+              -d '{"clearCache": "do_not_clear"}'
+          done
 
           echo "Done! Preview redeployment triggered for PR #$PR_NUMBER."
           echo "  API service:     $API_SERVICE_ID"
           echo "  Web app service: $WEB_SERVICE_ID"
+          echo "  Admin service:   $ADMIN_SERVICE_ID"
           echo "  Supabase URL:    $SUPABASE_URL"
