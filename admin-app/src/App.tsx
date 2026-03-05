@@ -1,12 +1,40 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
+import { AuthProvider } from './context/AuthContext'
+import { AuthGuard } from './components/AuthGuard'
+import { Layout } from './components/Layout'
+import { Login } from './pages/Login'
+import { PromptsPage } from './pages/PromptsPage'
+import { PromptEditPage } from './pages/PromptEditPage'
+import { TestAgentPage } from './pages/TestAgentPage'
+
 function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="mt-4 text-gray-600">Welcome to the Arabic Voice Agent Admin Panel</p>
-      </div>
-    </div>
-  );
+    <ChakraProvider value={defaultSystem}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/*"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Navigate to="/prompts" replace />} />
+                      <Route path="/prompts" element={<PromptsPage />} />
+                      <Route path="/prompts/:language" element={<PromptEditPage />} />
+                      <Route path="/test" element={<TestAgentPage />} />
+                    </Routes>
+                  </Layout>
+                </AuthGuard>
+              }
+            />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ChakraProvider>
+  )
 }
 
-export default App;
+export default App

@@ -54,7 +54,14 @@ npm run build && npm run lint
 ```bash
 supabase start        # Local Supabase (requires Docker)
 supabase db reset     # Reset and re-run migrations
+supabase migration up # Apply pending migrations locally (preferred)
 ```
+
+**Important Supabase rules:**
+- Never run `supabase db reset` without explicit permission — it destroys all local data.
+- Never push to remote/production Supabase (`supabase db push --linked` or any production deploy) without explicit permission.
+- For local development, apply migrations with `supabase migration up`.
+- All schema changes must be done via migration files in `supabase/migrations/`.
 
 ## Architecture
 
