@@ -44,8 +44,10 @@ jobs:
           BRANCH_NAME="${{ github.head_ref }}"
           PROJECT_REF="${{ vars.SUPABASE_PROJECT_REF }}"
 
-          # Find the preview branch matching our git branch
-          BRANCH_JSON=$(supabase branches list --experimental --project-ref "$PROJECT_REF" --output json)
+          # Find the preview branch matching our git branch via Management API
+          BRANCH_JSON=$(curl -sf \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/branches")
           echo "DEBUG branches JSON: $BRANCH_JSON"
           BRANCH_REF=$(echo "$BRANCH_JSON" | jq -r \
             ".[] | select(.git_branch == \"$BRANCH_NAME\") | .project_ref // .ref" | head -1)
