@@ -44,7 +44,7 @@ jobs:
           PROJECT_REF="${{ vars.SUPABASE_PROJECT_REF }}"
 
           # Find the preview branch matching our git branch
-          BRANCH_JSON=$(supabase branches list --project-ref "$PROJECT_REF" --output json)
+          BRANCH_JSON=$(supabase branches list --experimental --project-ref "$PROJECT_REF" --output json)
           BRANCH_REF=$(echo "$BRANCH_JSON" | jq -r \
             ".[] | select(.git_branch == \"$BRANCH_NAME\") | .project_ref // .ref" | head -1)
 
