@@ -44,6 +44,7 @@ jobs:
           BRANCH_NAME="${{ github.head_ref }}"
           PROJECT_REF="${{ vars.SUPABASE_PROJECT_REF }}"
 
+          echo "DEBUG project ref (first 6 chars): ${PROJECT_REF:0:6}"
           # Find the preview branch matching our git branch via Management API
           BRANCH_JSON=$(curl -sf \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
