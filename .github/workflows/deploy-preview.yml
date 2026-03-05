@@ -27,6 +27,7 @@ jobs:
     name: Configure Render preview with Supabase branch credentials
     needs: wait-for-supabase
     runs-on: ubuntu-latest
+    environment: preview
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
     steps:
