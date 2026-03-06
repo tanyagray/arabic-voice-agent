@@ -45,6 +45,28 @@ services:
       - key: VITE_SUPABASE_PUBLISHABLE_KEY
         sync: false
 
+  # Claude Agent Service (main branch only, no previews)
+  - type: web
+    name: arabic-voice-agent-claude-agent
+    runtime: image
+    image:
+      url: ghcr.io/tanyagray/claude-agent:latest
+    region: oregon
+    plan: standard
+    branch: main
+    previews:
+      generation: ignore
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        value: tanyagray/arabic-voice-agent
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+    healthCheckPath: /health
+
   # Admin Dashboard Service
   - type: web
     name: arabic-voice-agent-admin
