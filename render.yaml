@@ -15,16 +15,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.13.7"
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SECRET_KEY
-        sync: false
-      - key: SUPABASE_PUBLISHABLE_KEY
-        sync: false
-      - key: ELEVENLABS_API_KEY
-        sync: false
-      - key: DEEPGRAM_API_KEY
-        sync: false
+      - fromGroup: arabic-voice-agent-dev
     healthCheckPath: /health
 
   # Frontend Web App Service
@@ -42,10 +33,7 @@ services:
           name: arabic-voice-agent-api
           type: web
           envVarKey: RENDER_EXTERNAL_URL
-      - key: VITE_SUPABASE_URL
-        sync: false
-      - key: VITE_SUPABASE_PUBLISHABLE_KEY
-        sync: false
+      - fromGroup: arabic-voice-agent-dev
 
   # Claude Agent Service (main branch only, no previews)
   - type: web
@@ -83,7 +71,4 @@ services:
           name: arabic-voice-agent-api
           type: web
           envVarKey: RENDER_EXTERNAL_URL
-      - key: VITE_SUPABASE_URL
-        sync: false
-      - key: VITE_SUPABASE_ANON_KEY
-        sync: false
+      - fromGroup: arabic-voice-agent-dev
