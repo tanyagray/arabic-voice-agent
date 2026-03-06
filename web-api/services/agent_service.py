@@ -41,6 +41,53 @@ async def generate_agent_response(session_id: str, user_message: str, user_acces
     return result.final_output
 
 
+async def generate_agent_greeting(session_id: str, user_access_token: str | None = None) -> str:
+    """
+    Generate an initial greeting from the agent when a voice chat session starts.
+
+    Args:
+        session_id: The session identifier to look up the session and context
+        user_access_token: Optional user's access token for Supabase authentication
+
+    Returns:
+        str: The agent's greeting message
+
+    Raises:
+        ValueError: If session is not found
+    """
+    # Look up the session
+    session = get_session(session_id, user_access_token)
+    if not session:
+        raise ValueError(f"Session not found: {session_id}")
+
+    # Look up the context
+    context = get_context(session_id)
+
+    # System message to trigger a greeting
+    system_message = {
+        "role": "system",
+        "content": "A new voice chat session has just started. Greet the user warmly to begin the conversation."
+    }
+
+    # Define a callback that appends the system message to the history
+    def session_input_callback(history, new_input):
+        return history + new_input
+
+    # Create run config with the callback
+    run_config = RunConfig(session_input_callback=session_input_callback)
+
+    # Run the agent with the greeting system message
+    result = await Runner.run(
+        agent,
+        [system_message],
+        session=session,
+        context=context,
+        run_config=run_config
+    )
+
+    return result.final_output
+
+
 async def generate_agent_followup(session_id: str, user_access_token: str | None = None) -> str:
     """
     Generate a followup agent response using existing session history.
@@ -94,7 +141,7 @@ async def generate_agent_followup(session_id: str, user_access_token: str | None
     return result.final_output
 
 
-async def trigger_agent_turn(session_id: str, user_message: str | None = None, user_access_token: str | None = None) -> None:
+async def trigger_agent_turn(session_id: str, user_message: str | None = None, user_access_token: str | None = None, greeting: bool = False) -> None:
     """
     Process a complete agent turn: run the agent and send response and context updates.
 
@@ -103,10 +150,13 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None, u
         user_message: Optional user input message. If provided, generates a response to the message.
                      If None, generates a followup based on existing conversation history.
         user_access_token: Optional user's access token for Supabase authentication
+        greeting: If True, generates an initial greeting instead of a followup
     """
     # Run the agent with or without a new user message
     if user_message is not None:
         text_response = await generate_agent_response(session_id, user_message, user_access_token)
+    elif greeting:
+        text_response = await generate_agent_greeting(session_id, user_access_token)
     else:
         text_response = await generate_agent_followup(session_id, user_access_token)
 
@@ -187,6 +237,9 @@ async def start_realtime_agent(websocket: WebSocket, session_id: str) -> None:
         websocket: The WebSocket connection to receive/send messages
         session_id: The session identifier
     """
+    # Greet the user when the voice chat session starts
+    await trigger_agent_turn(session_id, greeting=True)
+
     base_timeout = 5.0  # seconds
     max_followups = 3
     followup_count = 0
