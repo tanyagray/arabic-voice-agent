@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import WebSocket
 from loguru import logger
 
-from pipecat.frames.frames import EndFrame, TTSStartedFrame, TTSStoppedFrame, TTSTextFrame
+from pipecat.frames.frames import EndFrame, LLMRunFrame, TTSStartedFrame, TTSStoppedFrame, TTSTextFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
 from pipecat.pipeline.runner import PipelineRunner
@@ -143,9 +143,10 @@ async def run_pipecat_agent(
     )
 
     # Create LLM context with system prompt
-    system_prompt = "You are a helpful Arabic language tutor. Keep your responses concise and conversational."
+    system_prompt = "You are a helpful Arabic language tutor. Keep your responses concise and conversational. When the conversation starts, greet the user warmly."
     messages = [
-        {"role": "system", "content": system_prompt}
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": "Hello"},
     ]
     llm_context = LLMContext(messages)
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(llm_context)
@@ -233,9 +234,11 @@ async def run_pipecat_agent(
     # RTVI event handlers
     @rtvi.event_handler("on_client_ready")
     async def on_client_ready(processor):
-        """Handle RTVI client ready - send bot ready response."""
+        """Handle RTVI client ready - send bot ready response and trigger greeting."""
         logger.info(f"RTVI client ready for session {session_id}")
         await processor.set_bot_ready()
+        # Trigger initial greeting by running the LLM with the current context
+        await task.queue_frames([LLMRunFrame()])
 
     # Event handlers
     @transport.event_handler("on_client_connected")
