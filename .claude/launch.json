@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "web-app",
+      "port": 5173
+    },
+    {
+      "name": "admin-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "admin-app",
+      "port": 5174
+    },
+    {
+      "name": "web-api",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
+      "cwd": "web-api",
+      "port": 8000
+    }
+  ]
+}
