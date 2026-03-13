@@ -1,0 +1,95 @@
+name: Preview Destroy (AWS)
+
+on:
+  pull_request:
+    types: [closed]
+
+env:
+  AWS_REGION: us-west-2
+
+jobs:
+  destroy-preview:
+    name: Destroy preview environment
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check if stack exists
+        id: check
+        run: |
+          STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
+          if aws cloudformation describe-stacks --stack-name "$STACK_NAME" 2>/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Stack $STACK_NAME does not exist, skipping cleanup."
+          fi
+
+      - name: Empty S3 buckets
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          PR="${{ github.event.pull_request.number }}"
+          for BUCKET in "preview-web-app-pr-$PR" "preview-admin-pr-$PR"; do
+            echo "Emptying bucket: $BUCKET"
+            aws s3 rm "s3://$BUCKET" --recursive 2>/dev/null || true
+          done
+
+      - name: Disable CloudFront distributions
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
+
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "$STACK_NAME" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+
+          # CloudFront distributions must be disabled before deletion
+          for DIST_KEY in WebAppDistributionId AdminDistributionId; do
+            DIST_ID=$(get_output "$DIST_KEY")
+            if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+              echo "Disabling CloudFront distribution: $DIST_ID"
+              ETAG=$(aws cloudfront get-distribution-config --id "$DIST_ID" --query "ETag" --output text)
+              CONFIG=$(aws cloudfront get-distribution-config --id "$DIST_ID" --query "DistributionConfig" --output json)
+              UPDATED=$(echo "$CONFIG" | jq '.Enabled = false')
+              aws cloudfront update-distribution \
+                --id "$DIST_ID" \
+                --if-match "$ETAG" \
+                --distribution-config "$UPDATED" || true
+            fi
+          done
+
+          # Wait for distributions to deploy the disabled state
+          echo "Waiting for CloudFront distributions to disable..."
+          for DIST_KEY in WebAppDistributionId AdminDistributionId; do
+            DIST_ID=$(get_output "$DIST_KEY")
+            if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+              aws cloudfront wait distribution-deployed --id "$DIST_ID" || true
+            fi
+          done
+
+      - name: Delete CloudFormation stack
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
+          echo "Deleting stack: $STACK_NAME"
+          aws cloudformation delete-stack --stack-name "$STACK_NAME"
+          echo "Waiting for stack deletion..."
+          aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+          echo "Stack $STACK_NAME deleted."
+
+      - name: Delete ECR image
+        run: |
+          IMAGE_TAG="pr-${{ github.event.pull_request.number }}"
+          echo "Deleting ECR image: arabic-voice-agent-api:$IMAGE_TAG"
+          aws ecr batch-delete-image \
+            --repository-name arabic-voice-agent-api \
+            --image-ids imageTag="$IMAGE_TAG" 2>/dev/null || true
