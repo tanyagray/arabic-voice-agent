@@ -50,7 +50,7 @@ function TranscriptBubble({ message, isFirstInGroup }: TranscriptBubbleProps) {
         roundedBottomLeft={roundedBottomLeft}
       >
         <Text fontSize="lg" lineHeight="relaxed">
-          {message.message_content}
+          {message.message_text}
         </Text>
       </Box>
     </MotionBox>

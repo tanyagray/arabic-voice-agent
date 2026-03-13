@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from dependencies.admin_auth import get_admin_user
-from services import session_service, context_service
+from services import session_service, context_service, scaffolding_service
 from services.agent_session import AgentSession
 from services.supabase_client import get_supabase_admin_client
 from services.context_service import create_context, get_context, delete_context
@@ -36,6 +36,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     text: str
+    text_canonical: str | None = None
     messages: list[Any]
     raw_responses: list[Any]
     usage: dict[str, Any] | None
@@ -162,8 +163,13 @@ async def admin_chat(
             "total_tokens": sum(r.usage.total_tokens for r in result.raw_responses),
         }
 
+    # Generate scaffolded (arabizi) display text from the canonical Arabic response
+    canonical_text = result.final_output
+    scaffolded_text = await scaffolding_service.generate_scaffolded_text(canonical_text)
+
     return ChatResponse(
-        text=result.final_output,
+        text=scaffolded_text,
+        text_canonical=canonical_text,
         messages=messages,
         raw_responses=raw_responses,
         usage=usage,

@@ -22,7 +22,7 @@ function createTranscriptMessage(
     user_id: '',
     message_source: liveMessage.source,
     message_kind: 'transcript',
-    message_content: liveMessage.content,
+    message_text: liveMessage.content,
     created_at: liveMessage.createdAt,
     updated_at: liveMessage.createdAt,
   };

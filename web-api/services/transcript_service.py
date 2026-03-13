@@ -14,7 +14,8 @@ class TranscriptMessage(BaseModel):
     user_id: str
     message_source: str  # 'user', 'tutor', or 'system'
     message_kind: str  # 'transcript', 'audio', etc.
-    message_content: str
+    message_text: str  # Display text (arabizi for tutor, raw input for user)
+    message_text_canonical: Optional[str] = None  # Full Arabic with harakaat (tutor only)
     created_at: datetime
     updated_at: datetime
 
@@ -23,7 +24,8 @@ async def create_transcript_message(
     session_id: str,
     message_source: str,
     message_kind: str,
-    message_content: str,
+    message_text: str,
+    message_text_canonical: Optional[str] = None,
 ) -> TranscriptMessage:
     """
     Create and persist a transcript message to the database.
@@ -32,7 +34,8 @@ async def create_transcript_message(
         session_id: The session ID this message belongs to
         message_source: The source of the message ('user', 'tutor', or 'system')
         message_kind: The kind/type of message (e.g., 'transcript')
-        message_content: The actual message content/text
+        message_text: The display text (arabizi for tutor, raw input for user)
+        message_text_canonical: Full Arabic with harakaat (tutor messages only)
 
     Returns:
         TranscriptMessage: The created message with all fields populated
@@ -60,22 +63,28 @@ async def create_transcript_message(
         user_id=user_id,
         message_source=message_source,
         message_kind=message_kind,
-        message_content=message_content,
+        message_text=message_text,
+        message_text_canonical=message_text_canonical,
         created_at=now,
         updated_at=now,
     )
 
-    # Insert into database
-    supabase.table("transcript_messages").insert({
+    # Build insert data
+    insert_data = {
         "message_id": message.message_id,
         "session_id": message.session_id,
         "user_id": message.user_id,
         "message_source": message.message_source,
         "message_kind": message.message_kind,
-        "message_content": message.message_content,
+        "message_text": message.message_text,
         "created_at": message.created_at.isoformat(),
         "updated_at": message.updated_at.isoformat(),
-    }).execute()
+    }
+    if message.message_text_canonical is not None:
+        insert_data["message_text_canonical"] = message.message_text_canonical
+
+    # Insert into database
+    supabase.table("transcript_messages").insert(insert_data).execute()
 
     return message
 
@@ -113,7 +122,8 @@ async def get_session_messages(
             user_id=msg["user_id"],
             message_source=msg["message_source"],
             message_kind=msg["message_kind"],
-            message_content=msg["message_content"],
+            message_text=msg["message_text"],
+            message_text_canonical=msg.get("message_text_canonical"),
             created_at=datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")),
             updated_at=datetime.fromisoformat(msg["updated_at"].replace("Z", "+00:00")),
         )
