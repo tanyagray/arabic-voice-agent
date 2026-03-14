@@ -37,10 +37,10 @@ Parameters:
     NoEcho: true
     Description: OpenAI API key
 
-  DeepgramApiKey:
+  SonioxApiKey:
     Type: String
     NoEcho: true
-    Description: Deepgram API key
+    Description: Soniox API key
 
   ElevenApiKey:
     Type: String
@@ -82,8 +82,8 @@ Resources:
                 Value: !Ref SupabaseServiceKey
               - Name: OPENAI_API_KEY
                 Value: !Ref OpenaiApiKey
-              - Name: DEEPGRAM_API_KEY
-                Value: !Ref DeepgramApiKey
+              - Name: SONIOX_API_KEY
+                Value: !Ref SonioxApiKey
               - Name: ELEVEN_API_KEY
                 Value: !Ref ElevenApiKey
               - Name: PORT

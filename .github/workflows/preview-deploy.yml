@@ -160,7 +160,7 @@ jobs:
               SupabaseAnonKey="${{ needs.supabase-credentials.outputs.anon_key }}" \
               SupabaseServiceKey="${{ needs.supabase-credentials.outputs.service_key }}" \
               OpenaiApiKey="${{ secrets.OPENAI_API_KEY }}" \
-              DeepgramApiKey="${{ secrets.DEEPGRAM_API_KEY }}" \
+              SonioxApiKey="${{ secrets.SONIOX_API_KEY }}" \
               ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}"
 
       - name: Get stack outputs

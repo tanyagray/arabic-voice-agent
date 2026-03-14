@@ -58,7 +58,7 @@ Also ensure these secrets already exist (carried over from the Render setup):
 |---------------|---------|
 | `SUPABASE_PERSONAL_ACCESS_TOKEN` | Supabase Management API access |
 | `OPENAI_API_KEY` | OpenAI GPT-4o for voice pipeline |
-| `DEEPGRAM_API_KEY` | Deepgram STT |
+| `SONIOX_API_KEY` | Soniox STT |
 | `ELEVEN_API_KEY` | ElevenLabs TTS |
 
 And this variable:
