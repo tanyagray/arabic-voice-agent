@@ -116,7 +116,7 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None, u
             session_id=session_id,
             message_source="tutor",
             message_kind="text",
-            message_content=text_response,
+            message_text=text_response,
         )
 
         # Send the full message format via websocket
@@ -209,7 +209,7 @@ async def start_realtime_agent(websocket: WebSocket, session_id: str) -> None:
                     session_id=session_id,
                     message_source="user",
                     message_kind="text",
-                    message_content=user_message,
+                    message_text=user_message,
                 )
             except Exception as e:
                 # Log the error but continue - don't fail the request if DB insert fails

@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from pydantic import BaseModel, Field
 
-from services import session_service, agent_service, context_service, websocket_service, soniox_service, transcript_service
+from services import session_service, agent_service, context_service, websocket_service, soniox_service, transcript_service, scaffolding_service
 from dependencies.auth import get_current_user_token
 
 
@@ -125,28 +125,32 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
             session_id=session_id,
             message_source="user",
             message_kind="text",
-            message_content=request.message,
+            message_text=request.message,
         )
     except Exception as e:
         # Log the error but continue - don't fail the request if DB insert fails
         print(f"[Session] Failed to save user message to database: {e}")
 
-    # Generate the agent response
-    response = await agent_service.generate_agent_response(session_id, request.message, access_token)
+    # Step 1: Generate the agent response (full Arabic with harakaat)
+    canonical_response = await agent_service.generate_agent_response(session_id, request.message, access_token)
 
-    # Save the agent's response to the database
+    # Step 2: Generate scaffolded display text (arabizi)
+    scaffolded_response = await scaffolding_service.generate_scaffolded_text(canonical_response)
+
+    # Save the agent's response to the database with both versions
     try:
         await transcript_service.create_transcript_message(
             session_id=session_id,
             message_source="tutor",
             message_kind="text",
-            message_content=response,
+            message_text=scaffolded_response,
+            message_text_canonical=canonical_response,
         )
     except Exception as e:
         # Log the error but continue - don't fail the request if DB insert fails
         print(f"[Session] Failed to save agent response to database: {e}")
 
-    return TextResponse(text=response)
+    return TextResponse(text=scaffolded_response)
 
 
 @router.post("/{session_id}/event")

@@ -61,7 +61,7 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                         session_id=session_id,
                         message_source="system",
                         message_kind="text",
-                        message_content="Sorry, I couldn't transcribe the audio. Please try again.",
+                        message_text="Sorry, I couldn't transcribe the audio. Please try again.",
                     )
                     await websocket_service.send_message(
                         session_id,
@@ -80,7 +80,7 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                     session_id=session_id,
                     message_source="user",
                     message_kind="text",
-                    message_content=transcript_text,
+                    message_text=transcript_text,
                 )
                 await websocket_service.send_message(
                     session_id,
@@ -102,7 +102,7 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                     session_id=session_id,
                     message_source="system",
                     message_kind="text",
-                    message_content="Sorry, there was an error transcribing your audio. Please try again.",
+                    message_text="Sorry, there was an error transcribing your audio. Please try again.",
                 )
                 await websocket_service.send_message(
                     session_id,
@@ -126,7 +126,7 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                 session_id=session_id,
                 message_source="system",
                 message_kind="text",
-                message_content="Sorry, there was an error processing your message. Please try again.",
+                message_text="Sorry, there was an error processing your message. Please try again.",
             )
             await websocket_service.send_message(
                 session_id,

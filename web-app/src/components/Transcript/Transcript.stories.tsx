@@ -42,7 +42,7 @@ function createMessage(
     user_id: MOCK_USER_ID,
     message_source: source,
     message_kind: 'text',
-    message_content: content,
+    message_text: content,
     created_at: timestamp,
     updated_at: timestamp,
   };
