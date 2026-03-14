@@ -61,6 +61,7 @@ jobs:
     environment: dev
     outputs:
       api_url: ${{ steps.outputs.outputs.api_url }}
+      claude_agent_url: ${{ steps.outputs.outputs.claude_agent_url }}
       web_app_url: ${{ steps.outputs.outputs.web_app_url }}
       admin_url: ${{ steps.outputs.outputs.admin_url }}
       web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
@@ -91,6 +92,13 @@ jobs:
             aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
           fi
 
+      - name: Get Claude agent ECR image URI
+        id: claude-agent-image
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          echo "image_uri=$ECR_REGISTRY/arabic-voice-agent-claude-agent:latest" >> "$GITHUB_OUTPUT"
+
       - name: Deploy CloudFormation stack
         run: |
           aws cloudformation deploy \
@@ -99,13 +107,17 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
+              ClaudeAgentEcrImageUri="${{ steps.claude-agent-image.outputs.image_uri }}" \
               AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
               SupabaseUrl="${{ secrets.SUPABASE_URL }}" \
               SupabasePublishableKey="${{ secrets.SUPABASE_PUBLISHABLE_KEY }}" \
               SupabaseSecretKey="${{ secrets.SUPABASE_SECRET_KEY }}" \
               OpenaiApiKey="${{ secrets.OPENAI_API_KEY }}" \
               SonioxApiKey="${{ secrets.SONIOX_API_KEY }}" \
-              ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}"
+              ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}" \
+              AnthropicApiKey="${{ secrets.ANTHROPIC_API_KEY }}" \
+              GitHubToken="${{ secrets.CLAUDE_AGENT_GITHUB_TOKEN }}" \
+              GitHubWebhookSecret="${{ secrets.WEBHOOK_SECRET }}"
 
       - name: Get stack outputs
         id: outputs
@@ -118,6 +130,7 @@ jobs:
           }
 
           echo "api_url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
+          echo "claude_agent_url=$(get_output ClaudeAgentUrl)" >> "$GITHUB_OUTPUT"
           echo "web_app_url=$(get_output WebAppUrl)" >> "$GITHUB_OUTPUT"
           echo "admin_url=$(get_output AdminUrl)" >> "$GITHUB_OUTPUT"
           echo "web_app_bucket=$(get_output WebAppBucketName)" >> "$GITHUB_OUTPUT"
@@ -199,5 +212,6 @@ jobs:
           echo "| Service | URL |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---------|-----|" >> "$GITHUB_STEP_SUMMARY"
           echo "| API | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Claude Agent | ${{ needs.deploy-infra.outputs.claude_agent_url }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Web App | ${{ needs.deploy-infra.outputs.web_app_url }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Admin | ${{ needs.deploy-infra.outputs.admin_url }} |" >> "$GITHUB_STEP_SUMMARY"
