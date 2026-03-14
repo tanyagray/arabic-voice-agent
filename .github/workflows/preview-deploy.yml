@@ -1,0 +1,342 @@
+name: Preview Deploy (AWS)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  AWS_REGION: us-west-2
+
+jobs:
+  # ------------------------------------------------------------------
+  # Job 1: Wait for Supabase preview branch to be ready
+  # ------------------------------------------------------------------
+  wait-for-supabase:
+    name: Wait for Supabase preview branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Supabase Preview check
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: check
+        with:
+          checkName: Supabase Preview
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          timeoutSeconds: 600
+          intervalSeconds: 15
+
+      - name: Fail if Supabase branch failed
+        if: steps.check.outputs.conclusion == 'failure'
+        run: exit 1
+
+  # ------------------------------------------------------------------
+  # Job 2: Get Supabase branch credentials
+  # ------------------------------------------------------------------
+  supabase-credentials:
+    name: Get Supabase branch credentials
+    needs: wait-for-supabase
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      branch_ref: ${{ steps.supabase.outputs.branch_ref }}
+      url: ${{ steps.supabase.outputs.url }}
+      anon_key_b64: ${{ steps.supabase.outputs.anon_key_b64 }}
+      service_key_b64: ${{ steps.supabase.outputs.service_key_b64 }}
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Get Supabase branch credentials
+        id: supabase
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          PROJECT_REF="${{ vars.SUPABASE_PROJECT_REF }}"
+
+          # Find the preview branch matching our git branch
+          BRANCH_JSON=$(curl -sf \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/branches")
+
+          BRANCH_REF=$(echo "$BRANCH_JSON" | jq -r \
+            ".[] | select(.git_branch == \"$BRANCH_NAME\") | .project_ref // .ref" | head -1)
+
+          if [ -z "$BRANCH_REF" ]; then
+            echo "::error::No Supabase branch found for git branch: $BRANCH_NAME"
+            exit 1
+          fi
+          echo "Found Supabase branch ref: $BRANCH_REF"
+
+          # Get API keys for the branch
+          KEYS_JSON=$(curl -sf \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$BRANCH_REF/api-keys")
+
+          ANON_KEY=$(echo "$KEYS_JSON" | jq -r '.[] | select(.name == "anon") | .api_key')
+          SERVICE_KEY=$(echo "$KEYS_JSON" | jq -r '.[] | select(.name == "service_role") | .api_key')
+          BRANCH_URL="https://$BRANCH_REF.supabase.co"
+
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_KEY"
+
+          # Double base64-encode keys — GitHub masks single-encoded secrets too
+          echo "branch_ref=$BRANCH_REF" >> "$GITHUB_OUTPUT"
+          echo "url=$BRANCH_URL" >> "$GITHUB_OUTPUT"
+          echo "anon_key_b64=$(echo -n "$ANON_KEY" | base64 -w0 | base64 -w0)" >> "$GITHUB_OUTPUT"
+          echo "service_key_b64=$(echo -n "$SERVICE_KEY" | base64 -w0 | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+  # ------------------------------------------------------------------
+  # Job 3: Build and push API Docker image (runs in parallel with Jobs 1+2)
+  # ------------------------------------------------------------------
+  build-api-image:
+    name: Build API Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image_uri: ${{ steps.build.outputs.image_uri }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Build and push
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: pr-${{ github.event.pull_request.number }}
+        run: |
+          IMAGE_URI="$ECR_REGISTRY/arabic-voice-agent-api:$IMAGE_TAG"
+          docker build -f infra/preview/Dockerfile -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+  # ------------------------------------------------------------------
+  # Job 4: Deploy CloudFormation stack
+  # ------------------------------------------------------------------
+  deploy-infra:
+    name: Deploy preview infrastructure
+    needs: [supabase-credentials, build-api-image]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: dev
+    outputs:
+      api_url: ${{ steps.outputs.outputs.api_url }}
+      web_app_url: ${{ steps.outputs.outputs.web_app_url }}
+      admin_url: ${{ steps.outputs.outputs.admin_url }}
+      web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
+      admin_bucket: ${{ steps.outputs.outputs.admin_bucket }}
+      web_app_dist_id: ${{ steps.outputs.outputs.web_app_dist_id }}
+      admin_dist_id: ${{ steps.outputs.outputs.admin_dist_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Decode Supabase credentials
+        id: supabase
+        run: |
+          ANON_KEY=$(echo -n "${{ needs.supabase-credentials.outputs.anon_key_b64 }}" | base64 -d | base64 -d)
+          SERVICE_KEY=$(echo -n "${{ needs.supabase-credentials.outputs.service_key_b64 }}" | base64 -d | base64 -d)
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_KEY"
+          echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
+          echo "service_key=$SERVICE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Clean up failed stack if needed
+        run: |
+          STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
+          STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+            --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+          if [ "$STATUS" = "ROLLBACK_IN_PROGRESS" ]; then
+            echo "Stack $STACK_NAME is rolling back, waiting..."
+            aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME"
+            STATUS="ROLLBACK_COMPLETE"
+          fi
+          if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "DELETE_FAILED" ]; then
+            echo "Stack $STACK_NAME is in $STATUS state, deleting before redeploy..."
+            aws cloudformation delete-stack --stack-name "$STACK_NAME"
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+          fi
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name "preview-pr-${{ github.event.pull_request.number }}" \
+            --template-file infra/preview/template.yaml \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              PrNumber="${{ github.event.pull_request.number }}" \
+              EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
+              AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
+              SupabaseUrl="${{ needs.supabase-credentials.outputs.url }}" \
+              SupabaseAnonKey="${{ steps.supabase.outputs.anon_key }}" \
+              SupabaseServiceKey="${{ steps.supabase.outputs.service_key }}" \
+              OpenaiApiKey="${{ secrets.OPENAI_API_KEY }}" \
+              SonioxApiKey="${{ secrets.SONIOX_API_KEY }}" \
+              ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}"
+
+      - name: Get stack outputs
+        id: outputs
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "preview-pr-${{ github.event.pull_request.number }}" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+
+          echo "api_url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
+          echo "web_app_url=$(get_output WebAppUrl)" >> "$GITHUB_OUTPUT"
+          echo "admin_url=$(get_output AdminUrl)" >> "$GITHUB_OUTPUT"
+          echo "web_app_bucket=$(get_output WebAppBucketName)" >> "$GITHUB_OUTPUT"
+          echo "admin_bucket=$(get_output AdminBucketName)" >> "$GITHUB_OUTPUT"
+          echo "web_app_dist_id=$(get_output WebAppDistributionId)" >> "$GITHUB_OUTPUT"
+          echo "admin_dist_id=$(get_output AdminDistributionId)" >> "$GITHUB_OUTPUT"
+
+  # ------------------------------------------------------------------
+  # Job 5: Build static sites and upload to S3
+  # ------------------------------------------------------------------
+  deploy-static-sites:
+    name: Deploy static sites
+    needs: [supabase-credentials, deploy-infra]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    environment: dev
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Decode Supabase anon key for static site builds
+      - name: Decode Supabase credentials
+        id: supabase
+        run: |
+          ANON_KEY=$(echo -n "${{ needs.supabase-credentials.outputs.anon_key_b64 }}" | base64 -d | base64 -d)
+          echo "::add-mask::$ANON_KEY"
+          echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
+
+      # Build and deploy web-app
+      - name: Build web-app
+        working-directory: web-app
+        env:
+          VITE_API_URL: ${{ needs.deploy-infra.outputs.api_url }}
+          VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ steps.supabase.outputs.anon_key }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload web-app to S3
+        run: |
+          aws s3 sync web-app/dist/ \
+            "s3://${{ needs.deploy-infra.outputs.web_app_bucket }}/" \
+            --delete
+
+      # Build and deploy admin-app
+      - name: Build admin-app
+        working-directory: admin-app
+        env:
+          VITE_API_URL: ${{ needs.deploy-infra.outputs.api_url }}
+          VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
+          VITE_SUPABASE_ANON_KEY: ${{ steps.supabase.outputs.anon_key }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload admin-app to S3
+        run: |
+          aws s3 sync admin-app/dist/ \
+            "s3://${{ needs.deploy-infra.outputs.admin_bucket }}/" \
+            --delete
+
+      # Invalidate CloudFront caches
+      - name: Invalidate CloudFront caches
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ needs.deploy-infra.outputs.web_app_dist_id }}" \
+            --paths "/*"
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ needs.deploy-infra.outputs.admin_dist_id }}" \
+            --paths "/*"
+
+      # Set Supabase SITE_URL to the preview web-app URL
+      - name: Set Supabase SITE_URL
+        run: |
+          BRANCH_REF="${{ needs.supabase-credentials.outputs.branch_ref }}"
+          SITE_URL="${{ needs.deploy-infra.outputs.web_app_url }}"
+          supabase secrets set --project-ref "$BRANCH_REF" SITE_URL="$SITE_URL"
+          echo "Set SITE_URL=$SITE_URL on Supabase branch $BRANCH_REF"
+
+      # Post or update PR comment with preview URLs
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              '### Preview Environment Ready',
+              '',
+              '| Service | URL |',
+              '|---------|-----|',
+              `| API | ${{ needs.deploy-infra.outputs.api_url }} |`,
+              `| Web App | ${{ needs.deploy-infra.outputs.web_app_url }} |`,
+              `| Admin | ${{ needs.deploy-infra.outputs.admin_url }} |`,
+              '',
+              `_Supabase branch: ${{ needs.supabase-credentials.outputs.url }}_`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('### Preview Environment Ready')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

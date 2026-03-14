@@ -1,41 +1,10 @@
 # yaml-language-server: $schema=https://render.com/schema/render.yaml.json
 
 previews:
-  generation: automatic
+  generation: "off"
 
 services:
-  # Backend API Service
-  - type: web
-    name: arabic-voice-agent-api
-    env: python
-    region: oregon
-    buildCommand: pip install uv && uv sync
-    startCommand: uv run uvicorn main:app --host 0.0.0.0 --port $PORT
-    rootDir: web-api
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.13.7"
-      - fromGroup: arabic-voice-agent-dev
-    healthCheckPath: /health
-
-  # Frontend Web App Service
-  - type: web
-    name: arabic-voice-agent-web-app
-    runtime: static
-    buildCommand: npm ci && npm run build
-    staticPublishPath: ./dist
-    rootDir: web-app
-    envVars:
-      - key: NODE_VERSION
-        value: "20"
-      - key: VITE_API_URL
-        fromService:
-          name: arabic-voice-agent-api
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-      - fromGroup: arabic-voice-agent-dev
-
-  # Claude Agent Service (main branch only, no previews)
+  # Claude Agent Service (main branch only, stays on Render)
   - type: web
     name: arabic-voice-agent-claude-agent
     runtime: image
@@ -55,20 +24,3 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
     healthCheckPath: /health
-
-  # Admin Dashboard Service
-  - type: web
-    name: arabic-voice-agent-admin
-    runtime: static
-    buildCommand: npm ci && npm run build
-    staticPublishPath: ./dist
-    rootDir: admin-app
-    envVars:
-      - key: NODE_VERSION
-        value: "20"
-      - key: VITE_API_URL
-        fromService:
-          name: arabic-voice-agent-api
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-      - fromGroup: arabic-voice-agent-dev
