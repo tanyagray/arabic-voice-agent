@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  One-time bootstrap resources for Arabic Voice Agent preview deployments.
+  Bootstrap resources for Arabic Voice Agent AWS deployments (preview + production).
   Creates ECR repository and IAM roles. Expects an existing GitHub OIDC provider.
 
 Parameters:
@@ -103,8 +103,8 @@ Resources:
                   - apprunner:DescribeAutoScalingConfiguration
                 Resource: "*"
 
-              # S3 - manage preview static site buckets
-              - Sid: S3Preview
+              # S3 - manage preview and production static site buckets
+              - Sid: S3
                 Effect: Allow
                 Action:
                   - s3:CreateBucket
@@ -129,6 +129,8 @@ Resources:
                 Resource:
                   - "arn:aws:s3:::preview-*"
                   - "arn:aws:s3:::preview-*/*"
+                  - "arn:aws:s3:::prod-*"
+                  - "arn:aws:s3:::prod-*/*"
 
               # App Runner service-linked role (required on first use in account)
               - Sid: ServiceLinkedRole
@@ -161,7 +163,7 @@ Resources:
                   - cloudfront:UntagResource
                 Resource: "*"
 
-              # CloudFormation - manage preview stacks
+              # CloudFormation - manage preview and production stacks
               - Sid: CloudFormation
                 Effect: Allow
                 Action:
@@ -177,7 +179,9 @@ Resources:
                   - cloudformation:DescribeChangeSet
                   - cloudformation:ExecuteChangeSet
                   - cloudformation:DeleteChangeSet
-                Resource: !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/preview-pr-*/*"
+                Resource:
+                  - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/preview-pr-*/*"
+                  - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-prod/*"
 
               # IAM - pass roles to App Runner
               - Sid: PassRole
