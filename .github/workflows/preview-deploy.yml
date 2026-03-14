@@ -40,8 +40,8 @@ jobs:
     outputs:
       branch_ref: ${{ steps.supabase.outputs.branch_ref }}
       url: ${{ steps.supabase.outputs.url }}
-      anon_key: ${{ steps.supabase.outputs.anon_key }}
-      service_key: ${{ steps.supabase.outputs.service_key }}
+      anon_key_b64: ${{ steps.supabase.outputs.anon_key_b64 }}
+      service_key_b64: ${{ steps.supabase.outputs.service_key_b64 }}
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
     steps:
@@ -81,10 +81,11 @@ jobs:
           echo "::add-mask::$ANON_KEY"
           echo "::add-mask::$SERVICE_KEY"
 
+          # Base64-encode keys to prevent GitHub from stripping masked values in job outputs
           echo "branch_ref=$BRANCH_REF" >> "$GITHUB_OUTPUT"
           echo "url=$BRANCH_URL" >> "$GITHUB_OUTPUT"
-          echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
-          echo "service_key=$SERVICE_KEY" >> "$GITHUB_OUTPUT"
+          echo "anon_key_b64=$(echo -n "$ANON_KEY" | base64 -w0)" >> "$GITHUB_OUTPUT"
+          echo "service_key_b64=$(echo -n "$SERVICE_KEY" | base64 -w0)" >> "$GITHUB_OUTPUT"
 
   # ------------------------------------------------------------------
   # Job 3: Build and push API Docker image (runs in parallel with Jobs 1+2)
@@ -146,6 +147,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Decode Supabase credentials
+        id: supabase
+        run: |
+          ANON_KEY=$(echo -n "${{ needs.supabase-credentials.outputs.anon_key_b64 }}" | base64 -d)
+          SERVICE_KEY=$(echo -n "${{ needs.supabase-credentials.outputs.service_key_b64 }}" | base64 -d)
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_KEY"
+          echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
+          echo "service_key=$SERVICE_KEY" >> "$GITHUB_OUTPUT"
+
       - name: Deploy CloudFormation stack
         run: |
           aws cloudformation deploy \
@@ -157,8 +168,8 @@ jobs:
               EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
               AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
               SupabaseUrl="${{ needs.supabase-credentials.outputs.url }}" \
-              SupabaseAnonKey="${{ needs.supabase-credentials.outputs.anon_key }}" \
-              SupabaseServiceKey="${{ needs.supabase-credentials.outputs.service_key }}" \
+              SupabaseAnonKey="${{ steps.supabase.outputs.anon_key }}" \
+              SupabaseServiceKey="${{ steps.supabase.outputs.service_key }}" \
               OpenaiApiKey="${{ secrets.OPENAI_API_KEY }}" \
               SonioxApiKey="${{ secrets.SONIOX_API_KEY }}" \
               ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}"
@@ -211,13 +222,21 @@ jobs:
         with:
           version: latest
 
+      # Decode Supabase anon key for static site builds
+      - name: Decode Supabase credentials
+        id: supabase
+        run: |
+          ANON_KEY=$(echo -n "${{ needs.supabase-credentials.outputs.anon_key_b64 }}" | base64 -d)
+          echo "::add-mask::$ANON_KEY"
+          echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
+
       # Build and deploy web-app
       - name: Build web-app
         working-directory: web-app
         env:
           VITE_API_URL: ${{ needs.deploy-infra.outputs.api_url }}
           VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ needs.supabase-credentials.outputs.anon_key }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ steps.supabase.outputs.anon_key }}
         run: |
           npm ci
           npm run build
@@ -234,7 +253,7 @@ jobs:
         env:
           VITE_API_URL: ${{ needs.deploy-infra.outputs.api_url }}
           VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
-          VITE_SUPABASE_ANON_KEY: ${{ needs.supabase-credentials.outputs.anon_key }}
+          VITE_SUPABASE_ANON_KEY: ${{ steps.supabase.outputs.anon_key }}
         run: |
           npm ci
           npm run build
