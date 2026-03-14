@@ -159,6 +159,7 @@ Resources:
                   - cloudformation:DescribeStacks
                   - cloudformation:DescribeStackEvents
                   - cloudformation:GetTemplate
+                  - cloudformation:GetTemplateSummary
                   - cloudformation:ListStacks
                   - cloudformation:CreateChangeSet
                   - cloudformation:DescribeChangeSet
