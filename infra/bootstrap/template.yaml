@@ -19,11 +19,36 @@ Parameters:
     Description: ARN of the existing GitHub OIDC provider in this account
 
 Resources:
-  # --- ECR Repository ---
+  # --- ECR Repositories ---
   EcrRepository:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: arabic-voice-agent-api
+      ImageTagMutability: MUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Delete untagged images older than 7 days",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 7
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+
+  ClaudeAgentEcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: arabic-voice-agent-claude-agent
       ImageTagMutability: MUTABLE
       LifecyclePolicy:
         LifecyclePolicyText: |
@@ -84,7 +109,9 @@ Resources:
                   - ecr:UploadLayerPart
                   - ecr:CompleteLayerUpload
                   - ecr:BatchDeleteImage
-                Resource: !GetAtt EcrRepository.Arn
+                Resource:
+                  - !GetAtt EcrRepository.Arn
+                  - !GetAtt ClaudeAgentEcrRepository.Arn
 
               # App Runner - manage preview services
               - Sid: AppRunner
@@ -215,7 +242,9 @@ Resources:
                   - ecr:BatchCheckLayerAvailability
                   - ecr:GetDownloadUrlForLayer
                   - ecr:BatchGetImage
-                Resource: !GetAtt EcrRepository.Arn
+                Resource:
+                  - !GetAtt EcrRepository.Arn
+                  - !GetAtt ClaudeAgentEcrRepository.Arn
 
 Outputs:
   EcrRepositoryUri:
@@ -233,3 +262,11 @@ Outputs:
   AppRunnerEcrAccessRoleArn:
     Description: IAM role ARN for App Runner ECR access (set as GitHub secret APP_RUNNER_ECR_ROLE_ARN)
     Value: !GetAtt AppRunnerEcrAccessRole.Arn
+
+  ClaudeAgentEcrRepositoryUri:
+    Description: Claude agent ECR repository URI
+    Value: !GetAtt ClaudeAgentEcrRepository.RepositoryUri
+
+  ClaudeAgentEcrRepositoryArn:
+    Description: Claude agent ECR repository ARN
+    Value: !GetAtt ClaudeAgentEcrRepository.Arn
