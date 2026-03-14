@@ -86,7 +86,7 @@ jobs:
             aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME"
             STATUS="ROLLBACK_COMPLETE"
           fi
-          if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "DELETE_FAILED" ]; then
+          if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "DELETE_FAILED" ] || [ "$STATUS" = "REVIEW_IN_PROGRESS" ]; then
             echo "Stack $STACK_NAME is in $STATUS state, deleting before redeploy..."
             aws cloudformation delete-stack --stack-name "$STACK_NAME"
             aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
