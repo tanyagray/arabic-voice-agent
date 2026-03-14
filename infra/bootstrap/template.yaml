@@ -156,8 +156,8 @@ Resources:
                 Resource:
                   - "arn:aws:s3:::preview-*"
                   - "arn:aws:s3:::preview-*/*"
-                  - "arn:aws:s3:::prod-*"
-                  - "arn:aws:s3:::prod-*/*"
+                  - "arn:aws:s3:::arabic-voice-agent-prod-*"
+                  - "arn:aws:s3:::arabic-voice-agent-prod-*/*"
 
               # App Runner service-linked role (required on first use in account)
               - Sid: ServiceLinkedRole

@@ -181,7 +181,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
-      BucketName: prod-web-app
+      BucketName: arabic-voice-agent-prod-web-app
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerEnforced
@@ -260,7 +260,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
-      BucketName: prod-admin
+      BucketName: arabic-voice-agent-prod-admin
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerEnforced
