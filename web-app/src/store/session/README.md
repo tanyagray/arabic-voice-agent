@@ -1,6 +1,6 @@
 # Chat Data Module
 
-This module provides a complete chat interface for interacting with the Arabic Voice Agent backend.
+This module provides a complete chat interface for interacting with the mishmish.ai backend.
 
 ## Architecture
 

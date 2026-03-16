@@ -1,6 +1,6 @@
 # Setup Guide
 
-Complete guide to setting up the Arabic Voice Agent development environment.
+Complete guide to setting up the mishmish.ai development environment.
 
 ## Prerequisites
 

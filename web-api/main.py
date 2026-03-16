@@ -1,5 +1,5 @@
 """
-FastAPI application for Arabic Voice Agent backend.
+FastAPI application for mishmish.ai backend.
 
 This server provides API endpoints for session management, content delivery, and webhooks.
 """
@@ -24,8 +24,8 @@ load_dotenv(dotenv_path=env_path, override=True)
 
 
 app = FastAPI(
-    title="Arabic Voice Agent API",
-    description="Backend API for the Arabic Voice Agent application",
+    title="mishmish.ai API",
+    description="Backend API for the mishmish.ai application",
     version="1.0.0"
 )
 
@@ -51,7 +51,7 @@ app.include_router(admin_router)
 async def root():
     """Root endpoint."""
     return {
-        "service": "Arabic Voice Agent API",
+        "service": "mishmish.ai API",
         "status": "running",
         "version": "1.0.0"
     }
@@ -62,7 +62,7 @@ async def health():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "service": "Arabic Voice Agent API",
+        "service": "mishmish.ai API",
         "version": "1.0.0"
     }
 

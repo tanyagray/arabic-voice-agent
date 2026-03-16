@@ -20,7 +20,7 @@ export function Header() {
       <Container maxW="7xl" px={0}>
         <Flex justify="space-between" align="center">
           <Heading as="h1" size="md" fontWeight="bold" color="white">
-            Arabic Voice Agent
+            🍑 mishmish.ai
           </Heading>
           <Box>
             {isAnonymous ? (

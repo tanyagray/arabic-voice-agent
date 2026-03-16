@@ -108,7 +108,7 @@ const ResetPassword: React.FC = () => {
             color="white"
             mb={2}
           >
-            Arabic Voice Agent
+            🍑 mishmish.ai
           </Heading>
         </Box>
         <Box textAlign="center">
@@ -129,7 +129,7 @@ const ResetPassword: React.FC = () => {
             color="white"
             mb={2}
           >
-            Arabic Voice Agent
+            🍑 mishmish.ai
           </Heading>
         </Box>
         <VStack textAlign="center" gap={4}>
@@ -165,7 +165,7 @@ const ResetPassword: React.FC = () => {
             color="white"
             mb={2}
           >
-            Arabic Voice Agent
+            🍑 mishmish.ai
           </Heading>
         </Box>
         <VStack textAlign="center" gap={4}>
@@ -209,7 +209,7 @@ const ResetPassword: React.FC = () => {
       <Box textAlign="center" pt={6}>
         <Image
           src="/logo.svg"
-          alt="Arabic Voice Agent"
+          alt="🍑 mishmish.ai"
           h={32}
           mx="auto"
           mb={2}

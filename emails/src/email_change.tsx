@@ -27,13 +27,13 @@ export const EmailChangeEmail = ({
     <Body style={main}>
       <Container style={container}>
         <Section style={logoSection}>
-          <Heading style={logoHeading}>Arabic Voice Agent</Heading>
+          <Heading style={logoHeading}>mishmish.ai</Heading>
         </Section>
         
         <Heading style={heading}>Confirm Your Email Change</Heading>
         
         <Text style={paragraph}>
-          You've requested to change the email address associated with your Arabic Voice Agent account.
+          You've requested to change the email address associated with your mishmish.ai account.
         </Text>
         
         <Section style={emailAddresses}>
