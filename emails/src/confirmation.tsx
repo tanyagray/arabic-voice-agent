@@ -27,7 +27,7 @@ export const ConfirmationEmail = ({
         
         <Heading style={secondary}>
           Enter the following code<br />
-          to start using Arabic Voice Agent.
+          to start using mishmish.ai.
         </Heading>
         
         <Section style={codeContainer}>

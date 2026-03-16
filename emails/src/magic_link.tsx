@@ -25,7 +25,7 @@ export const MagicLinkEmail = ({
     <Body style={main}>
       <Container style={container}>
         <Section style={logoSection}>
-          <Heading style={logoHeading}>Arabic Voice Agent</Heading>
+          <Heading style={logoHeading}>mishmish.ai</Heading>
         </Section>
         
         <Heading style={heading}>Sign In to Your Account</Heading>
@@ -38,12 +38,12 @@ export const MagicLinkEmail = ({
         </Section>
         
         <Text style={paragraph}>
-          Click the button below to sign in to your Arabic Voice Agent account and continue your Arabic learning journey:
+          Click the button below to sign in to your mishmish.ai account and continue your Arabic learning journey:
         </Text>
         
         <Section style={buttonSection}>
           <Link href={confirmationUrl} style={button}>
-            Sign In to Arabic Voice Agent
+            Sign In to mishmish.ai
           </Link>
         </Section>
         

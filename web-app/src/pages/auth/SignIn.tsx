@@ -36,7 +36,7 @@ const SignIn: React.FC = () => {
           color="white"
           mb={2}
         >
-          Arabic Voice Agent
+          🍑 mishmish.ai
         </Heading>
       </Box>
       <form onSubmit={handleSubmit} style={{ width: '100%' }}>

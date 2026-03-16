@@ -1,6 +1,6 @@
-# Arabic Voice Agent - Marketing Website
+# mishmish.ai - Marketing Website
 
-A modern, single-page marketing website for the Arabic Voice Agent with voice conversation capabilities.
+A modern, single-page marketing website for the mishmish.ai with voice conversation capabilities.
 
 ## Features
 

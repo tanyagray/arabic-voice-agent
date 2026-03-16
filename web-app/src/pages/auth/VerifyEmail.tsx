@@ -143,7 +143,7 @@ const VerifyEmail: React.FC = () => {
           fontWeight="bold"
           color="white"
         >
-          Arabic Voice Agent
+          🍑 mishmish.ai
         </Heading>
         <VStack gap={6}>
           <Heading fontSize="2xl" color="white" fontWeight="bold">

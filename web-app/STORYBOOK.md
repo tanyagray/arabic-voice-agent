@@ -1,6 +1,6 @@
 # Storybook Documentation
 
-This document describes the Storybook setup for the Arabic Voice Agent web application.
+This document describes the Storybook setup for the mishmish.ai web application.
 
 ## Overview
 

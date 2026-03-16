@@ -23,21 +23,21 @@ export const InviteEmail = ({
     <Body style={main}>
       <Container style={container}>
         <Section style={logoSection}>
-          <Heading style={logoHeading}>Arabic Voice Agent</Heading>
+          <Heading style={logoHeading}>mishmish.ai</Heading>
         </Section>
         
         <Section style={invitationCard}>
           <Heading style={invitationHeading}>You're Invited!</Heading>
           <Text style={invitationText}>
-            Join Arabic Voice Agent and start your Arabic learning journey
+            Join mishmish.ai and start your Arabic learning journey
           </Text>
         </Section>
         
         <Text style={paragraph}>
-          Someone has invited you to join Arabic Voice Agent, an interactive platform for learning Arabic through conversation.
+          Someone has invited you to join mishmish.ai, an interactive platform for learning Arabic through conversation.
         </Text>
         
-        <Text style={paragraph}>With Arabic Voice Agent, you can:</Text>
+        <Text style={paragraph}>With mishmish.ai, you can:</Text>
         <ul style={list}>
           <li style={listItem}>Practice Arabic conversation with AI assistants</li>
           <li style={listItem}>Learn new vocabulary with interactive word highlights</li>
