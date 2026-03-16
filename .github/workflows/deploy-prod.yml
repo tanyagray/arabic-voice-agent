@@ -156,25 +156,25 @@ jobs:
 
           EXISTING=$(aws apprunner describe-custom-domains \
             --service-arn "$API_SERVICE_ARN" \
-            --query "CustomDomains[?DomainName=='api.arabizi.chat'].DomainName" \
+            --query "CustomDomains[?DomainName=='api.mishmish.ai'].DomainName" \
             --output text 2>/dev/null)
 
           if [ -z "$EXISTING" ]; then
-            echo "Associating api.arabizi.chat with App Runner..."
+            echo "Associating api.mishmish.ai with App Runner..."
             aws apprunner associate-custom-domain \
               --service-arn "$API_SERVICE_ARN" \
-              --domain-name "api.arabizi.chat"
+              --domain-name "api.mishmish.ai"
           else
-            echo "api.arabizi.chat is already associated"
+            echo "api.mishmish.ai is already associated"
           fi
 
-          # Print DNS records needed for api.arabizi.chat
+          # Print DNS records needed for api.mishmish.ai
           DOMAIN_INFO=$(aws apprunner describe-custom-domains \
             --service-arn "$API_SERVICE_ARN" \
-            --query "CustomDomains[?DomainName=='api.arabizi.chat']" \
+            --query "CustomDomains[?DomainName=='api.mishmish.ai']" \
             --output json 2>/dev/null)
 
-          echo "### api.arabizi.chat DNS records" >> "$GITHUB_STEP_SUMMARY"
+          echo "### api.mishmish.ai DNS records" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           echo "$DOMAIN_INFO" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -252,15 +252,15 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Service | Custom Domain | CloudFront/App Runner URL |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---------|---------------|--------------------------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| API | https://api.arabizi.chat | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API | https://api.mishmish.ai | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Claude Agent | — | ${{ needs.deploy-infra.outputs.claude_agent_url }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Web App | https://arabizi.chat | https://${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Admin | https://admin.arabizi.chat | https://${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Web App | https://mishmish.ai | https://${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Admin | https://admin.mishmish.ai | https://${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**DNS records required** (set these at your DNS provider):" >> "$GITHUB_STEP_SUMMARY"
           echo "| Record | Type | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|--------|------|-------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| arabizi.chat | ALIAS/ANAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| www.arabizi.chat | CNAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| admin.arabizi.chat | CNAME | ${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| api.arabizi.chat | CNAME | (see App Runner DNS records section above) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| mishmish.ai | ALIAS/ANAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| www.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| admin.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api.mishmish.ai | CNAME | (see App Runner DNS records section above) |" >> "$GITHUB_STEP_SUMMARY"
