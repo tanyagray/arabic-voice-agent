@@ -68,6 +68,8 @@ jobs:
       admin_bucket: ${{ steps.outputs.outputs.admin_bucket }}
       web_app_dist_id: ${{ steps.outputs.outputs.web_app_dist_id }}
       admin_dist_id: ${{ steps.outputs.outputs.admin_dist_id }}
+      web_app_cf_domain: ${{ steps.outputs.outputs.web_app_cf_domain }}
+      admin_cf_domain: ${{ steps.outputs.outputs.admin_cf_domain }}
     steps:
       - uses: actions/checkout@v4
 
@@ -106,6 +108,7 @@ jobs:
             --template-file infra/prod/template.yaml \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
+              AcmCertificateArn="${{ secrets.AWS_ACM_CERTIFICATE_ARN }}" \
               EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
               ClaudeAgentEcrImageUri="${{ steps.claude-agent-image.outputs.image_uri }}" \
               AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
@@ -137,6 +140,44 @@ jobs:
           echo "admin_bucket=$(get_output AdminBucketName)" >> "$GITHUB_OUTPUT"
           echo "web_app_dist_id=$(get_output WebAppDistributionId)" >> "$GITHUB_OUTPUT"
           echo "admin_dist_id=$(get_output AdminDistributionId)" >> "$GITHUB_OUTPUT"
+          echo "web_app_cf_domain=$(get_output WebAppCloudFrontDomain)" >> "$GITHUB_OUTPUT"
+          echo "admin_cf_domain=$(get_output AdminCloudFrontDomain)" >> "$GITHUB_OUTPUT"
+
+      - name: Associate App Runner custom domain
+        run: |
+          API_SERVICE_ARN=$(aws apprunner list-services \
+            --query "ServiceSummaryList[?ServiceName=='prod-api'].ServiceArn" \
+            --output text)
+
+          if [ -z "$API_SERVICE_ARN" ]; then
+            echo "Could not find prod-api service, skipping custom domain association"
+            exit 0
+          fi
+
+          EXISTING=$(aws apprunner describe-custom-domains \
+            --service-arn "$API_SERVICE_ARN" \
+            --query "CustomDomains[?DomainName=='api.arabizi.chat'].DomainName" \
+            --output text 2>/dev/null)
+
+          if [ -z "$EXISTING" ]; then
+            echo "Associating api.arabizi.chat with App Runner..."
+            aws apprunner associate-custom-domain \
+              --service-arn "$API_SERVICE_ARN" \
+              --domain-name "api.arabizi.chat"
+          else
+            echo "api.arabizi.chat is already associated"
+          fi
+
+          # Print DNS records needed for api.arabizi.chat
+          DOMAIN_INFO=$(aws apprunner describe-custom-domains \
+            --service-arn "$API_SERVICE_ARN" \
+            --query "CustomDomains[?DomainName=='api.arabizi.chat']" \
+            --output json 2>/dev/null)
+
+          echo "### api.arabizi.chat DNS records" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo "$DOMAIN_INFO" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   # ------------------------------------------------------------------
   # Job 3: Build static sites and upload to S3
@@ -165,7 +206,7 @@ jobs:
       - name: Build web-app
         working-directory: web-app
         env:
-          VITE_API_URL: ${{ needs.deploy-infra.outputs.api_url }}
+          VITE_API_URL: ${{ vars.API_URL || needs.deploy-infra.outputs.api_url }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
@@ -209,9 +250,17 @@ jobs:
         run: |
           echo "### Production Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Service | URL |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---------|-----|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| API | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Claude Agent | ${{ needs.deploy-infra.outputs.claude_agent_url }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Web App | ${{ needs.deploy-infra.outputs.web_app_url }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Admin | ${{ needs.deploy-infra.outputs.admin_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Service | Custom Domain | CloudFront/App Runner URL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|---------------|--------------------------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API | https://api.arabizi.chat | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Claude Agent | — | ${{ needs.deploy-infra.outputs.claude_agent_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Web App | https://arabizi.chat | https://${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Admin | https://admin.arabizi.chat | https://${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**DNS records required** (set these at your DNS provider):" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Record | Type | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| arabizi.chat | ALIAS/ANAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| www.arabizi.chat | CNAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| admin.arabizi.chat | CNAME | ${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api.arabizi.chat | CNAME | (see App Runner DNS records section above) |" >> "$GITHUB_STEP_SUMMARY"

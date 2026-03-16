@@ -4,6 +4,14 @@ Description: >
   Creates App Runner (API, Claude agent), S3 + CloudFront (web-app, admin-app).
 
 Parameters:
+  AcmCertificateArn:
+    Type: String
+    Default: ""
+    Description: >
+      ARN of an ACM certificate in us-east-1 covering arabizi.chat and *.arabizi.chat.
+      Required for custom domain aliases on CloudFront distributions.
+      Leave empty to use the default CloudFront certificate (no custom domain).
+
   EcrImageUri:
     Type: String
     Description: "Full ECR image URI for web-api"
@@ -67,6 +75,9 @@ Parameters:
     Type: String
     NoEcho: true
     Description: GitHub webhook secret for Claude agent
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref AcmCertificateArn, ""]]
 
 Resources:
   # ============================================================
@@ -228,6 +239,16 @@ Resources:
         Comment: Production - web-app
         DefaultRootObject: index.html
         PriceClass: PriceClass_100
+        Aliases: !If
+          - HasCustomDomain
+          - [arabizi.chat, www.arabizi.chat]
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref AcmCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
         Origins:
           - Id: S3Origin
             DomainName: !GetAtt WebAppBucket.RegionalDomainName
@@ -307,6 +328,16 @@ Resources:
         Comment: Production - admin
         DefaultRootObject: index.html
         PriceClass: PriceClass_100
+        Aliases: !If
+          - HasCustomDomain
+          - [admin.arabizi.chat]
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref AcmCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
         Origins:
           - Id: S3Origin
             DomainName: !GetAtt AdminBucket.RegionalDomainName
@@ -363,3 +394,13 @@ Outputs:
   AdminBucketName:
     Description: Admin S3 bucket name
     Value: !Ref AdminBucket
+
+  WebAppCloudFrontDomain:
+    Description: >
+      Web app CloudFront domain (point arabizi.chat and www.arabizi.chat here via ALIAS/CNAME)
+    Value: !GetAtt WebAppDistribution.DomainName
+
+  AdminCloudFrontDomain:
+    Description: >
+      Admin CloudFront domain (point admin.arabizi.chat here via CNAME)
+    Value: !GetAtt AdminDistribution.DomainName
