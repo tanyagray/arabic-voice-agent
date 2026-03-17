@@ -63,3 +63,17 @@ jobs:
           echo "- Source: \`$GHCR_IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Destination: \`$ECR_LATEST\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Tag: \`$TIMESTAMP\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Trigger App Runner redeployment
+        run: |
+          SERVICE_ARN=$(aws apprunner list-services \
+            --query "ServiceSummaryList[?ServiceName=='prod-claude-agent'].ServiceArn" \
+            --output text)
+
+          if [ -z "$SERVICE_ARN" ]; then
+            echo "Warning: prod-claude-agent App Runner service not found, skipping redeploy trigger"
+            exit 0
+          fi
+
+          aws apprunner start-deployment --service-arn "$SERVICE_ARN"
+          echo "- Redeployment triggered: \`$SERVICE_ARN\`" >> "$GITHUB_STEP_SUMMARY"
