@@ -1,0 +1,269 @@
+name: Deploy Production (AWS)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web-api/**"
+      - "web-app/**"
+      - "admin-app/**"
+      - "infra/prod/**"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-west-2
+
+jobs:
+  # ------------------------------------------------------------------
+  # Job 1: Build and push API Docker image
+  # ------------------------------------------------------------------
+  build-api-image:
+    name: Build API Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image_uri: ${{ steps.build.outputs.image_uri }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Build and push
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          SHA_SHORT: ${{ github.sha }}
+        run: |
+          SHA_TAG="${SHA_SHORT:0:7}"
+          IMAGE_URI="$ECR_REGISTRY/arabic-voice-agent-api:prod-$SHA_TAG"
+          docker build -f infra/preview/Dockerfile -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+  # ------------------------------------------------------------------
+  # Job 2: Deploy CloudFormation stack
+  # ------------------------------------------------------------------
+  deploy-infra:
+    name: Deploy production infrastructure
+    needs: build-api-image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: dev
+    outputs:
+      api_url: ${{ steps.outputs.outputs.api_url }}
+      claude_agent_url: ${{ steps.outputs.outputs.claude_agent_url }}
+      web_app_url: ${{ steps.outputs.outputs.web_app_url }}
+      admin_url: ${{ steps.outputs.outputs.admin_url }}
+      web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
+      admin_bucket: ${{ steps.outputs.outputs.admin_bucket }}
+      web_app_dist_id: ${{ steps.outputs.outputs.web_app_dist_id }}
+      admin_dist_id: ${{ steps.outputs.outputs.admin_dist_id }}
+      web_app_cf_domain: ${{ steps.outputs.outputs.web_app_cf_domain }}
+      admin_cf_domain: ${{ steps.outputs.outputs.admin_cf_domain }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Clean up failed stack if needed
+        run: |
+          STACK_NAME="arabic-voice-agent-prod"
+          STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+            --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+          if [ "$STATUS" = "ROLLBACK_IN_PROGRESS" ]; then
+            echo "Stack $STACK_NAME is rolling back, waiting..."
+            aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME"
+            STATUS="ROLLBACK_COMPLETE"
+          fi
+          if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "DELETE_FAILED" ] || [ "$STATUS" = "REVIEW_IN_PROGRESS" ]; then
+            echo "Stack $STACK_NAME is in $STATUS state, deleting before redeploy..."
+            aws cloudformation delete-stack --stack-name "$STACK_NAME"
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+          fi
+
+      - name: Get Claude agent ECR image URI
+        id: claude-agent-image
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          echo "image_uri=$ECR_REGISTRY/arabic-voice-agent-claude-agent:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name "arabic-voice-agent-prod" \
+            --template-file infra/prod/template.yaml \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              AcmCertificateArn="${{ secrets.AWS_ACM_CERTIFICATE_ARN }}" \
+              EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
+              ClaudeAgentEcrImageUri="${{ steps.claude-agent-image.outputs.image_uri }}" \
+              AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
+              SupabaseUrl="${{ secrets.SUPABASE_URL }}" \
+              SupabasePublishableKey="${{ secrets.SUPABASE_PUBLISHABLE_KEY }}" \
+              SupabaseSecretKey="${{ secrets.SUPABASE_SECRET_KEY }}" \
+              OpenaiApiKey="${{ secrets.OPENAI_API_KEY }}" \
+              SonioxApiKey="${{ secrets.SONIOX_API_KEY }}" \
+              ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}" \
+              AnthropicApiKey="${{ secrets.ANTHROPIC_API_KEY }}" \
+              GitHubToken="${{ secrets.CLAUDE_AGENT_GITHUB_TOKEN }}" \
+              GitHubWebhookSecret="${{ secrets.WEBHOOK_SECRET }}"
+
+      - name: Get stack outputs
+        id: outputs
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "arabic-voice-agent-prod" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+
+          echo "api_url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
+          echo "claude_agent_url=$(get_output ClaudeAgentUrl)" >> "$GITHUB_OUTPUT"
+          echo "web_app_url=$(get_output WebAppUrl)" >> "$GITHUB_OUTPUT"
+          echo "admin_url=$(get_output AdminUrl)" >> "$GITHUB_OUTPUT"
+          echo "web_app_bucket=$(get_output WebAppBucketName)" >> "$GITHUB_OUTPUT"
+          echo "admin_bucket=$(get_output AdminBucketName)" >> "$GITHUB_OUTPUT"
+          echo "web_app_dist_id=$(get_output WebAppDistributionId)" >> "$GITHUB_OUTPUT"
+          echo "admin_dist_id=$(get_output AdminDistributionId)" >> "$GITHUB_OUTPUT"
+          echo "web_app_cf_domain=$(get_output WebAppCloudFrontDomain)" >> "$GITHUB_OUTPUT"
+          echo "admin_cf_domain=$(get_output AdminCloudFrontDomain)" >> "$GITHUB_OUTPUT"
+
+      - name: Associate App Runner custom domain
+        run: |
+          API_SERVICE_ARN=$(aws apprunner list-services \
+            --query "ServiceSummaryList[?ServiceName=='prod-api'].ServiceArn" \
+            --output text)
+
+          if [ -z "$API_SERVICE_ARN" ]; then
+            echo "Could not find prod-api service, skipping custom domain association"
+            exit 0
+          fi
+
+          # Check all domains (any status) to detect pending associations from prior runs
+          EXISTING=$(aws apprunner describe-custom-domains \
+            --service-arn "$API_SERVICE_ARN" \
+            --output json 2>/dev/null \
+            | grep -o '"api\.mishmish\.ai"' || true)
+
+          if [ -z "$EXISTING" ]; then
+            echo "Associating api.mishmish.ai with App Runner..."
+            # Non-fatal: domain may already be in progress from a prior run
+            aws apprunner associate-custom-domain \
+              --service-arn "$API_SERVICE_ARN" \
+              --domain-name "api.mishmish.ai" \
+              || echo "Warning: domain association returned an error (may already be pending — check App Runner console)"
+          else
+            echo "api.mishmish.ai is already associated"
+          fi
+
+          # Print DNS records needed for api.mishmish.ai
+          DOMAIN_INFO=$(aws apprunner describe-custom-domains \
+            --service-arn "$API_SERVICE_ARN" \
+            --query "CustomDomains[?DomainName=='api.mishmish.ai']" \
+            --output json 2>/dev/null || echo "[]")
+
+          echo "### api.mishmish.ai DNS records" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo "$DOMAIN_INFO" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # ------------------------------------------------------------------
+  # Job 3: Build static sites and upload to S3
+  # ------------------------------------------------------------------
+  deploy-static-sites:
+    name: Deploy static sites
+    needs: deploy-infra
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Build and deploy web-app
+      - name: Build web-app
+        working-directory: web-app
+        env:
+          VITE_API_URL: ${{ vars.API_URL || needs.deploy-infra.outputs.api_url }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload web-app to S3
+        run: |
+          aws s3 sync web-app/dist/ \
+            "s3://${{ needs.deploy-infra.outputs.web_app_bucket }}/" \
+            --delete
+
+      # Build and deploy admin-app
+      - name: Build admin-app
+        working-directory: admin-app
+        env:
+          VITE_API_URL: ${{ needs.deploy-infra.outputs.api_url }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload admin-app to S3
+        run: |
+          aws s3 sync admin-app/dist/ \
+            "s3://${{ needs.deploy-infra.outputs.admin_bucket }}/" \
+            --delete
+
+      # Invalidate CloudFront caches
+      - name: Invalidate CloudFront caches
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ needs.deploy-infra.outputs.web_app_dist_id }}" \
+            --paths "/*"
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ needs.deploy-infra.outputs.admin_dist_id }}" \
+            --paths "/*"
+
+      - name: Print deployment URLs
+        run: |
+          echo "### Production Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Service | Custom Domain | CloudFront/App Runner URL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|---------------|--------------------------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API | https://api.mishmish.ai | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Claude Agent | — | ${{ needs.deploy-infra.outputs.claude_agent_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Web App | https://mishmish.ai | https://${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Admin | https://admin.mishmish.ai | https://${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**DNS records required** (set these at your DNS provider):" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Record | Type | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| mishmish.ai | ALIAS/ANAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| www.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| admin.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api.mishmish.ai | CNAME | (see App Runner DNS records section above) |" >> "$GITHUB_STEP_SUMMARY"
