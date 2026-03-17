@@ -106,6 +106,7 @@ jobs:
           aws cloudformation deploy \
             --stack-name "arabic-voice-agent-prod" \
             --template-file infra/prod/template.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               AcmCertificateArn="${{ secrets.AWS_ACM_CERTIFICATE_ARN }}" \
