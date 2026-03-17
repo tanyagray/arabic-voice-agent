@@ -118,9 +118,7 @@ jobs:
               OpenaiApiKey="${{ secrets.OPENAI_API_KEY }}" \
               SonioxApiKey="${{ secrets.SONIOX_API_KEY }}" \
               ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}" \
-              AnthropicApiKey="${{ secrets.ANTHROPIC_API_KEY }}" \
-              GitHubToken="${{ secrets.CLAUDE_AGENT_GITHUB_TOKEN }}" \
-              GitHubWebhookSecret="${{ secrets.WEBHOOK_SECRET }}"
+              ClaudeAgentSecretArn="${{ secrets.CLAUDE_AGENT_SECRET_ARN }}"
 
       - name: Get stack outputs
         id: outputs

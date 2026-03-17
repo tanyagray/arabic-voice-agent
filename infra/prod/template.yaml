@@ -56,25 +56,17 @@ Parameters:
     Description: ElevenLabs API key
 
   # --- Claude agent keys ---
-  AnthropicApiKey:
+  ClaudeAgentSecretArn:
     Type: String
-    NoEcho: true
-    Description: Anthropic API key for Claude agent
-
-  GitHubToken:
-    Type: String
-    NoEcho: true
-    Description: GitHub token for Claude agent
+    Description: >
+      ARN of the AWS Secrets Manager secret containing Claude agent secrets
+      (mishmish/prod/claude). Expected keys: ANTHROPIC_API_KEY, GITHUB_TOKEN,
+      GITHUB_WEBHOOK_SECRET.
 
   GitHubRepo:
     Type: String
     Default: tanyagray/arabic-voice-agent
-    Description: GitHub repository for Claude agent
-
-  GitHubWebhookSecret:
-    Type: String
-    NoEcho: true
-    Description: GitHub webhook secret for Claude agent
+    Description: GitHub repository for Claude agent (not a secret)
 
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref AcmCertificateArn, ""]]
@@ -139,6 +131,30 @@ Resources:
   # Claude Agent (App Runner)
   # ============================================================
 
+  # IAM role assumed by running agent containers — grants access to agent
+  # secrets only (not API secrets).
+  ClaudeAgentInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: prod-claude-agent-instance-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AgentSecretsAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: !Ref ClaudeAgentSecretArn
+
   ClaudeAgentAutoScalingConfig:
     Type: AWS::AppRunner::AutoScalingConfiguration
     Properties:
@@ -161,17 +177,19 @@ Resources:
           ImageConfiguration:
             Port: "8080"
             RuntimeEnvironmentVariables:
-              - Name: ANTHROPIC_API_KEY
-                Value: !Ref AnthropicApiKey
-              - Name: GITHUB_TOKEN
-                Value: !Ref GitHubToken
               - Name: GITHUB_REPO
                 Value: !Ref GitHubRepo
+            RuntimeEnvironmentSecrets:
+              - Name: ANTHROPIC_API_KEY
+                Value: !Sub "${ClaudeAgentSecretArn}:ANTHROPIC_API_KEY::"
+              - Name: GITHUB_TOKEN
+                Value: !Sub "${ClaudeAgentSecretArn}:GITHUB_TOKEN::"
               - Name: GITHUB_WEBHOOK_SECRET
-                Value: !Ref GitHubWebhookSecret
+                Value: !Sub "${ClaudeAgentSecretArn}:GITHUB_WEBHOOK_SECRET::"
       InstanceConfiguration:
         Cpu: "256"
         Memory: "512"
+        InstanceRoleArn: !GetAtt ClaudeAgentInstanceRole.Arn
       AutoScalingConfigurationArn: !GetAtt ClaudeAgentAutoScalingConfig.AutoScalingConfigurationArn
       HealthCheckConfiguration:
         Protocol: HTTP
