@@ -61,12 +61,7 @@ Parameters:
     Description: >
       ARN of the AWS Secrets Manager secret containing Claude agent secrets
       (mishmish/prod/claude). Expected keys: ANTHROPIC_API_KEY, GITHUB_TOKEN,
-      GITHUB_WEBHOOK_SECRET.
-
-  GitHubRepo:
-    Type: String
-    Default: tanyagray/arabic-voice-agent
-    Description: GitHub repository for Claude agent (not a secret)
+      GITHUB_WEBHOOK_SECRET, GITHUB_REPO.
 
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref AcmCertificateArn, ""]]
@@ -176,9 +171,6 @@ Resources:
           ImageRepositoryType: ECR
           ImageConfiguration:
             Port: "8080"
-            RuntimeEnvironmentVariables:
-              - Name: GITHUB_REPO
-                Value: !Ref GitHubRepo
             RuntimeEnvironmentSecrets:
               - Name: ANTHROPIC_API_KEY
                 Value: !Sub "${ClaudeAgentSecretArn}:ANTHROPIC_API_KEY::"
@@ -186,6 +178,8 @@ Resources:
                 Value: !Sub "${ClaudeAgentSecretArn}:GITHUB_TOKEN::"
               - Name: GITHUB_WEBHOOK_SECRET
                 Value: !Sub "${ClaudeAgentSecretArn}:GITHUB_WEBHOOK_SECRET::"
+              - Name: GITHUB_REPO
+                Value: !Sub "${ClaudeAgentSecretArn}:GITHUB_REPO::"
       InstanceConfiguration:
         Cpu: "256"
         Memory: "512"
