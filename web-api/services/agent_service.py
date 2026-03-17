@@ -7,6 +7,7 @@ from fastapi import WebSocket
 from agent.tutor.tutor_agent import agent
 from .context_service import get_context
 from .session_service import get_session
+from .telemetry import user_span
 from .websocket_service import Message, send_message, send_audio_message
 from .tts_service import get_tts_service
 from .transcript_service import create_transcript_message
@@ -35,8 +36,9 @@ async def generate_agent_response(session_id: str, user_message: str, user_acces
     # Look up the context
     context = get_context(session_id)
 
-    # Run the agent
-    result = await Runner.run(agent, user_message, session=session, context=context)
+    # Run the agent, tagged as a user request for telemetry
+    with user_span("user_chat"):
+        result = await Runner.run(agent, user_message, session=session, context=context)
 
     return result.final_output
 
@@ -82,14 +84,15 @@ async def generate_agent_followup(session_id: str, user_access_token: str | None
     # Create run config with the callback
     run_config = RunConfig(session_input_callback=session_input_callback)
 
-    # Run the agent with the system message as input
-    result = await Runner.run(
-        agent,
-        [system_message],
-        session=session,
-        context=context,
-        run_config=run_config
-    )
+    # Run the agent with the system message as input, tagged as a user request
+    with user_span("user_followup"):
+        result = await Runner.run(
+            agent,
+            [system_message],
+            session=session,
+            context=context,
+            run_config=run_config
+        )
 
     return result.final_output
 

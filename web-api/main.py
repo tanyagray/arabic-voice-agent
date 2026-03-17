@@ -16,12 +16,14 @@ from routes.realtime_pipecat import router as realtime_pipecat_router
 from routes.content import router as content_router
 from routes.webhooks import router as webhooks_router
 from routes.admin import router as admin_router
+from services.telemetry import setup_telemetry
 
 # Load environment variables from .env file in the same directory as this script
 # Use override=True to ensure this .env takes precedence over parent directory .env files
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path, override=True)
 
+setup_telemetry()
 
 app = FastAPI(
     title="mishmish.ai API",

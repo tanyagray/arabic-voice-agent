@@ -12,6 +12,7 @@ from services import session_service, context_service, scaffolding_service
 from services.agent_session import AgentSession
 from services.supabase_client import get_supabase_admin_client
 from services.context_service import create_context, get_context, delete_context
+from services.telemetry import admin_span
 from agent.tutor.tutor_agent import agent
 from agents import Runner
 
@@ -128,7 +129,8 @@ async def admin_chat(
         raise HTTPException(status_code=404, detail=f"Admin session not found: {session_id}")
 
     context = get_context(session_id)
-    result = await Runner.run(agent, request.message, session=session, context=context)
+    with admin_span("admin_chat"):
+        result = await Runner.run(agent, request.message, session=session, context=context)
 
     # Serialize new_items (messages, tool calls, etc.)
     messages: list[Any] = []
