@@ -1,18 +1,19 @@
 """Scaffolding service for generating learner-facing display text from canonical Arabic."""
 
-import os
 from openai import AsyncOpenAI
 from loguru import logger
+
+from .telemetry import get_wrapped_openai_client
 
 
 _client: AsyncOpenAI | None = None
 
 
 def _get_client() -> AsyncOpenAI:
-    """Get or create the OpenAI async client."""
+    """Get or create the OpenAI async client, wrapped for BrainTrust if telemetry is enabled."""
     global _client
     if _client is None:
-        _client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        _client = get_wrapped_openai_client()
     return _client
 
 

@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from pydantic import BaseModel, Field
 
 from services import session_service, agent_service, context_service, websocket_service, soniox_service, transcript_service, scaffolding_service
+from services.telemetry import make_span
 from dependencies.auth import get_current_user_token
 
 
@@ -132,10 +133,11 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
         print(f"[Session] Failed to save user message to database: {e}")
 
     # Step 1: Generate the agent response (full Arabic with harakaat)
-    canonical_response = await agent_service.generate_agent_response(session_id, request.message, access_token)
-
     # Step 2: Generate scaffolded display text (arabizi)
-    scaffolded_response = await scaffolding_service.generate_scaffolded_text(canonical_response)
+    # Both LLM calls are wrapped in a "user" span for BrainTrust telemetry filtering.
+    with make_span("user-chat", "user"):
+        canonical_response = await agent_service.generate_agent_response(session_id, request.message, access_token)
+        scaffolded_response = await scaffolding_service.generate_scaffolded_text(canonical_response)
 
     # Save the agent's response to the database with both versions
     try:

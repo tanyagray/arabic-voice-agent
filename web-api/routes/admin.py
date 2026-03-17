@@ -12,6 +12,7 @@ from services import session_service, context_service, scaffolding_service
 from services.agent_session import AgentSession
 from services.supabase_client import get_supabase_admin_client
 from services.context_service import create_context, get_context, delete_context
+from services.telemetry import make_span
 from agent.tutor.tutor_agent import agent
 from agents import Runner
 
@@ -128,44 +129,46 @@ async def admin_chat(
         raise HTTPException(status_code=404, detail=f"Admin session not found: {session_id}")
 
     context = get_context(session_id)
-    result = await Runner.run(agent, request.message, session=session, context=context)
+    # Wrap the full turn (agent call + scaffolding) in an "admin" span for BrainTrust filtering
+    with make_span("admin-chat", "admin"):
+        result = await Runner.run(agent, request.message, session=session, context=context)
 
-    # Serialize new_items (messages, tool calls, etc.)
-    messages: list[Any] = []
-    for item in result.new_items:
-        try:
-            messages.append(_safe_serialize(item.to_input_item()))
-        except Exception:
-            messages.append(repr(item))
+        # Serialize new_items (messages, tool calls, etc.)
+        messages: list[Any] = []
+        for item in result.new_items:
+            try:
+                messages.append(_safe_serialize(item.to_input_item()))
+            except Exception:
+                messages.append(repr(item))
 
-    # Serialize raw_responses (ModelResponse pydantic dataclasses)
-    raw_responses: list[Any] = []
-    for resp in result.raw_responses:
-        try:
-            raw_responses.append(_safe_serialize({
-                "response_id": resp.response_id,
-                "usage": {
-                    "input_tokens": resp.usage.input_tokens,
-                    "output_tokens": resp.usage.output_tokens,
-                    "total_tokens": resp.usage.total_tokens,
-                },
-                "output": [_safe_serialize(o.model_dump()) for o in resp.output],
-            }))
-        except Exception:
-            raw_responses.append(repr(resp))
+        # Serialize raw_responses (ModelResponse pydantic dataclasses)
+        raw_responses: list[Any] = []
+        for resp in result.raw_responses:
+            try:
+                raw_responses.append(_safe_serialize({
+                    "response_id": resp.response_id,
+                    "usage": {
+                        "input_tokens": resp.usage.input_tokens,
+                        "output_tokens": resp.usage.output_tokens,
+                        "total_tokens": resp.usage.total_tokens,
+                    },
+                    "output": [_safe_serialize(o.model_dump()) for o in resp.output],
+                }))
+            except Exception:
+                raw_responses.append(repr(resp))
 
-    # Aggregate total usage across all responses
-    usage: dict[str, Any] | None = None
-    if result.raw_responses:
-        usage = {
-            "input_tokens": sum(r.usage.input_tokens for r in result.raw_responses),
-            "output_tokens": sum(r.usage.output_tokens for r in result.raw_responses),
-            "total_tokens": sum(r.usage.total_tokens for r in result.raw_responses),
-        }
+        # Aggregate total usage across all responses
+        usage: dict[str, Any] | None = None
+        if result.raw_responses:
+            usage = {
+                "input_tokens": sum(r.usage.input_tokens for r in result.raw_responses),
+                "output_tokens": sum(r.usage.output_tokens for r in result.raw_responses),
+                "total_tokens": sum(r.usage.total_tokens for r in result.raw_responses),
+            }
 
-    # Generate scaffolded (arabizi) display text from the canonical Arabic response
-    canonical_text = result.final_output
-    scaffolded_text = await scaffolding_service.generate_scaffolded_text(canonical_text)
+        # Generate scaffolded (arabizi) display text from the canonical Arabic response
+        canonical_text = result.final_output
+        scaffolded_text = await scaffolding_service.generate_scaffolded_text(canonical_text)
 
     return ChatResponse(
         text=scaffolded_text,
