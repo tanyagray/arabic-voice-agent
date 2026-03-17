@@ -58,7 +58,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    environment: dev
+    environment: production
     outputs:
       api_url: ${{ steps.outputs.outputs.api_url }}
       claude_agent_url: ${{ steps.outputs.outputs.claude_agent_url }}
@@ -196,7 +196,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    environment: dev
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
