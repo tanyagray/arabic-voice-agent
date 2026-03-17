@@ -14,7 +14,8 @@ export interface TranscriptMessage {
   user_id: string;
   message_source: 'user' | 'tutor' | 'system';
   message_kind: string;
-  message_content: string;
+  message_text: string;
+  message_text_canonical?: string | null;
   created_at: string;
   updated_at: string;
 }

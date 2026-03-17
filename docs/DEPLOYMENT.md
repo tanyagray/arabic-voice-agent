@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Guide for deploying Arabic Voice Agent to production.
+Guide for deploying mishmish.ai to production.
 
 ## Overview
 
@@ -165,7 +165,7 @@ flutter build ios --release
 1. Go to https://appstoreconnect.apple.com
 2. My Apps → + → New App
 3. Fill in app information:
-   - Name: Arabic Voice Agent
+   - Name: mishmish.ai
    - Primary Language: English
    - Bundle ID: com.arabicvoice.arabicvoiceagent
    - SKU: unique identifier

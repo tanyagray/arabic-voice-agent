@@ -1,0 +1,65 @@
+name: Sync Claude Agent Image
+
+on:
+  # Run manually
+  workflow_dispatch:
+  # Check daily for new image versions
+  schedule:
+    - cron: "0 6 * * *"
+  # Allow external triggers (e.g., from GHCR webhook)
+  repository_dispatch:
+    types: [claude-agent-updated]
+
+env:
+  AWS_REGION: us-west-2
+  GHCR_IMAGE: ghcr.io/tanyagray/claude-agent:latest
+  ECR_REPO: arabic-voice-agent-claude-agent
+
+jobs:
+  sync-image:
+    name: Sync GHCR → ECR
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      packages: read
+    environment: dev
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Pull from GHCR, push to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Log in to GHCR
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          # Pull latest image from GHCR
+          docker pull "$GHCR_IMAGE"
+
+          # Get the image digest for tagging
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$GHCR_IMAGE" | cut -d@ -f2 | cut -c1-12)
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+          # Tag for ECR (both latest and timestamped for traceability)
+          ECR_LATEST="$ECR_REGISTRY/$ECR_REPO:latest"
+          ECR_TIMESTAMPED="$ECR_REGISTRY/$ECR_REPO:$TIMESTAMP"
+
+          docker tag "$GHCR_IMAGE" "$ECR_LATEST"
+          docker tag "$GHCR_IMAGE" "$ECR_TIMESTAMPED"
+
+          # Push to ECR (App Runner auto-deploy will pick up the new image)
+          docker push "$ECR_LATEST"
+          docker push "$ECR_TIMESTAMPED"
+
+          echo "### Claude Agent Image Synced" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Source: \`$GHCR_IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Destination: \`$ECR_LATEST\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag: \`$TIMESTAMP\`" >> "$GITHUB_STEP_SUMMARY"

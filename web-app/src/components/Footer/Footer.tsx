@@ -20,7 +20,7 @@ export function Footer() {
               color="transparent"
               mb={4}
             >
-              Arabic Voice Agent
+              🍑 mishmish.ai
             </Heading>
             <Text color="gray.400">
               Master Arabic through AI-powered conversations with support for multiple dialects and natural code-switching.
@@ -61,7 +61,7 @@ export function Footer() {
           gap={4}
         >
           <Text color="gray.400" fontSize="sm">
-            © {currentYear} Arabic Voice Agent. Built with ❤️ for Arabic learners.
+            © {currentYear} mishmish.ai. Built with ❤️ for Arabic learners.
           </Text>
           <Flex gap={6}>
             {["Privacy", "Terms", "GitHub"].map((item) => (

@@ -1,0 +1,406 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Production environment for Arabic Voice Agent.
+  Creates App Runner (API, Claude agent), S3 + CloudFront (web-app, admin-app).
+
+Parameters:
+  AcmCertificateArn:
+    Type: String
+    Default: ""
+    Description: >
+      ARN of an ACM certificate in us-east-1 covering mishmish.ai and *.mishmish.ai.
+      Required for custom domain aliases on CloudFront distributions.
+      Leave empty to use the default CloudFront certificate (no custom domain).
+
+  EcrImageUri:
+    Type: String
+    Description: "Full ECR image URI for web-api"
+
+  ClaudeAgentEcrImageUri:
+    Type: String
+    Description: "Full ECR image URI for claude-agent"
+
+  AppRunnerEcrRoleArn:
+    Type: String
+    Description: ARN of the IAM role that allows App Runner to pull from ECR
+
+  # --- Supabase (production, static secrets) ---
+  SupabaseUrl:
+    Type: String
+    Description: Supabase production URL
+
+  SupabasePublishableKey:
+    Type: String
+    NoEcho: true
+    Description: Supabase production publishable key
+
+  SupabaseSecretKey:
+    Type: String
+    NoEcho: true
+    Description: Supabase production secret key
+
+  # --- API keys ---
+  OpenaiApiKey:
+    Type: String
+    NoEcho: true
+    Description: OpenAI API key
+
+  SonioxApiKey:
+    Type: String
+    NoEcho: true
+    Description: Soniox API key
+
+  ElevenApiKey:
+    Type: String
+    NoEcho: true
+    Description: ElevenLabs API key
+
+  # --- Claude agent keys ---
+  AnthropicApiKey:
+    Type: String
+    NoEcho: true
+    Description: Anthropic API key for Claude agent
+
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub token for Claude agent
+
+  GitHubRepo:
+    Type: String
+    Default: tanyagray/arabic-voice-agent
+    Description: GitHub repository for Claude agent
+
+  GitHubWebhookSecret:
+    Type: String
+    NoEcho: true
+    Description: GitHub webhook secret for Claude agent
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref AcmCertificateArn, ""]]
+
+Resources:
+  # ============================================================
+  # API Service (App Runner)
+  # ============================================================
+
+  ApiAutoScalingConfig:
+    Type: AWS::AppRunner::AutoScalingConfiguration
+    Properties:
+      AutoScalingConfigurationName: prod-api
+      MaxConcurrency: 100
+      MinSize: 1
+      MaxSize: 4
+
+  ApiService:
+    Type: AWS::AppRunner::Service
+    Properties:
+      ServiceName: prod-api
+      SourceConfiguration:
+        AuthenticationConfiguration:
+          AccessRoleArn: !Ref AppRunnerEcrRoleArn
+        AutoDeploymentsEnabled: false
+        ImageRepository:
+          ImageIdentifier: !Ref EcrImageUri
+          ImageRepositoryType: ECR
+          ImageConfiguration:
+            Port: "8000"
+            RuntimeEnvironmentVariables:
+              - Name: SUPABASE_URL
+                Value: !Ref SupabaseUrl
+              - Name: SUPABASE_PUBLISHABLE_KEY
+                Value: !Ref SupabasePublishableKey
+              - Name: SUPABASE_SECRET_KEY
+                Value: !Ref SupabaseSecretKey
+              - Name: OPENAI_API_KEY
+                Value: !Ref OpenaiApiKey
+              - Name: SONIOX_API_KEY
+                Value: !Ref SonioxApiKey
+              - Name: ELEVEN_API_KEY
+                Value: !Ref ElevenApiKey
+              - Name: PORT
+                Value: "8000"
+      InstanceConfiguration:
+        Cpu: "1024"
+        Memory: "2048"
+      AutoScalingConfigurationArn: !GetAtt ApiAutoScalingConfig.AutoScalingConfigurationArn
+      HealthCheckConfiguration:
+        Protocol: HTTP
+        Path: /health
+        Interval: 10
+        Timeout: 5
+        HealthyThreshold: 1
+        UnhealthyThreshold: 5
+      Tags:
+        - Key: Environment
+          Value: production
+
+  # ============================================================
+  # Claude Agent (App Runner)
+  # ============================================================
+
+  ClaudeAgentAutoScalingConfig:
+    Type: AWS::AppRunner::AutoScalingConfiguration
+    Properties:
+      AutoScalingConfigurationName: prod-claude-agent
+      MaxConcurrency: 10
+      MinSize: 1
+      MaxSize: 1
+
+  ClaudeAgentService:
+    Type: AWS::AppRunner::Service
+    Properties:
+      ServiceName: prod-claude-agent
+      SourceConfiguration:
+        AuthenticationConfiguration:
+          AccessRoleArn: !Ref AppRunnerEcrRoleArn
+        AutoDeploymentsEnabled: true
+        ImageRepository:
+          ImageIdentifier: !Ref ClaudeAgentEcrImageUri
+          ImageRepositoryType: ECR
+          ImageConfiguration:
+            Port: "8080"
+            RuntimeEnvironmentVariables:
+              - Name: ANTHROPIC_API_KEY
+                Value: !Ref AnthropicApiKey
+              - Name: GITHUB_TOKEN
+                Value: !Ref GitHubToken
+              - Name: GITHUB_REPO
+                Value: !Ref GitHubRepo
+              - Name: GITHUB_WEBHOOK_SECRET
+                Value: !Ref GitHubWebhookSecret
+      InstanceConfiguration:
+        Cpu: "256"
+        Memory: "512"
+      AutoScalingConfigurationArn: !GetAtt ClaudeAgentAutoScalingConfig.AutoScalingConfigurationArn
+      HealthCheckConfiguration:
+        Protocol: HTTP
+        Path: /health
+        Interval: 10
+        Timeout: 5
+        HealthyThreshold: 1
+        UnhealthyThreshold: 5
+      Tags:
+        - Key: Environment
+          Value: production
+
+  # ============================================================
+  # Web App (S3 + CloudFront)
+  # ============================================================
+
+  WebAppBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: arabic-voice-agent-prod-web-app
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: production
+
+  WebAppBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebAppBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${WebAppBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${WebAppDistribution}"
+
+  WebAppOac:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: prod-web-app
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  WebAppDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Production - web-app
+        DefaultRootObject: index.html
+        PriceClass: PriceClass_100
+        Aliases: !If
+          - HasCustomDomain
+          - [mishmish.ai, www.mishmish.ai]
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref AcmCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt WebAppBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt WebAppOac.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          Compress: true
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+      Tags:
+        - Key: Environment
+          Value: production
+
+  # ============================================================
+  # Admin App (S3 + CloudFront)
+  # ============================================================
+
+  AdminBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: arabic-voice-agent-prod-admin
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: production
+
+  AdminBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AdminBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${AdminBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AdminDistribution}"
+
+  AdminOac:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: prod-admin
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  AdminDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Production - admin
+        DefaultRootObject: index.html
+        PriceClass: PriceClass_100
+        Aliases: !If
+          - HasCustomDomain
+          - [admin.mishmish.ai]
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref AcmCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt AdminBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt AdminOac.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          Compress: true
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+      Tags:
+        - Key: Environment
+          Value: production
+
+Outputs:
+  ApiUrl:
+    Description: App Runner API URL
+    Value: !Sub "https://${ApiService.ServiceUrl}"
+
+  ClaudeAgentUrl:
+    Description: Claude agent App Runner URL (set as GitHub webhook URL)
+    Value: !Sub "https://${ClaudeAgentService.ServiceUrl}"
+
+  WebAppUrl:
+    Description: Web app CloudFront URL
+    Value: !Sub "https://${WebAppDistribution.DomainName}"
+
+  WebAppDistributionId:
+    Description: Web app CloudFront distribution ID (for cache invalidation)
+    Value: !Ref WebAppDistribution
+
+  AdminUrl:
+    Description: Admin app CloudFront URL
+    Value: !Sub "https://${AdminDistribution.DomainName}"
+
+  AdminDistributionId:
+    Description: Admin CloudFront distribution ID (for cache invalidation)
+    Value: !Ref AdminDistribution
+
+  WebAppBucketName:
+    Description: Web app S3 bucket name
+    Value: !Ref WebAppBucket
+
+  AdminBucketName:
+    Description: Admin S3 bucket name
+    Value: !Ref AdminBucket
+
+  WebAppCloudFrontDomain:
+    Description: >
+      Web app CloudFront domain (point mishmish.ai and www.mishmish.ai here via ALIAS/CNAME)
+    Value: !GetAtt WebAppDistribution.DomainName
+
+  AdminCloudFrontDomain:
+    Description: >
+      Admin CloudFront domain (point admin.mishmish.ai here via CNAME)
+    Value: !GetAtt AdminDistribution.DomainName

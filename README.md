@@ -1,4 +1,4 @@
-# Arabic Voice Agent
+# mishmish.ai
 
 A multilingual voice and text chat application for Arabic language learning, supporting Modern Standard Arabic, Iraqi, and Egyptian dialects with seamless English code-switching.
 

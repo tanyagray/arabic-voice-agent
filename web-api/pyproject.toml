@@ -1,7 +1,7 @@
 [project]
 name = "web-api"
 version = "0.1.0"
-description = "Arabic Voice Agent backend API"
+description = "mishmish.ai backend API"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.115.5",

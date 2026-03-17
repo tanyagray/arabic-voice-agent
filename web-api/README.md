@@ -1,6 +1,6 @@
-# Arabic Voice Agent
+# mishmish.ai
 
-A FastAPI-based backend server for the Arabic Voice Agent application.
+A FastAPI-based backend server for the mishmish.ai application.
 
 ## Features
 

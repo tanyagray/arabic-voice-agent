@@ -1,6 +1,6 @@
 # Chat Data Module
 
-This module provides a complete chat interface for interacting with the Arabic Voice Agent backend.
+This module provides a complete chat interface for interacting with the mishmish.ai backend.
 
 ## Architecture
 
@@ -68,7 +68,7 @@ function ChatComponent() {
           <div className="messages">
             {messages.map((msg) => (
               <div key={msg.message_id} className={msg.message_source}>
-                <strong>{msg.message_source}:</strong> {msg.message_content}
+                <strong>{msg.message_source}:</strong> {msg.message_text}
               </div>
             ))}
           </div>
@@ -157,7 +157,8 @@ interface TranscriptMessage {
   user_id: string;
   message_source: 'user' | 'tutor' | 'system';
   message_kind: string;
-  message_content: string;
+  message_text: string;
+  message_text_canonical?: string | null;
   created_at: string;
   updated_at: string;
 }

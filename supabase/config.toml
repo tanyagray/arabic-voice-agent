@@ -194,27 +194,27 @@ port = 587
 user = "resend"
 pass = "env(RESEND_API_KEY)"
 admin_email = "noreply@transactional.arabizi.chat"
-sender_name = "Arabic Voice Agent"
+sender_name = "mishmish.ai"
 
 # Email template configurations
 [auth.email.template.invite]
-subject = "You're invited to join Arabic Voice Agent"
+subject = "You're invited to join mishmish.ai"
 content_path = "./supabase/email-templates/invite.html"
 
 [auth.email.template.confirmation]
-subject = "Welcome to Arabic Voice Agent - Please confirm your email"
+subject = "Welcome to mishmish.ai - Please confirm your email"
 content_path = "./supabase/email-templates/confirmation.html"
 
 [auth.email.template.recovery]
-subject = "Reset your Arabic Voice Agent password"
+subject = "Reset your mishmish.ai password"
 content_path = "./supabase/email-templates/recovery.html"
 
 [auth.email.template.magic_link]
-subject = "Sign in to Arabic Voice Agent - Magic Link"
+subject = "Sign in to mishmish.ai - Magic Link"
 content_path = "./supabase/email-templates/magic_link.html"
 
 [auth.email.template.email_change]
-subject = "Confirm your email change - Arabic Voice Agent"
+subject = "Confirm your email change - mishmish.ai"
 content_path = "./supabase/email-templates/email_change.html"
 
 # Uncomment to customize notification email template

@@ -1,6 +1,6 @@
 # Architecture Overview
 
-System architecture for the Arabic Voice Agent application.
+System architecture for the mishmish.ai application.
 
 ## System Diagram
 

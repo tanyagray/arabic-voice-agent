@@ -1,6 +1,6 @@
 # Web API Tests
 
-This directory contains unit and integration tests for the Arabic Voice Agent web API.
+This directory contains unit and integration tests for the mishmish.ai web API.
 
 ## Setup
 

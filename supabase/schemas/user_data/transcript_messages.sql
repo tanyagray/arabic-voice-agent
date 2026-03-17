@@ -4,9 +4,10 @@ create table public.transcript_messages (
   user_id uuid not null references auth.users(id) on delete cascade,
   message_source text not null,
   message_kind text not null,
-  message_content text not null,
+  message_text text not null,
   created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now()
+  updated_at timestamp with time zone not null default now(),
+  message_text_canonical text
 );
 
 -- Create index on session_id for faster lookups

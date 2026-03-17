@@ -64,7 +64,7 @@ class TTSTranscriptProcessor(FrameProcessor):
                         session_id=self._session_id,
                         message_source="tutor",
                         message_kind="transcript",
-                        message_content=sentence_text,
+                        message_text=sentence_text,
                     )
                 except Exception as e:
                     logger.error(f"Failed to persist TTS transcript: {e}")
@@ -216,7 +216,7 @@ async def run_pipecat_agent(
                 session_id=session_id,
                 message_source="user",
                 message_kind="transcript",
-                message_content=message.content,
+                message_text=message.content,
             )
         except Exception as e:
             logger.error(f"Failed to persist user transcript: {e}")
