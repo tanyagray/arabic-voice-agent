@@ -99,16 +99,12 @@ jobs:
             --stack-name "arabic-voice-agent-prod" \
             --template-file infra/prod/template.yaml \
             --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               AcmCertificateArn="${{ secrets.AWS_ACM_CERTIFICATE_ARN }}" \
               EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
               AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
-              SupabaseUrl="${{ secrets.SUPABASE_URL }}" \
-              SupabasePublishableKey="${{ secrets.SUPABASE_PUBLISHABLE_KEY }}" \
-              SupabaseSecretKey="${{ secrets.SUPABASE_SECRET_KEY }}" \
-              OpenaiApiKey="${{ secrets.OPENAI_API_KEY }}" \
-              SonioxApiKey="${{ secrets.SONIOX_API_KEY }}" \
-              ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}"
+              ApiSecretArn="${{ secrets.API_SECRET_ARN }}"
 
       - name: Get stack outputs
         id: outputs

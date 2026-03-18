@@ -179,6 +179,7 @@ jobs:
             --stack-name "preview-pr-${{ github.event.pull_request.number }}" \
             --template-file infra/preview/template.yaml \
             --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               PrNumber="${{ github.event.pull_request.number }}" \
               EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
@@ -186,9 +187,7 @@ jobs:
               SupabaseUrl="${{ needs.supabase-credentials.outputs.url }}" \
               SupabaseAnonKey="${{ steps.supabase.outputs.anon_key }}" \
               SupabaseServiceKey="${{ steps.supabase.outputs.service_key }}" \
-              OpenaiApiKey="${{ secrets.OPENAI_API_KEY }}" \
-              SonioxApiKey="${{ secrets.SONIOX_API_KEY }}" \
-              ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}"
+              ApiSecretArn="${{ secrets.PREVIEW_API_SECRET_ARN }}"
 
       - name: Get stack outputs
         id: outputs

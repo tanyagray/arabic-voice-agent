@@ -21,41 +21,43 @@ Parameters:
     Type: String
     Description: ARN of the IAM role that allows App Runner to pull from ECR
 
-  # --- Supabase (production, static secrets) ---
-  SupabaseUrl:
+  ApiSecretArn:
     Type: String
-    Description: Supabase production URL
-
-  SupabasePublishableKey:
-    Type: String
-    NoEcho: true
-    Description: Supabase production publishable key
-
-  SupabaseSecretKey:
-    Type: String
-    NoEcho: true
-    Description: Supabase production secret key
-
-  # --- API keys ---
-  OpenaiApiKey:
-    Type: String
-    NoEcho: true
-    Description: OpenAI API key
-
-  SonioxApiKey:
-    Type: String
-    NoEcho: true
-    Description: Soniox API key
-
-  ElevenApiKey:
-    Type: String
-    NoEcho: true
-    Description: ElevenLabs API key
+    Description: >
+      ARN of the AWS Secrets Manager secret containing API secrets
+      (mishmish/prod/api). Expected keys: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY,
+      SUPABASE_SECRET_KEY, OPENAI_API_KEY, SONIOX_API_KEY, ELEVEN_API_KEY.
 
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref AcmCertificateArn, ""]]
 
 Resources:
+  # ============================================================
+  # API Service — Instance Role (Secrets Manager access)
+  # ============================================================
+
+  ApiInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: prod-api-instance-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ApiSecretsAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: !Ref ApiSecretArn
+
   # ============================================================
   # API Service (App Runner)
   # ============================================================
@@ -82,23 +84,25 @@ Resources:
           ImageConfiguration:
             Port: "8000"
             RuntimeEnvironmentVariables:
-              - Name: SUPABASE_URL
-                Value: !Ref SupabaseUrl
-              - Name: SUPABASE_PUBLISHABLE_KEY
-                Value: !Ref SupabasePublishableKey
-              - Name: SUPABASE_SECRET_KEY
-                Value: !Ref SupabaseSecretKey
-              - Name: OPENAI_API_KEY
-                Value: !Ref OpenaiApiKey
-              - Name: SONIOX_API_KEY
-                Value: !Ref SonioxApiKey
-              - Name: ELEVEN_API_KEY
-                Value: !Ref ElevenApiKey
               - Name: PORT
                 Value: "8000"
+            RuntimeEnvironmentSecrets:
+              - Name: SUPABASE_URL
+                Value: !Sub "${ApiSecretArn}:SUPABASE_URL::"
+              - Name: SUPABASE_PUBLISHABLE_KEY
+                Value: !Sub "${ApiSecretArn}:SUPABASE_PUBLISHABLE_KEY::"
+              - Name: SUPABASE_SECRET_KEY
+                Value: !Sub "${ApiSecretArn}:SUPABASE_SECRET_KEY::"
+              - Name: OPENAI_API_KEY
+                Value: !Sub "${ApiSecretArn}:OPENAI_API_KEY::"
+              - Name: SONIOX_API_KEY
+                Value: !Sub "${ApiSecretArn}:SONIOX_API_KEY::"
+              - Name: ELEVEN_API_KEY
+                Value: !Sub "${ApiSecretArn}:ELEVEN_API_KEY::"
       InstanceConfiguration:
         Cpu: "1024"
         Memory: "2048"
+        InstanceRoleArn: !GetAtt ApiInstanceRole.Arn
       AutoScalingConfigurationArn: !GetAtt ApiAutoScalingConfig.AutoScalingConfigurationArn
       HealthCheckConfiguration:
         Protocol: HTTP

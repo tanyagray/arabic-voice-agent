@@ -31,23 +31,41 @@ Parameters:
     NoEcho: true
     Description: Supabase branch service role key
 
-  # --- API keys (from GitHub secrets) ---
-  OpenaiApiKey:
+  # --- API secrets (from AWS Secrets Manager) ---
+  ApiSecretArn:
     Type: String
-    NoEcho: true
-    Description: OpenAI API key
-
-  SonioxApiKey:
-    Type: String
-    NoEcho: true
-    Description: Soniox API key
-
-  ElevenApiKey:
-    Type: String
-    NoEcho: true
-    Description: ElevenLabs API key
+    Description: >
+      ARN of the AWS Secrets Manager secret containing API secrets
+      (mishmish/preview/api). Expected keys: OPENAI_API_KEY, SONIOX_API_KEY,
+      ELEVEN_API_KEY.
 
 Resources:
+  # ============================================================
+  # API Service — Instance Role (Secrets Manager access)
+  # ============================================================
+
+  ApiInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "preview-api-pr-${PrNumber}-instance-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ApiSecretsAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: !Ref ApiSecretArn
+
   # ============================================================
   # API Service (App Runner)
   # ============================================================
@@ -80,17 +98,19 @@ Resources:
                 Value: !Ref SupabaseAnonKey
               - Name: SUPABASE_SECRET_KEY
                 Value: !Ref SupabaseServiceKey
-              - Name: OPENAI_API_KEY
-                Value: !Ref OpenaiApiKey
-              - Name: SONIOX_API_KEY
-                Value: !Ref SonioxApiKey
-              - Name: ELEVEN_API_KEY
-                Value: !Ref ElevenApiKey
               - Name: PORT
                 Value: "8000"
+            RuntimeEnvironmentSecrets:
+              - Name: OPENAI_API_KEY
+                Value: !Sub "${ApiSecretArn}:OPENAI_API_KEY::"
+              - Name: SONIOX_API_KEY
+                Value: !Sub "${ApiSecretArn}:SONIOX_API_KEY::"
+              - Name: ELEVEN_API_KEY
+                Value: !Sub "${ApiSecretArn}:ELEVEN_API_KEY::"
       InstanceConfiguration:
         Cpu: "1024"
         Memory: "2048"
+        InstanceRoleArn: !GetAtt ApiInstanceRole.Arn
       AutoScalingConfigurationArn: !GetAtt ApiAutoScalingConfig.AutoScalingConfigurationArn
       HealthCheckConfiguration:
         Protocol: HTTP
