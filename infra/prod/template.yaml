@@ -17,9 +17,23 @@ Parameters:
     Type: String
     Description: "Full ECR image URI for web-api"
 
-  AppRunnerEcrRoleArn:
+  VpcId:
     Type: String
-    Description: ARN of the IAM role that allows App Runner to pull from ECR
+    Description: VPC ID (from bootstrap stack output VpcId)
+
+  SubnetIds:
+    Type: CommaDelimitedList
+    Description: Comma-separated public subnet IDs (from bootstrap stack output SubnetIds)
+
+  EcsTaskExecutionRoleArn:
+    Type: String
+    Description: ECS task execution role ARN (from bootstrap stack output EcsTaskExecutionRoleArn)
+
+  ApiAcmCertificateArn:
+    Type: String
+    Description: >
+      ACM certificate ARN in us-west-2 covering api.mishmish.ai.
+      Required for HTTPS on the API load balancer.
 
   ApiSecretArn:
     Type: String
@@ -45,7 +59,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: tasks.apprunner.amazonaws.com
+              Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
       Policies:
         - PolicyName: ApiSecretsAccess
@@ -59,58 +73,179 @@ Resources:
                 Resource: !Ref ApiSecretArn
 
   # ============================================================
-  # API Service (App Runner)
+  # API Service (ECS Fargate + ALB)
+  # App Runner does not support WebSocket connections; ALB does.
   # ============================================================
 
-  ApiAutoScalingConfig:
-    Type: AWS::AppRunner::AutoScalingConfiguration
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
     Properties:
-      AutoScalingConfigurationName: prod-api
-      MaxConcurrency: 100
-      MinSize: 1
-      MaxSize: 4
+      GroupDescription: Allow HTTP/HTTPS inbound to API ALB
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Environment
+          Value: production
 
-  ApiService:
-    Type: AWS::AppRunner::Service
+  ApiContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow traffic from ALB to API containers on port 8000
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Environment
+          Value: production
+
+  ApiAlb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: prod-api
+      Scheme: internet-facing
+      Type: application
+      Subnets: !Ref SubnetIds
+      SecurityGroups:
+        - !Ref AlbSecurityGroup
+      Tags:
+        - Key: Environment
+          Value: production
+
+  ApiTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: prod-api
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: 8000
+      TargetType: ip
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      Tags:
+        - Key: Environment
+          Value: production
+
+  ApiAlbListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApiAlb
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref ApiAcmCertificateArn
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ApiTargetGroup
+
+  ApiHttpRedirectListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApiAlb
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: "443"
+            StatusCode: HTTP_301
+
+  ApiCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: prod-api
+      Tags:
+        - Key: Environment
+          Value: production
+
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/prod-api
+      RetentionInDays: 14
+
+  ApiTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: prod-api
+      Cpu: "1024"
+      Memory: "2048"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !Ref EcsTaskExecutionRoleArn
+      TaskRoleArn: !GetAtt ApiInstanceRole.Arn
+      ContainerDefinitions:
+        - Name: api
+          Image: !Ref EcrImageUri
+          PortMappings:
+            - ContainerPort: 8000
+          Environment:
+            - Name: PORT
+              Value: "8000"
+          Secrets:
+            - Name: SUPABASE_URL
+              ValueFrom: !Sub "${ApiSecretArn}:SUPABASE_URL::"
+            - Name: SUPABASE_PUBLISHABLE_KEY
+              ValueFrom: !Sub "${ApiSecretArn}:SUPABASE_PUBLISHABLE_KEY::"
+            - Name: SUPABASE_SECRET_KEY
+              ValueFrom: !Sub "${ApiSecretArn}:SUPABASE_SECRET_KEY::"
+            - Name: OPENAI_API_KEY
+              ValueFrom: !Sub "${ApiSecretArn}:OPENAI_API_KEY::"
+            - Name: SONIOX_API_KEY
+              ValueFrom: !Sub "${ApiSecretArn}:SONIOX_API_KEY::"
+            - Name: ELEVEN_API_KEY
+              ValueFrom: !Sub "${ApiSecretArn}:ELEVEN_API_KEY::"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/prod-api
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: api
+      Tags:
+        - Key: Environment
+          Value: production
+
+  ApiEcsService:
+    Type: AWS::ECS::Service
+    DependsOn: ApiAlbListener
     Properties:
       ServiceName: prod-api
-      SourceConfiguration:
-        AuthenticationConfiguration:
-          AccessRoleArn: !Ref AppRunnerEcrRoleArn
-        AutoDeploymentsEnabled: false
-        ImageRepository:
-          ImageIdentifier: !Ref EcrImageUri
-          ImageRepositoryType: ECR
-          ImageConfiguration:
-            Port: "8000"
-            RuntimeEnvironmentVariables:
-              - Name: PORT
-                Value: "8000"
-            RuntimeEnvironmentSecrets:
-              - Name: SUPABASE_URL
-                Value: !Sub "${ApiSecretArn}:SUPABASE_URL::"
-              - Name: SUPABASE_PUBLISHABLE_KEY
-                Value: !Sub "${ApiSecretArn}:SUPABASE_PUBLISHABLE_KEY::"
-              - Name: SUPABASE_SECRET_KEY
-                Value: !Sub "${ApiSecretArn}:SUPABASE_SECRET_KEY::"
-              - Name: OPENAI_API_KEY
-                Value: !Sub "${ApiSecretArn}:OPENAI_API_KEY::"
-              - Name: SONIOX_API_KEY
-                Value: !Sub "${ApiSecretArn}:SONIOX_API_KEY::"
-              - Name: ELEVEN_API_KEY
-                Value: !Sub "${ApiSecretArn}:ELEVEN_API_KEY::"
-      InstanceConfiguration:
-        Cpu: "1024"
-        Memory: "2048"
-        InstanceRoleArn: !GetAtt ApiInstanceRole.Arn
-      AutoScalingConfigurationArn: !GetAtt ApiAutoScalingConfig.AutoScalingConfigurationArn
-      HealthCheckConfiguration:
-        Protocol: HTTP
-        Path: /health
-        Interval: 10
-        Timeout: 5
-        HealthyThreshold: 1
-        UnhealthyThreshold: 5
+      Cluster: !Ref ApiCluster
+      TaskDefinition: !Ref ApiTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: !Ref SubnetIds
+          SecurityGroups:
+            - !Ref ApiContainerSecurityGroup
+      LoadBalancers:
+        - ContainerName: api
+          ContainerPort: 8000
+          TargetGroupArn: !Ref ApiTargetGroup
+      HealthCheckGracePeriodSeconds: 60
       Tags:
         - Key: Environment
           Value: production
@@ -295,8 +430,13 @@ Resources:
 
 Outputs:
   ApiUrl:
-    Description: App Runner API URL
-    Value: !Sub "https://${ApiService.ServiceUrl}"
+    Description: ECS/ALB API URL
+    Value: !Sub "https://${ApiAlb.DNSName}"
+
+  ApiAlbDnsName:
+    Description: >
+      ALB DNS name — point api.mishmish.ai CNAME here
+    Value: !GetAtt ApiAlb.DNSName
 
   WebAppUrl:
     Description: Web app CloudFront URL

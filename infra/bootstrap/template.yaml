@@ -19,6 +19,99 @@ Parameters:
     Description: ARN of the existing GitHub OIDC provider in this account
 
 Resources:
+  # --- VPC (shared by ECS/ALB in prod and preview) ---
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: arabic-voice-agent
+
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: arabic-voice-agent-public-a
+
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: arabic-voice-agent-public-b
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VpcGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetA
+      RouteTableId: !Ref RouteTable
+
+  SubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetB
+      RouteTableId: !Ref RouteTable
+
+  # --- ECS Task Execution Role (shared; pulls ECR images, writes logs, reads secrets) ---
+
+  EcsTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ecs-task-execution
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: SecretsManagerRead
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: "*"
+
   # --- ECR Repositories ---
   EcrRepository:
     Type: AWS::ECR::Repository
@@ -214,11 +307,111 @@ Resources:
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/preview-pr-*/*"
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-prod/*"
 
-              # IAM - pass roles to App Runner
+              # ECS - manage clusters, services, task definitions
+              - Sid: Ecs
+                Effect: Allow
+                Action:
+                  - ecs:CreateCluster
+                  - ecs:DeleteCluster
+                  - ecs:DescribeClusters
+                  - ecs:RegisterTaskDefinition
+                  - ecs:DeregisterTaskDefinition
+                  - ecs:DescribeTaskDefinition
+                  - ecs:CreateService
+                  - ecs:UpdateService
+                  - ecs:DeleteService
+                  - ecs:DescribeServices
+                  - ecs:ListServices
+                  - ecs:TagResource
+                  - ecs:UntagResource
+                  - ecs:ListTagsForResource
+                Resource: "*"
+
+              # ALB - manage load balancers, listeners, and target groups
+              - Sid: Elb
+                Effect: Allow
+                Action:
+                  - elasticloadbalancing:CreateLoadBalancer
+                  - elasticloadbalancing:DeleteLoadBalancer
+                  - elasticloadbalancing:DescribeLoadBalancers
+                  - elasticloadbalancing:DescribeLoadBalancerAttributes
+                  - elasticloadbalancing:ModifyLoadBalancerAttributes
+                  - elasticloadbalancing:SetSecurityGroups
+                  - elasticloadbalancing:CreateListener
+                  - elasticloadbalancing:DeleteListener
+                  - elasticloadbalancing:DescribeListeners
+                  - elasticloadbalancing:ModifyListener
+                  - elasticloadbalancing:CreateTargetGroup
+                  - elasticloadbalancing:DeleteTargetGroup
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - elasticloadbalancing:DescribeTargetGroupAttributes
+                  - elasticloadbalancing:ModifyTargetGroup
+                  - elasticloadbalancing:ModifyTargetGroupAttributes
+                  - elasticloadbalancing:DescribeTargetHealth
+                  - elasticloadbalancing:RegisterTargets
+                  - elasticloadbalancing:DeregisterTargets
+                  - elasticloadbalancing:AddTags
+                  - elasticloadbalancing:RemoveTags
+                  - elasticloadbalancing:DescribeTags
+                Resource: "*"
+
+              # EC2 - security groups and VPC reads for ECS/ALB
+              - Sid: Ec2
+                Effect: Allow
+                Action:
+                  - ec2:CreateSecurityGroup
+                  - ec2:DeleteSecurityGroup
+                  - ec2:DescribeSecurityGroups
+                  - ec2:AuthorizeSecurityGroupIngress
+                  - ec2:RevokeSecurityGroupIngress
+                  - ec2:AuthorizeSecurityGroupEgress
+                  - ec2:RevokeSecurityGroupEgress
+                  - ec2:DescribeVpcs
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeAvailabilityZones
+                  - ec2:CreateTags
+                  - ec2:DescribeTags
+                Resource: "*"
+
+              # IAM - manage roles created inside prod/preview stacks, and pass roles
+              - Sid: IamRoles
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                Resource:
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/prod-*"
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/preview-*"
+
+              # IAM - pass roles to App Runner and ECS
               - Sid: PassRole
                 Effect: Allow
                 Action: iam:PassRole
-                Resource: !GetAtt AppRunnerEcrAccessRole.Arn
+                Resource:
+                  - !GetAtt AppRunnerEcrAccessRole.Arn
+                  - !GetAtt EcsTaskExecutionRole.Arn
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/prod-*"
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/preview-*"
+
+              # CloudWatch Logs - create log groups for ECS containers
+              - Sid: Logs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:DeleteLogGroup
+                  - logs:DescribeLogGroups
+                  - logs:PutRetentionPolicy
+                Resource: "*"
 
   # --- IAM Role for App Runner to pull from ECR ---
   AppRunnerEcrAccessRole:
@@ -251,6 +444,18 @@ Resources:
                   - !GetAtt ClaudeAgentEcrRepository.Arn
 
 Outputs:
+  VpcId:
+    Description: VPC ID for ECS/ALB resources (read dynamically by deploy workflows)
+    Value: !Ref Vpc
+
+  SubnetIds:
+    Description: Comma-separated public subnet IDs (read dynamically by deploy workflows)
+    Value: !Join [",", [!Ref SubnetA, !Ref SubnetB]]
+
+  EcsTaskExecutionRoleArn:
+    Description: ECS task execution role ARN (read dynamically by deploy workflows)
+    Value: !GetAtt EcsTaskExecutionRole.Arn
+
   EcrRepositoryUri:
     Description: ECR repository URI (set as GitHub secret ECR_REGISTRY)
     Value: !GetAtt EcrRepository.RepositoryUri
