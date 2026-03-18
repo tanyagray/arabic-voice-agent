@@ -303,6 +303,7 @@ Resources:
                   - cloudformation:DescribeChangeSet
                   - cloudformation:ExecuteChangeSet
                   - cloudformation:DeleteChangeSet
+                  - cloudformation:ContinueUpdateRollback
                 Resource:
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/preview-pr-*/*"
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-prod/*"
@@ -380,6 +381,7 @@ Resources:
                   - iam:CreateRole
                   - iam:DeleteRole
                   - iam:GetRole
+                  - iam:UpdateAssumeRolePolicy
                   - iam:PutRolePolicy
                   - iam:DeleteRolePolicy
                   - iam:GetRolePolicy
