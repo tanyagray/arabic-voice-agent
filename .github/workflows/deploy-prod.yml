@@ -77,6 +77,19 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get bootstrap stack outputs
+        id: bootstrap
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "arabic-voice-agent-bootstrap" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+          echo "vpc_id=$(get_output VpcId)" >> "$GITHUB_OUTPUT"
+          echo "subnet_ids=$(get_output SubnetIds)" >> "$GITHUB_OUTPUT"
+          echo "ecs_execution_role_arn=$(get_output EcsTaskExecutionRoleArn)" >> "$GITHUB_OUTPUT"
+
       - name: Clean up failed stack if needed
         run: |
           STACK_NAME="arabic-voice-agent-prod"
@@ -103,7 +116,10 @@ jobs:
             --parameter-overrides \
               AcmCertificateArn="${{ secrets.AWS_ACM_CERTIFICATE_ARN }}" \
               EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
-              AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
+              VpcId="${{ steps.bootstrap.outputs.vpc_id }}" \
+              SubnetIds="${{ steps.bootstrap.outputs.subnet_ids }}" \
+              EcsTaskExecutionRoleArn="${{ steps.bootstrap.outputs.ecs_execution_role_arn }}" \
+              ApiAcmCertificateArn="${{ secrets.API_ACM_CERTIFICATE_ARN }}" \
               ApiSecretArn="${{ secrets.API_SECRET_ARN }}"
 
       - name: Get stack outputs
@@ -126,41 +142,16 @@ jobs:
           echo "web_app_cf_domain=$(get_output WebAppCloudFrontDomain)" >> "$GITHUB_OUTPUT"
           echo "admin_cf_domain=$(get_output AdminCloudFrontDomain)" >> "$GITHUB_OUTPUT"
 
-      - name: Associate App Runner custom domain
+      - name: Print API ALB DNS name
         run: |
-          SERVICE_ARN=$(aws apprunner list-services \
-            --query "ServiceSummaryList[?ServiceName=='prod-api'].ServiceArn" \
+          ALB_DNS=$(aws cloudformation describe-stacks \
+            --stack-name "arabic-voice-agent-prod" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiAlbDnsName'].OutputValue" \
             --output text)
 
-          if [ -z "$SERVICE_ARN" ]; then
-            echo "Could not find prod-api service, skipping custom domain association"
-            exit 0
-          fi
-
-          EXISTING=$(aws apprunner describe-custom-domains \
-            --service-arn "$SERVICE_ARN" \
-            --output json 2>/dev/null \
-            | grep -o '"api\.mishmish\.ai"' || true)
-
-          if [ -z "$EXISTING" ]; then
-            echo "Associating api.mishmish.ai with App Runner..."
-            aws apprunner associate-custom-domain \
-              --service-arn "$SERVICE_ARN" \
-              --domain-name "api.mishmish.ai" \
-              || echo "Warning: domain association returned an error (may already be pending — check App Runner console)"
-          else
-            echo "api.mishmish.ai is already associated"
-          fi
-
-          DOMAIN_INFO=$(aws apprunner describe-custom-domains \
-            --service-arn "$SERVICE_ARN" \
-            --query "CustomDomains[?DomainName=='api.mishmish.ai']" \
-            --output json 2>/dev/null || echo "[]")
-
-          echo "### api.mishmish.ai DNS records" >> "$GITHUB_STEP_SUMMARY"
-          echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          echo "$DOMAIN_INFO" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "### API DNS record required" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Point \`api.mishmish.ai\` CNAME to: \`$ALB_DNS\`" >> "$GITHUB_STEP_SUMMARY"
 
   # ------------------------------------------------------------------
   # Job 3: Build static sites and upload to S3
@@ -247,4 +238,4 @@ jobs:
           echo "| mishmish.ai | ALIAS/ANAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| www.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| admin.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| api.mishmish.ai | CNAME | (see App Runner DNS records section above) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api.mishmish.ai | CNAME | (see API DNS record section above) |" >> "$GITHUB_STEP_SUMMARY"
