@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Claude Agent service for mishmish.ai.
+  Deployed independently — not redeployed on every app deploy.
+  App Runner AutoDeploymentsEnabled handles image updates automatically when a new
+  image is pushed to ECR:latest by the sync-claude-agent workflow.
+
+Parameters:
+  ClaudeAgentEcrImageUri:
+    Type: String
+    Description: "Full ECR image URI for claude-agent (e.g. 123456.dkr.ecr.us-west-2.amazonaws.com/arabic-voice-agent-claude-agent:latest)"
+
+  AppRunnerEcrRoleArn:
+    Type: String
+    Description: ARN of the IAM role that allows App Runner to pull from ECR
+
+  ClaudeAgentSecretArn:
+    Type: String
+    Description: >
+      ARN of the AWS Secrets Manager secret containing Claude agent secrets
+      (mishmish/prod/claude). Expected keys: ANTHROPIC_API_KEY, GITHUB_TOKEN,
+      GITHUB_WEBHOOK_SECRET, GITHUB_REPO.
+
+Resources:
+  # IAM role assumed by running agent containers — grants access to agent
+  # secrets only (not API secrets).
+  ClaudeAgentInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: prod-claude-agent-instance-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AgentSecretsAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: !Ref ClaudeAgentSecretArn
+
+  ClaudeAgentAutoScalingConfig:
+    Type: AWS::AppRunner::AutoScalingConfiguration
+    Properties:
+      AutoScalingConfigurationName: prod-claude-agent
+      MaxConcurrency: 10
+      MinSize: 1
+      MaxSize: 1
+
+  ClaudeAgentService:
+    Type: AWS::AppRunner::Service
+    Properties:
+      ServiceName: prod-claude-agent
+      SourceConfiguration:
+        AuthenticationConfiguration:
+          AccessRoleArn: !Ref AppRunnerEcrRoleArn
+        AutoDeploymentsEnabled: true
+        ImageRepository:
+          ImageIdentifier: !Ref ClaudeAgentEcrImageUri
+          ImageRepositoryType: ECR
+          ImageConfiguration:
+            Port: "8080"
+            RuntimeEnvironmentSecrets:
+              - Name: ANTHROPIC_API_KEY
+                Value: !Sub "${ClaudeAgentSecretArn}:ANTHROPIC_API_KEY::"
+              - Name: GITHUB_TOKEN
+                Value: !Sub "${ClaudeAgentSecretArn}:GITHUB_TOKEN::"
+              - Name: GITHUB_WEBHOOK_SECRET
+                Value: !Sub "${ClaudeAgentSecretArn}:GITHUB_WEBHOOK_SECRET::"
+              - Name: GITHUB_REPO
+                Value: !Sub "${ClaudeAgentSecretArn}:GITHUB_REPO::"
+      InstanceConfiguration:
+        Cpu: "256"
+        Memory: "512"
+        InstanceRoleArn: !GetAtt ClaudeAgentInstanceRole.Arn
+      AutoScalingConfigurationArn: !GetAtt ClaudeAgentAutoScalingConfig.AutoScalingConfigurationArn
+      HealthCheckConfiguration:
+        Protocol: HTTP
+        Path: /health
+        Interval: 10
+        Timeout: 5
+        HealthyThreshold: 1
+        UnhealthyThreshold: 5
+      Tags:
+        - Key: Environment
+          Value: production
+
+Outputs:
+  ClaudeAgentUrl:
+    Description: Claude agent App Runner URL (set as GitHub webhook URL)
+    Value: !Sub "https://${ClaudeAgentService.ServiceUrl}"

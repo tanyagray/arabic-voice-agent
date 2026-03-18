@@ -61,7 +61,6 @@ jobs:
     environment: production
     outputs:
       api_url: ${{ steps.outputs.outputs.api_url }}
-      claude_agent_url: ${{ steps.outputs.outputs.claude_agent_url }}
       web_app_url: ${{ steps.outputs.outputs.web_app_url }}
       admin_url: ${{ steps.outputs.outputs.admin_url }}
       web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
@@ -94,32 +93,22 @@ jobs:
             aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
           fi
 
-      - name: Get Claude agent ECR image URI
-        id: claude-agent-image
-        run: |
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
-          echo "image_uri=$ECR_REGISTRY/arabic-voice-agent-claude-agent:latest" >> "$GITHUB_OUTPUT"
-
       - name: Deploy CloudFormation stack
         run: |
           aws cloudformation deploy \
             --stack-name "arabic-voice-agent-prod" \
             --template-file infra/prod/template.yaml \
-            --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               AcmCertificateArn="${{ secrets.AWS_ACM_CERTIFICATE_ARN }}" \
               EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
-              ClaudeAgentEcrImageUri="${{ steps.claude-agent-image.outputs.image_uri }}" \
               AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
               SupabaseUrl="${{ secrets.SUPABASE_URL }}" \
               SupabasePublishableKey="${{ secrets.SUPABASE_PUBLISHABLE_KEY }}" \
               SupabaseSecretKey="${{ secrets.SUPABASE_SECRET_KEY }}" \
               OpenaiApiKey="${{ secrets.OPENAI_API_KEY }}" \
               SonioxApiKey="${{ secrets.SONIOX_API_KEY }}" \
-              ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}" \
-              ClaudeAgentSecretArn="${{ secrets.CLAUDE_AGENT_SECRET_ARN }}"
+              ElevenApiKey="${{ secrets.ELEVEN_API_KEY }}"
 
       - name: Get stack outputs
         id: outputs
@@ -132,7 +121,6 @@ jobs:
           }
 
           echo "api_url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
-          echo "claude_agent_url=$(get_output ClaudeAgentUrl)" >> "$GITHUB_OUTPUT"
           echo "web_app_url=$(get_output WebAppUrl)" >> "$GITHUB_OUTPUT"
           echo "admin_url=$(get_output AdminUrl)" >> "$GITHUB_OUTPUT"
           echo "web_app_bucket=$(get_output WebAppBucketName)" >> "$GITHUB_OUTPUT"
@@ -142,49 +130,41 @@ jobs:
           echo "web_app_cf_domain=$(get_output WebAppCloudFrontDomain)" >> "$GITHUB_OUTPUT"
           echo "admin_cf_domain=$(get_output AdminCloudFrontDomain)" >> "$GITHUB_OUTPUT"
 
-      - name: Associate App Runner custom domains
+      - name: Associate App Runner custom domain
         run: |
-          associate_domain() {
-            local SERVICE_NAME="$1"
-            local DOMAIN="$2"
+          SERVICE_ARN=$(aws apprunner list-services \
+            --query "ServiceSummaryList[?ServiceName=='prod-api'].ServiceArn" \
+            --output text)
 
-            SERVICE_ARN=$(aws apprunner list-services \
-              --query "ServiceSummaryList[?ServiceName=='$SERVICE_NAME'].ServiceArn" \
-              --output text)
+          if [ -z "$SERVICE_ARN" ]; then
+            echo "Could not find prod-api service, skipping custom domain association"
+            exit 0
+          fi
 
-            if [ -z "$SERVICE_ARN" ]; then
-              echo "Could not find $SERVICE_NAME service, skipping $DOMAIN association"
-              return 0
-            fi
+          EXISTING=$(aws apprunner describe-custom-domains \
+            --service-arn "$SERVICE_ARN" \
+            --output json 2>/dev/null \
+            | grep -o '"api\.mishmish\.ai"' || true)
 
-            EXISTING=$(aws apprunner describe-custom-domains \
+          if [ -z "$EXISTING" ]; then
+            echo "Associating api.mishmish.ai with App Runner..."
+            aws apprunner associate-custom-domain \
               --service-arn "$SERVICE_ARN" \
-              --output json 2>/dev/null \
-              | grep -o "\"$DOMAIN\"" || true)
+              --domain-name "api.mishmish.ai" \
+              || echo "Warning: domain association returned an error (may already be pending — check App Runner console)"
+          else
+            echo "api.mishmish.ai is already associated"
+          fi
 
-            if [ -z "$EXISTING" ]; then
-              echo "Associating $DOMAIN with $SERVICE_NAME..."
-              aws apprunner associate-custom-domain \
-                --service-arn "$SERVICE_ARN" \
-                --domain-name "$DOMAIN" \
-                || echo "Warning: domain association returned an error (may already be pending — check App Runner console)"
-            else
-              echo "$DOMAIN is already associated"
-            fi
+          DOMAIN_INFO=$(aws apprunner describe-custom-domains \
+            --service-arn "$SERVICE_ARN" \
+            --query "CustomDomains[?DomainName=='api.mishmish.ai']" \
+            --output json 2>/dev/null || echo "[]")
 
-            DOMAIN_INFO=$(aws apprunner describe-custom-domains \
-              --service-arn "$SERVICE_ARN" \
-              --query "CustomDomains[?DomainName=='$DOMAIN']" \
-              --output json 2>/dev/null || echo "[]")
-
-            echo "### $DOMAIN DNS records" >> "$GITHUB_STEP_SUMMARY"
-            echo '```json' >> "$GITHUB_STEP_SUMMARY"
-            echo "$DOMAIN_INFO" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          }
-
-          associate_domain "prod-api" "api.mishmish.ai"
-          associate_domain "prod-claude-agent" "claude.mishmish.ai"
+          echo "### api.mishmish.ai DNS records" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo "$DOMAIN_INFO" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   # ------------------------------------------------------------------
   # Job 3: Build static sites and upload to S3
@@ -260,9 +240,10 @@ jobs:
           echo "| Service | Custom Domain | CloudFront/App Runner URL |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---------|---------------|--------------------------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| API | https://api.mishmish.ai | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Claude Agent | https://claude.mishmish.ai | ${{ needs.deploy-infra.outputs.claude_agent_url }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Web App | https://mishmish.ai | https://${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Admin | https://admin.mishmish.ai | https://${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "_Claude Agent is managed by the \`arabic-voice-agent-claude-agent\` stack — see the sync-claude-agent workflow._" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**DNS records required** (set these at your DNS provider):" >> "$GITHUB_STEP_SUMMARY"
           echo "| Record | Type | Value |" >> "$GITHUB_STEP_SUMMARY"
@@ -271,4 +252,3 @@ jobs:
           echo "| www.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| admin.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| api.mishmish.ai | CNAME | (see App Runner DNS records section above) |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| claude.mishmish.ai | CNAME | (see App Runner DNS records section above) |" >> "$GITHUB_STEP_SUMMARY"
