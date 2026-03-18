@@ -1,5 +1,15 @@
 name: Sync Claude Agent Image
 
+# This workflow is the sole owner of the arabic-voice-agent-claude-agent stack.
+# It runs on a schedule to detect new upstream image versions, and can also be
+# triggered manually or via repository_dispatch (e.g. from a GHCR webhook).
+#
+# Deployment logic:
+#   - Scheduled/repository_dispatch: sync image to ECR only if the digest changed.
+#     App Runner AutoDeploymentsEnabled picks up the new ECR image automatically.
+#     CF stack deploy is skipped when the image is unchanged.
+#   - workflow_dispatch: always deploy the CF stack (useful for infra-only changes).
+
 on:
   # Run manually
   workflow_dispatch:
@@ -14,17 +24,20 @@ env:
   AWS_REGION: us-west-2
   GHCR_IMAGE: ghcr.io/tanyagray/claude-agent:latest
   ECR_REPO: arabic-voice-agent-claude-agent
+  CF_STACK: arabic-voice-agent-claude-agent
 
 jobs:
-  sync-image:
-    name: Sync GHCR → ECR
+  sync-and-deploy:
+    name: Sync GHCR → ECR + deploy claude-agent stack
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
       packages: read
-    environment: dev
+    environment: production
     steps:
+      - uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -33,12 +46,44 @@ jobs:
       - uses: aws-actions/amazon-ecr-login@v2
         id: ecr-login
 
-      - name: Pull from GHCR, push to ECR
+      - name: Check if image has changed
+        id: check
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Log in to GHCR
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          # Get GHCR manifest config digest without pulling the full image
+          GHCR_DIGEST=$(docker manifest inspect "$GHCR_IMAGE" 2>/dev/null \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('config',{}).get('digest',''))" \
+            2>/dev/null || echo "")
+
+          # Get current ECR :latest digest (empty string if image doesn't exist yet)
+          ECR_DIGEST=$(aws ecr describe-images \
+            --repository-name "$ECR_REPO" \
+            --image-ids imageTag=latest \
+            --query "imageDetails[0].imageDigest" \
+            --output text 2>/dev/null || echo "")
+
+          echo "GHCR digest: ${GHCR_DIGEST:-unknown}"
+          echo "ECR digest:  ${ECR_DIGEST:-none}"
+
+          if [ -n "$GHCR_DIGEST" ] && [ "$GHCR_DIGEST" = "$ECR_DIGEST" ]; then
+            echo "Image unchanged"
+            echo "image_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Image changed or first sync"
+            echo "image_changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pull from GHCR, push to ECR
+        if: steps.check.outputs.image_changed == 'true'
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
           echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
           # Pull latest image from GHCR
@@ -55,7 +100,7 @@ jobs:
           docker tag "$GHCR_IMAGE" "$ECR_LATEST"
           docker tag "$GHCR_IMAGE" "$ECR_TIMESTAMPED"
 
-          # Push to ECR (App Runner auto-deploy will pick up the new image)
+          # Push to ECR — App Runner AutoDeploymentsEnabled will redeploy automatically
           docker push "$ECR_LATEST"
           docker push "$ECR_TIMESTAMPED"
 
@@ -64,16 +109,85 @@ jobs:
           echo "- Destination: \`$ECR_LATEST\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Tag: \`$TIMESTAMP\`" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Trigger App Runner redeployment
+      - name: Deploy claude-agent CloudFormation stack
+        if: steps.check.outputs.image_changed == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          # Clean up any failed stack state before deploying
+          STACK_STATUS=$(aws cloudformation describe-stacks --stack-name "$CF_STACK" \
+            --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+
+          if [ "$STACK_STATUS" = "ROLLBACK_IN_PROGRESS" ]; then
+            echo "Stack is rolling back, waiting..."
+            aws cloudformation wait stack-rollback-complete --stack-name "$CF_STACK"
+            STACK_STATUS="ROLLBACK_COMPLETE"
+          fi
+
+          if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STACK_STATUS" = "DELETE_FAILED" ]; then
+            echo "Stack in $STACK_STATUS state, deleting before redeploy..."
+            aws cloudformation delete-stack --stack-name "$CF_STACK"
+            aws cloudformation wait stack-delete-complete --stack-name "$CF_STACK"
+          fi
+
+          aws cloudformation deploy \
+            --stack-name "$CF_STACK" \
+            --template-file infra/claude-agent/template.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              ClaudeAgentEcrImageUri="$ECR_REGISTRY/$ECR_REPO:latest" \
+              AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
+              ClaudeAgentSecretArn="${{ secrets.CLAUDE_AGENT_SECRET_ARN }}"
+
+      - name: Associate claude.mishmish.ai custom domain
+        if: steps.check.outputs.image_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           SERVICE_ARN=$(aws apprunner list-services \
             --query "ServiceSummaryList[?ServiceName=='prod-claude-agent'].ServiceArn" \
             --output text)
 
           if [ -z "$SERVICE_ARN" ]; then
-            echo "Warning: prod-claude-agent App Runner service not found, skipping redeploy trigger"
+            echo "Could not find prod-claude-agent service, skipping domain association"
             exit 0
           fi
 
-          aws apprunner start-deployment --service-arn "$SERVICE_ARN"
-          echo "- Redeployment triggered: \`$SERVICE_ARN\`" >> "$GITHUB_STEP_SUMMARY"
+          EXISTING=$(aws apprunner describe-custom-domains \
+            --service-arn "$SERVICE_ARN" \
+            --output json 2>/dev/null \
+            | grep -o '"claude\.mishmish\.ai"' || true)
+
+          if [ -z "$EXISTING" ]; then
+            echo "Associating claude.mishmish.ai..."
+            aws apprunner associate-custom-domain \
+              --service-arn "$SERVICE_ARN" \
+              --domain-name "claude.mishmish.ai" \
+              || echo "Warning: domain association returned an error (may already be pending)"
+          else
+            echo "claude.mishmish.ai is already associated"
+          fi
+
+          CLAUDE_URL=$(aws cloudformation describe-stacks \
+            --stack-name "$CF_STACK" \
+            --query "Stacks[0].Outputs[?OutputKey=='ClaudeAgentUrl'].OutputValue" \
+            --output text 2>/dev/null || echo "")
+
+          DOMAIN_INFO=$(aws apprunner describe-custom-domains \
+            --service-arn "$SERVICE_ARN" \
+            --query "CustomDomains[?DomainName=='claude.mishmish.ai']" \
+            --output json 2>/dev/null || echo "[]")
+
+          echo "### Claude Agent Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "- App Runner URL: ${CLAUDE_URL:-unknown}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Custom domain: https://claude.mishmish.ai" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**DNS record required:**" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo "$DOMAIN_INFO" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Image unchanged — no action needed
+        if: steps.check.outputs.image_changed == 'false' && github.event_name != 'workflow_dispatch'
+        run: |
+          echo "### Claude Agent Image Unchanged" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GHCR digest matches ECR:latest — no sync or stack update needed" >> "$GITHUB_STEP_SUMMARY"
