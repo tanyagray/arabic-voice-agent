@@ -61,6 +61,7 @@ jobs:
     environment: production
     outputs:
       api_url: ${{ steps.outputs.outputs.api_url }}
+      api_cf_domain: ${{ steps.outputs.outputs.api_cf_domain }}
       claude_agent_url: ${{ steps.outputs.outputs.claude_agent_url }}
       web_app_url: ${{ steps.outputs.outputs.web_app_url }}
       admin_url: ${{ steps.outputs.outputs.admin_url }}
@@ -132,6 +133,7 @@ jobs:
           }
 
           echo "api_url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
+          echo "api_cf_domain=$(get_output ApiCloudFrontDomain)" >> "$GITHUB_OUTPUT"
           echo "claude_agent_url=$(get_output ClaudeAgentUrl)" >> "$GITHUB_OUTPUT"
           echo "web_app_url=$(get_output WebAppUrl)" >> "$GITHUB_OUTPUT"
           echo "admin_url=$(get_output AdminUrl)" >> "$GITHUB_OUTPUT"
@@ -144,6 +146,11 @@ jobs:
 
       - name: Associate App Runner custom domains
         run: |
+          # NOTE: api.mishmish.ai is now served via CloudFront (for WebSocket support).
+          # Do NOT associate api.mishmish.ai with App Runner — CloudFront is the entry
+          # point and uses App Runner's default service URL as its origin internally.
+          # Only claude.mishmish.ai is associated with App Runner directly.
+
           associate_domain() {
             local SERVICE_NAME="$1"
             local DOMAIN="$2"
@@ -183,7 +190,6 @@ jobs:
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           }
 
-          associate_domain "prod-api" "api.mishmish.ai"
           associate_domain "prod-claude-agent" "claude.mishmish.ai"
 
   # ------------------------------------------------------------------
@@ -259,7 +265,7 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Service | Custom Domain | CloudFront/App Runner URL |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---------|---------------|--------------------------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| API | https://api.mishmish.ai | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API (via CloudFront) | https://api.mishmish.ai | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Claude Agent | https://claude.mishmish.ai | ${{ needs.deploy-infra.outputs.claude_agent_url }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Web App | https://mishmish.ai | https://${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Admin | https://admin.mishmish.ai | https://${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
@@ -270,5 +276,8 @@ jobs:
           echo "| mishmish.ai | ALIAS/ANAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| www.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| admin.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| api.mishmish.ai | CNAME | (see App Runner DNS records section above) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.api_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| claude.mishmish.ai | CNAME | (see App Runner DNS records section above) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **Note:** \`api.mishmish.ai\` now points to CloudFront (not App Runner directly)." >> "$GITHUB_STEP_SUMMARY"
+          echo "> CloudFront proxies WebSocket connections that App Runner cannot handle natively." >> "$GITHUB_STEP_SUMMARY"

@@ -106,6 +106,55 @@ Resources:
           Value: !Ref PrNumber
 
   # ============================================================
+  # API CloudFront Distribution (WebSocket proxy)
+  #
+  # AWS App Runner does not support WebSocket connections via the
+  # HTTP Upgrade protocol. CloudFront proxies WebSocket traffic
+  # transparently to the App Runner origin, enabling wss:// connections.
+  # ============================================================
+
+  ApiDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "Preview PR #${PrNumber} - API (WebSocket proxy)"
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: ApiOrigin
+            DomainName: !GetAtt ApiService.ServiceUrl
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+        DefaultCacheBehavior:
+          TargetOriginId: ApiOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          # CachingDisabled - required for API/WebSocket endpoints
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          # AllViewerExceptHostHeader - forwards all viewer headers including
+          # WebSocket upgrade headers (Upgrade, Connection, Sec-WebSocket-*)
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - POST
+            - PATCH
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+      Tags:
+        - Key: Environment
+          Value: preview
+        - Key: PrNumber
+          Value: !Ref PrNumber
+
+  # ============================================================
   # Web App (S3 + CloudFront)
   # ============================================================
 
@@ -273,8 +322,10 @@ Resources:
 
 Outputs:
   ApiUrl:
-    Description: App Runner API URL
-    Value: !Sub "https://${ApiService.ServiceUrl}"
+    Description: >
+      API URL via CloudFront (WebSocket-enabled). Use this as VITE_API_URL.
+      CloudFront proxies WebSocket upgrade requests that App Runner cannot handle.
+    Value: !Sub "https://${ApiDistribution.DomainName}"
 
   WebAppUrl:
     Description: Web app CloudFront URL
