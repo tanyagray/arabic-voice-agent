@@ -363,13 +363,15 @@ Resources:
                   - ec2:DescribeSpotPriceHistory
                 Resource: "*"
 
-              # SSM - deploy containers to EC2 instances
+              # SSM - deploy containers to EC2 and resolve AMI parameters
               - Sid: Ssm
                 Effect: Allow
                 Action:
                   - ssm:SendCommand
                   - ssm:GetCommandInvocation
                   - ssm:DescribeInstanceInformation
+                  - ssm:GetParameters
+                  - ssm:GetParameter
                 Resource: "*"
 
               # IAM - manage roles created inside prod/preview stacks, and pass roles
