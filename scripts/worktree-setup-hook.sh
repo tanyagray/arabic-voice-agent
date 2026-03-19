@@ -1,75 +1,34 @@
 #!/usr/bin/env bash
-# PostToolUse hook for Bash — triggers worktree setup after "git worktree add"
-# Receives JSON on stdin from Claude Code.
+# PostToolUse hook for EnterWorktree — triggers worktree setup after a new worktree is created.
+# Receives JSON on stdin from Claude Code with tool_input and tool_response.
 
 INPUT=$(cat)
 
-# Cheap pre-check before invoking python3
-if ! echo "$INPUT" | grep -q 'git worktree add'; then
-    exit 0
-fi
-
-COMMAND=$(echo "$INPUT" | python3 -c "
-import json, sys
+# Extract the worktree path from the hook JSON
+WORKTREE_PATH=$(echo "$INPUT" | python3 -c "
+import json, sys, os
 try:
     d = json.load(sys.stdin)
-    print(d.get('tool_input', {}).get('command', ''))
+    # Try tool_response.worktree_path first
+    path = (d.get('tool_response', {}) or {}).get('worktree_path', '')
+    if not path:
+        # Fall back: derive from worktree_name in tool_input
+        name = (d.get('tool_input', {}) or {}).get('worktree_name', '')
+        if name:
+            cwd = d.get('cwd', '')
+            repo = cwd
+            while repo and not os.path.isdir(os.path.join(repo, '.claude', 'worktrees')):
+                parent = os.path.dirname(repo)
+                if parent == repo:
+                    break
+                repo = parent
+            path = os.path.join(repo, '.claude', 'worktrees', name)
+    print(path)
 except Exception:
     print('')
 ")
 
-if ! echo "$COMMAND" | grep -qE 'git worktree add'; then
-    exit 0
-fi
-
-# Extract the worktree path from the command using proper shell tokenisation.
-# git worktree add [-f] [--detach] [--lock] [-b <branch>] [-B <branch>]
-#                  [--reason <string>] [--orphan] <path> [<commit-ish>]
-# Flags that consume a following argument:
-WORKTREE_PATH=$(echo "$COMMAND" | python3 -c "
-import sys, shlex
-
-try:
-    parts = shlex.split(sys.stdin.read().strip())
-except ValueError:
-    sys.exit(0)
-
-# Flags that consume the next token as their argument
-consumes_arg = {'-b', '-B', '--reason'}
-
-try:
-    wt_idx = parts.index('worktree')
-    # parts[wt_idx+1] == 'add'
-    i = wt_idx + 2
-except (ValueError, IndexError):
-    sys.exit(0)
-
-while i < len(parts):
-    token = parts[i]
-    if token == '--':          # end of flags
-        i += 1
-        break
-    if token in consumes_arg:  # flag + argument, skip both
-        i += 2
-    elif token.startswith('-'): # bare flag, skip
-        i += 1
-    else:
-        print(token)           # first positional arg = path
-        sys.exit(0)
-    i += 1
-")
-
-if [ -z "$WORKTREE_PATH" ]; then
-    exit 0
-fi
-
-# Make absolute if relative (hook runs from the repo root)
-if [[ "$WORKTREE_PATH" != /* ]]; then
-    WORKTREE_PATH="$(pwd)/$WORKTREE_PATH"
-fi
-
-if [ ! -d "$WORKTREE_PATH" ]; then
-    # git worktree add may have failed — nothing to set up
+if [ -z "$WORKTREE_PATH" ] || [ ! -d "$WORKTREE_PATH" ]; then
     exit 0
 fi
 

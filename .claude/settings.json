@@ -2,7 +2,7 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "EnterWorktree",
         "hooks": [
           {
             "type": "command",
