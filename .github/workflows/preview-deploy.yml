@@ -116,15 +116,15 @@ jobs:
           IMAGE_TAG: pr-${{ github.event.pull_request.number }}
         run: |
           IMAGE_URI="$ECR_REGISTRY/arabic-voice-agent-api:$IMAGE_TAG"
-          docker build -f infra/preview/Dockerfile -t "$IMAGE_URI" .
+          docker build -f infra/Dockerfile -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
   # ------------------------------------------------------------------
-  # Job 4: Deploy CloudFormation stack
+  # Job 4: Deploy API container to shared preview EC2
   # ------------------------------------------------------------------
-  deploy-infra:
-    name: Deploy preview infrastructure
+  deploy-preview-api:
+    name: Deploy preview API container
     needs: [supabase-credentials, build-api-image]
     runs-on: ubuntu-latest
     permissions:
@@ -132,16 +132,8 @@ jobs:
       contents: read
     environment: dev
     outputs:
-      api_url: ${{ steps.outputs.outputs.api_url }}
-      web_app_url: ${{ steps.outputs.outputs.web_app_url }}
-      admin_url: ${{ steps.outputs.outputs.admin_url }}
-      web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
-      admin_bucket: ${{ steps.outputs.outputs.admin_bucket }}
-      web_app_dist_id: ${{ steps.outputs.outputs.web_app_dist_id }}
-      admin_dist_id: ${{ steps.outputs.outputs.admin_dist_id }}
+      api_url: ${{ steps.api-url.outputs.api_url }}
     steps:
-      - uses: actions/checkout@v4
-
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -156,6 +148,170 @@ jobs:
           echo "::add-mask::$SERVICE_KEY"
           echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
           echo "service_key=$SERVICE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Get preview EC2 instance ID
+        id: preview-infra
+        run: |
+          INSTANCE_ID=$(aws cloudformation describe-stacks \
+            --stack-name "arabic-voice-agent-preview" \
+            --query "Stacks[0].Outputs[?OutputKey=='PreviewInstanceId'].OutputValue" \
+            --output text)
+          ELASTIC_IP=$(aws cloudformation describe-stacks \
+            --stack-name "arabic-voice-agent-preview" \
+            --query "Stacks[0].Outputs[?OutputKey=='PreviewElasticIp'].OutputValue" \
+            --output text)
+          echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
+          echo "elastic_ip=$ELASTIC_IP" >> "$GITHUB_OUTPUT"
+
+      - name: Compute API URL
+        id: api-url
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          echo "api_url=https://pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy container via SSM
+        run: |
+          INSTANCE_ID="${{ steps.preview-infra.outputs.instance_id }}"
+          IMAGE_URI="${{ needs.build-api-image.outputs.image_uri }}"
+          ECR_REGISTRY=$(echo "$IMAGE_URI" | cut -d'/' -f1)
+          REGION="${{ env.AWS_REGION }}"
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PORT=$((10000 + PR_NUM))
+          DOMAIN="pr-${PR_NUM}.preview.mishmish.ai"
+
+          SUPABASE_URL="${{ needs.supabase-credentials.outputs.url }}"
+          ANON_KEY="${{ steps.supabase.outputs.anon_key }}"
+          SERVICE_KEY="${{ steps.supabase.outputs.service_key }}"
+
+          # Write deploy script
+          cat > /tmp/deploy.sh <<SCRIPT
+          #!/bin/bash
+          set -euo pipefail
+          exec > >(tee -a /var/log/preview-deploy.log) 2>&1
+          echo "=== Preview deploy PR #$PR_NUM at \$(date) ==="
+
+          # Fetch API secrets from Secrets Manager
+          SECRET_JSON=\$(aws secretsmanager get-secret-value \
+            --secret-id "${{ secrets.PREVIEW_API_SECRET_ARN }}" \
+            --region $REGION \
+            --query SecretString --output text)
+
+          # Write env file for this PR
+          cat > /etc/mishmish/pr-${PR_NUM}.env <<ENVEOF
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_PUBLISHABLE_KEY=$ANON_KEY
+          SUPABASE_SECRET_KEY=$SERVICE_KEY
+          OPENAI_API_KEY=\$(echo "\$SECRET_JSON" | jq -r '.OPENAI_API_KEY')
+          SONIOX_API_KEY=\$(echo "\$SECRET_JSON" | jq -r '.SONIOX_API_KEY')
+          ELEVEN_API_KEY=\$(echo "\$SECRET_JSON" | jq -r '.ELEVEN_API_KEY')
+          PORT=8000
+          ENVEOF
+          chmod 600 /etc/mishmish/pr-${PR_NUM}.env
+
+          # ECR login
+          aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+          # Pull image
+          docker pull $IMAGE_URI
+
+          # Stop old container if exists
+          docker stop pr-${PR_NUM} 2>/dev/null || true
+          docker rm pr-${PR_NUM} 2>/dev/null || true
+
+          # Start container on unique port
+          docker run -d \
+            --name pr-${PR_NUM} \
+            --restart unless-stopped \
+            -p ${PORT}:8000 \
+            --env-file /etc/mishmish/pr-${PR_NUM}.env \
+            $IMAGE_URI
+
+          # Update Caddy config — remove old block if exists, then add new one
+          sed -i '/^# BEGIN pr-${PR_NUM}$/,/^# END pr-${PR_NUM}$/d' /etc/caddy/Caddyfile
+          cat >> /etc/caddy/Caddyfile <<CADDYEOF
+
+          # BEGIN pr-${PR_NUM}
+          $DOMAIN {
+            reverse_proxy localhost:${PORT}
+          }
+          # END pr-${PR_NUM}
+          CADDYEOF
+
+          # Reload Caddy
+          systemctl reload caddy
+
+          # Wait for health check
+          echo "Waiting for health check on port ${PORT}..."
+          for i in \$(seq 1 30); do
+            if curl -sf http://localhost:${PORT}/health > /dev/null 2>&1; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health check failed"
+          docker logs pr-${PR_NUM} --tail 50
+          exit 1
+          SCRIPT
+
+          # Send to SSM
+          COMMANDS_JSON=$(jq -R -s 'split("\n") | map(select(length > 0))' < /tmp/deploy.sh)
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --timeout-seconds 300 \
+            --parameters "{\"commands\":$COMMANDS_JSON}" \
+            --query "Command.CommandId" --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+
+          # Wait for command to complete
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+
+          RESULT=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query "Status" --output text)
+
+          echo "Command status: $RESULT"
+
+          if [ "$RESULT" != "Success" ]; then
+            echo "::error::SSM command failed with status: $RESULT"
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "StandardErrorContent" --output text
+            exit 1
+          fi
+
+  # ------------------------------------------------------------------
+  # Job 5: Deploy per-PR static site infrastructure
+  # ------------------------------------------------------------------
+  deploy-static-infra:
+    name: Deploy per-PR static site infrastructure
+    needs: build-api-image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: dev
+    outputs:
+      web_app_url: ${{ steps.outputs.outputs.web_app_url }}
+      admin_url: ${{ steps.outputs.outputs.admin_url }}
+      web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
+      admin_bucket: ${{ steps.outputs.outputs.admin_bucket }}
+      web_app_dist_id: ${{ steps.outputs.outputs.web_app_dist_id }}
+      admin_dist_id: ${{ steps.outputs.outputs.admin_dist_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Clean up failed stack if needed
         run: |
@@ -179,21 +335,14 @@ jobs:
             aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
           fi
 
-      - name: Deploy CloudFormation stack
+      - name: Deploy per-PR CloudFormation stack
         run: |
           aws cloudformation deploy \
             --stack-name "preview-pr-${{ github.event.pull_request.number }}" \
-            --template-file infra/preview/template.yaml \
+            --template-file infra/preview/per-pr-template.yaml \
             --no-fail-on-empty-changeset \
-            --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
-              PrNumber="${{ github.event.pull_request.number }}" \
-              EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
-              AppRunnerEcrRoleArn="${{ secrets.AWS_APP_RUNNER_ECR_ROLE_ARN }}" \
-              SupabaseUrl="${{ needs.supabase-credentials.outputs.url }}" \
-              SupabaseAnonKey="${{ steps.supabase.outputs.anon_key }}" \
-              SupabaseServiceKey="${{ steps.supabase.outputs.service_key }}" \
-              ApiSecretArn="${{ secrets.PREVIEW_API_SECRET_ARN }}"
+              PrNumber="${{ github.event.pull_request.number }}"
 
       - name: Get stack outputs
         id: outputs
@@ -205,7 +354,6 @@ jobs:
               --output text
           }
 
-          echo "api_url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
           echo "web_app_url=$(get_output WebAppUrl)" >> "$GITHUB_OUTPUT"
           echo "admin_url=$(get_output AdminUrl)" >> "$GITHUB_OUTPUT"
           echo "web_app_bucket=$(get_output WebAppBucketName)" >> "$GITHUB_OUTPUT"
@@ -214,11 +362,11 @@ jobs:
           echo "admin_dist_id=$(get_output AdminDistributionId)" >> "$GITHUB_OUTPUT"
 
   # ------------------------------------------------------------------
-  # Job 5: Build static sites and upload to S3
+  # Job 6: Build static sites and upload to S3
   # ------------------------------------------------------------------
   deploy-static-sites:
     name: Deploy static sites
-    needs: [supabase-credentials, deploy-infra]
+    needs: [supabase-credentials, deploy-preview-api, deploy-static-infra]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -255,7 +403,7 @@ jobs:
       - name: Build web-app
         working-directory: web-app
         env:
-          VITE_API_URL: ${{ needs.deploy-infra.outputs.api_url }}
+          VITE_API_URL: ${{ needs.deploy-preview-api.outputs.api_url }}
           VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ steps.supabase.outputs.anon_key }}
         run: |
@@ -265,14 +413,14 @@ jobs:
       - name: Upload web-app to S3
         run: |
           aws s3 sync web-app/dist/ \
-            "s3://${{ needs.deploy-infra.outputs.web_app_bucket }}/" \
+            "s3://${{ needs.deploy-static-infra.outputs.web_app_bucket }}/" \
             --delete
 
       # Build and deploy admin-app
       - name: Build admin-app
         working-directory: admin-app
         env:
-          VITE_API_URL: ${{ needs.deploy-infra.outputs.api_url }}
+          VITE_API_URL: ${{ needs.deploy-preview-api.outputs.api_url }}
           VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
           VITE_SUPABASE_ANON_KEY: ${{ steps.supabase.outputs.anon_key }}
         run: |
@@ -282,24 +430,24 @@ jobs:
       - name: Upload admin-app to S3
         run: |
           aws s3 sync admin-app/dist/ \
-            "s3://${{ needs.deploy-infra.outputs.admin_bucket }}/" \
+            "s3://${{ needs.deploy-static-infra.outputs.admin_bucket }}/" \
             --delete
 
       # Invalidate CloudFront caches
       - name: Invalidate CloudFront caches
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id "${{ needs.deploy-infra.outputs.web_app_dist_id }}" \
+            --distribution-id "${{ needs.deploy-static-infra.outputs.web_app_dist_id }}" \
             --paths "/*"
           aws cloudfront create-invalidation \
-            --distribution-id "${{ needs.deploy-infra.outputs.admin_dist_id }}" \
+            --distribution-id "${{ needs.deploy-static-infra.outputs.admin_dist_id }}" \
             --paths "/*"
 
       # Set Supabase SITE_URL to the preview web-app URL
       - name: Set Supabase SITE_URL
         run: |
           BRANCH_REF="${{ needs.supabase-credentials.outputs.branch_ref }}"
-          SITE_URL="${{ needs.deploy-infra.outputs.web_app_url }}"
+          SITE_URL="${{ needs.deploy-static-infra.outputs.web_app_url }}"
           supabase secrets set --project-ref "$BRANCH_REF" SITE_URL="$SITE_URL"
           echo "Set SITE_URL=$SITE_URL on Supabase branch $BRANCH_REF"
 
@@ -313,9 +461,9 @@ jobs:
               '',
               '| Service | URL |',
               '|---------|-----|',
-              `| API | ${{ needs.deploy-infra.outputs.api_url }} |`,
-              `| Web App | ${{ needs.deploy-infra.outputs.web_app_url }} |`,
-              `| Admin | ${{ needs.deploy-infra.outputs.admin_url }} |`,
+              `| API | ${{ needs.deploy-preview-api.outputs.api_url }} |`,
+              `| Web App | ${{ needs.deploy-static-infra.outputs.web_app_url }} |`,
+              `| Admin | ${{ needs.deploy-static-infra.outputs.admin_url }} |`,
               '',
               `_Supabase branch: ${{ needs.supabase-credentials.outputs.url }}_`,
             ].join('\n');

@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   Production environment for Arabic Voice Agent.
-  Creates App Runner (API), S3 + CloudFront (web-app, admin-app).
+  Creates EC2 + Caddy + Docker (API), S3 + CloudFront (web-app, admin-app).
   The Claude Agent is deployed separately via the arabic-voice-agent-claude-agent stack.
 
 Parameters:
@@ -21,19 +21,13 @@ Parameters:
     Type: String
     Description: VPC ID (from bootstrap stack output VpcId)
 
-  SubnetIds:
-    Type: CommaDelimitedList
-    Description: Comma-separated public subnet IDs (from bootstrap stack output SubnetIds)
-
-  EcsTaskExecutionRoleArn:
+  SubnetId:
     Type: String
-    Description: ECS task execution role ARN (from bootstrap stack output EcsTaskExecutionRoleArn)
+    Description: Public subnet ID for EC2 instance (from bootstrap stack output SubnetAId)
 
-  ApiAcmCertificateArn:
+  Ec2InstanceProfileName:
     Type: String
-    Description: >
-      ACM certificate ARN in us-west-2 covering api.mishmish.ai.
-      Required for HTTPS on the API load balancer.
+    Description: EC2 instance profile name (from bootstrap stack output Ec2InstanceProfileName)
 
   ApiSecretArn:
     Type: String
@@ -42,45 +36,23 @@ Parameters:
       (mishmish/prod/api). Expected keys: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY,
       SUPABASE_SECRET_KEY, OPENAI_API_KEY, SONIOX_API_KEY, ELEVEN_API_KEY.
 
+  ApiDomain:
+    Type: String
+    Default: api.mishmish.ai
+    Description: Domain name for the API (used in Caddy config for HTTPS)
+
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref AcmCertificateArn, ""]]
 
 Resources:
   # ============================================================
-  # API Service — Instance Role (Secrets Manager access)
+  # API Service — EC2 + Caddy + Docker
   # ============================================================
 
-  ApiInstanceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: prod-api-instance-role
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ecs-tasks.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: ApiSecretsAccess
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                  - secretsmanager:DescribeSecret
-                Resource: !Ref ApiSecretArn
-
-  # ============================================================
-  # API Service (ECS Fargate + ALB)
-  # App Runner does not support WebSocket connections; ALB does.
-  # ============================================================
-
-  AlbSecurityGroup:
+  ApiSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP/HTTPS inbound to API ALB
+      GroupDescription: Allow HTTP/HTTPS inbound to API EC2 instance
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -95,160 +67,113 @@ Resources:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
       Tags:
+        - Key: Name
+          Value: prod-api
         - Key: Environment
           Value: production
 
-  ApiContainerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
+  ApiElasticIp:
+    Type: AWS::EC2::EIP
     Properties:
-      GroupDescription: Allow traffic from ALB to API containers on port 8000
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 8000
-          ToPort: 8000
-          SourceSecurityGroupId: !Ref AlbSecurityGroup
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
+      Domain: vpc
       Tags:
+        - Key: Name
+          Value: prod-api
         - Key: Environment
           Value: production
 
-  ApiAlb:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  ApiInstance:
+    Type: AWS::EC2::Instance
     Properties:
-      Name: prod-api
-      Scheme: internet-facing
-      Type: application
-      Subnets: !Ref SubnetIds
-      SecurityGroups:
-        - !Ref AlbSecurityGroup
+      InstanceType: t3.small
+      ImageId: !Sub "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref ApiSecurityGroup
+      IamInstanceProfile: !Ref Ec2InstanceProfileName
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 20
+            VolumeType: gp3
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+
+          # Log all output
+          exec > >(tee /var/log/user-data.log) 2>&1
+          echo "=== Starting cloud-init at $(date) ==="
+
+          # Install Docker
+          dnf install -y docker
+          systemctl enable docker
+          systemctl start docker
+
+          # Install Caddy
+          dnf install -y 'dnf-command(copr)'
+          dnf copr enable -y @caddy/caddy
+          dnf install -y caddy
+          systemctl enable caddy
+
+          # Install jq for JSON parsing
+          dnf install -y jq
+
+          # Create config directory
+          mkdir -p /etc/mishmish
+
+          # Fetch secrets from Secrets Manager and write env file
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id "${ApiSecretArn}" \
+            --region "${AWS::Region}" \
+            --query SecretString --output text)
+
+          echo "SUPABASE_URL=$(echo "$SECRET_JSON" | jq -r '.SUPABASE_URL')" > /etc/mishmish/api.env
+          echo "SUPABASE_PUBLISHABLE_KEY=$(echo "$SECRET_JSON" | jq -r '.SUPABASE_PUBLISHABLE_KEY')" >> /etc/mishmish/api.env
+          echo "SUPABASE_SECRET_KEY=$(echo "$SECRET_JSON" | jq -r '.SUPABASE_SECRET_KEY')" >> /etc/mishmish/api.env
+          echo "OPENAI_API_KEY=$(echo "$SECRET_JSON" | jq -r '.OPENAI_API_KEY')" >> /etc/mishmish/api.env
+          echo "SONIOX_API_KEY=$(echo "$SECRET_JSON" | jq -r '.SONIOX_API_KEY')" >> /etc/mishmish/api.env
+          echo "ELEVEN_API_KEY=$(echo "$SECRET_JSON" | jq -r '.ELEVEN_API_KEY')" >> /etc/mishmish/api.env
+          echo "PORT=8000" >> /etc/mishmish/api.env
+          chmod 600 /etc/mishmish/api.env
+
+          # ECR login and pull initial image
+          REGION="${AWS::Region}"
+          ECR_REGISTRY=$(echo "${EcrImageUri}" | cut -d'/' -f1)
+          aws ecr get-login-password --region "$REGION" | \
+            docker login --username AWS --password-stdin "$ECR_REGISTRY"
+          docker pull "${EcrImageUri}"
+
+          # Run the API container
+          docker run -d \
+            --name api \
+            --restart unless-stopped \
+            -p 8000:8000 \
+            --env-file /etc/mishmish/api.env \
+            "${EcrImageUri}"
+
+          # Write Caddyfile
+          cat > /etc/caddy/Caddyfile <<'CADDYEOF'
+          ${ApiDomain} {
+            reverse_proxy localhost:8000
+          }
+          CADDYEOF
+
+          # Start Caddy
+          systemctl start caddy
+
+          echo "=== Cloud-init complete at $(date) ==="
       Tags:
+        - Key: Name
+          Value: prod-api
         - Key: Environment
           Value: production
 
-  ApiTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  ApiEipAssociation:
+    Type: AWS::EC2::EIPAssociation
     Properties:
-      Name: prod-api
-      VpcId: !Ref VpcId
-      Protocol: HTTP
-      Port: 8000
-      TargetType: ip
-      HealthCheckPath: /health
-      HealthCheckProtocol: HTTP
-      HealthCheckIntervalSeconds: 10
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 5
-      Tags:
-        - Key: Environment
-          Value: production
-
-  ApiAlbListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref ApiAlb
-      Port: 443
-      Protocol: HTTPS
-      Certificates:
-        - CertificateArn: !Ref ApiAcmCertificateArn
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref ApiTargetGroup
-
-  ApiHttpRedirectListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref ApiAlb
-      Port: 80
-      Protocol: HTTP
-      DefaultActions:
-        - Type: redirect
-          RedirectConfig:
-            Protocol: HTTPS
-            Port: "443"
-            StatusCode: HTTP_301
-
-  ApiCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: prod-api
-      Tags:
-        - Key: Environment
-          Value: production
-
-  ApiLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /ecs/prod-api
-      RetentionInDays: 14
-
-  ApiTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Properties:
-      Family: prod-api
-      Cpu: "1024"
-      Memory: "2048"
-      NetworkMode: awsvpc
-      RequiresCompatibilities:
-        - FARGATE
-      ExecutionRoleArn: !Ref EcsTaskExecutionRoleArn
-      TaskRoleArn: !GetAtt ApiInstanceRole.Arn
-      ContainerDefinitions:
-        - Name: api
-          Image: !Ref EcrImageUri
-          PortMappings:
-            - ContainerPort: 8000
-          Environment:
-            - Name: PORT
-              Value: "8000"
-          Secrets:
-            - Name: SUPABASE_URL
-              ValueFrom: !Sub "${ApiSecretArn}:SUPABASE_URL::"
-            - Name: SUPABASE_PUBLISHABLE_KEY
-              ValueFrom: !Sub "${ApiSecretArn}:SUPABASE_PUBLISHABLE_KEY::"
-            - Name: SUPABASE_SECRET_KEY
-              ValueFrom: !Sub "${ApiSecretArn}:SUPABASE_SECRET_KEY::"
-            - Name: OPENAI_API_KEY
-              ValueFrom: !Sub "${ApiSecretArn}:OPENAI_API_KEY::"
-            - Name: SONIOX_API_KEY
-              ValueFrom: !Sub "${ApiSecretArn}:SONIOX_API_KEY::"
-            - Name: ELEVEN_API_KEY
-              ValueFrom: !Sub "${ApiSecretArn}:ELEVEN_API_KEY::"
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: /ecs/prod-api
-              awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: api
-      Tags:
-        - Key: Environment
-          Value: production
-
-  ApiEcsService:
-    Type: AWS::ECS::Service
-    DependsOn: ApiAlbListener
-    Properties:
-      ServiceName: prod-api
-      Cluster: !Ref ApiCluster
-      TaskDefinition: !Ref ApiTaskDefinition
-      DesiredCount: 1
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
-          Subnets: !Ref SubnetIds
-          SecurityGroups:
-            - !Ref ApiContainerSecurityGroup
-      LoadBalancers:
-        - ContainerName: api
-          ContainerPort: 8000
-          TargetGroupArn: !Ref ApiTargetGroup
-      HealthCheckGracePeriodSeconds: 60
-      Tags:
-        - Key: Environment
-          Value: production
+      AllocationId: !GetAtt ApiElasticIp.AllocationId
+      InstanceId: !Ref ApiInstance
 
   # ============================================================
   # Web App (S3 + CloudFront)
@@ -429,14 +354,18 @@ Resources:
           Value: production
 
 Outputs:
-  ApiUrl:
-    Description: ECS/ALB API URL
-    Value: !Sub "https://${ApiAlb.DNSName}"
+  ApiInstanceId:
+    Description: EC2 instance ID for the API server
+    Value: !Ref ApiInstance
 
-  ApiAlbDnsName:
+  ApiElasticIp:
     Description: >
-      ALB DNS name — point api.mishmish.ai CNAME here
-    Value: !GetAtt ApiAlb.DNSName
+      Elastic IP for the API server — point api.mishmish.ai A record here
+    Value: !Ref ApiElasticIp
+
+  ApiUrl:
+    Description: API URL (once DNS is configured)
+    Value: !Sub "https://${ApiDomain}"
 
   WebAppUrl:
     Description: Web app CloudFront URL

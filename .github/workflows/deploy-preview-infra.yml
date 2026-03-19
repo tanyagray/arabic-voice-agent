@@ -1,0 +1,67 @@
+name: Deploy Preview Infrastructure (AWS)
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-west-2
+
+jobs:
+  deploy:
+    name: Deploy shared preview EC2
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get bootstrap stack outputs
+        id: bootstrap
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "arabic-voice-agent-bootstrap" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+          echo "vpc_id=$(get_output VpcId)" >> "$GITHUB_OUTPUT"
+          echo "subnet_id=$(get_output SubnetAId)" >> "$GITHUB_OUTPUT"
+          echo "ec2_instance_profile=$(get_output Ec2InstanceProfileName)" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name "arabic-voice-agent-preview" \
+            --template-file infra/preview/template.yaml \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              VpcId="${{ steps.bootstrap.outputs.vpc_id }}" \
+              SubnetId="${{ steps.bootstrap.outputs.subnet_id }}" \
+              Ec2InstanceProfileName="${{ steps.bootstrap.outputs.ec2_instance_profile }}"
+
+      - name: Print outputs
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "arabic-voice-agent-preview" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+
+          INSTANCE_ID=$(get_output PreviewInstanceId)
+          ELASTIC_IP=$(get_output PreviewElasticIp)
+
+          echo "### Preview Infrastructure Deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Resource | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Instance ID | $INSTANCE_ID |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Elastic IP | $ELASTIC_IP |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**DNS record required**: Point \`*.preview.mishmish.ai\` A record to \`$ELASTIC_IP\`" >> "$GITHUB_STEP_SUMMARY"

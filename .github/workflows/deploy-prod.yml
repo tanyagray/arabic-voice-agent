@@ -8,6 +8,7 @@ on:
       - "web-app/**"
       - "admin-app/**"
       - "infra/prod/**"
+      - "infra/Dockerfile"
   workflow_dispatch:
 
 env:
@@ -44,7 +45,7 @@ jobs:
         run: |
           SHA_TAG="${SHA_SHORT:0:7}"
           IMAGE_URI="$ECR_REGISTRY/arabic-voice-agent-api:prod-$SHA_TAG"
-          docker build -f infra/preview/Dockerfile -t "$IMAGE_URI" .
+          docker build -f infra/Dockerfile -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
@@ -61,6 +62,7 @@ jobs:
     environment: production
     outputs:
       api_url: ${{ steps.outputs.outputs.api_url }}
+      api_instance_id: ${{ steps.outputs.outputs.api_instance_id }}
       web_app_url: ${{ steps.outputs.outputs.web_app_url }}
       admin_url: ${{ steps.outputs.outputs.admin_url }}
       web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
@@ -87,8 +89,8 @@ jobs:
               --output text
           }
           echo "vpc_id=$(get_output VpcId)" >> "$GITHUB_OUTPUT"
-          echo "subnet_ids=$(get_output SubnetIds)" >> "$GITHUB_OUTPUT"
-          echo "ecs_execution_role_arn=$(get_output EcsTaskExecutionRoleArn)" >> "$GITHUB_OUTPUT"
+          echo "subnet_id=$(get_output SubnetAId)" >> "$GITHUB_OUTPUT"
+          echo "ec2_instance_profile=$(get_output Ec2InstanceProfileName)" >> "$GITHUB_OUTPUT"
 
       - name: Clean up failed stack if needed
         run: |
@@ -123,9 +125,8 @@ jobs:
               AcmCertificateArn="${{ secrets.AWS_ACM_CERTIFICATE_ARN }}" \
               EcrImageUri="${{ needs.build-api-image.outputs.image_uri }}" \
               VpcId="${{ steps.bootstrap.outputs.vpc_id }}" \
-              SubnetIds="${{ steps.bootstrap.outputs.subnet_ids }}" \
-              EcsTaskExecutionRoleArn="${{ steps.bootstrap.outputs.ecs_execution_role_arn }}" \
-              ApiAcmCertificateArn="${{ secrets.API_ACM_CERTIFICATE_ARN }}" \
+              SubnetId="${{ steps.bootstrap.outputs.subnet_id }}" \
+              Ec2InstanceProfileName="${{ steps.bootstrap.outputs.ec2_instance_profile }}" \
               ApiSecretArn="${{ secrets.API_SECRET_ARN }}"
 
       - name: Get stack outputs
@@ -139,6 +140,7 @@ jobs:
           }
 
           echo "api_url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
+          echo "api_instance_id=$(get_output ApiInstanceId)" >> "$GITHUB_OUTPUT"
           echo "web_app_url=$(get_output WebAppUrl)" >> "$GITHUB_OUTPUT"
           echo "admin_url=$(get_output AdminUrl)" >> "$GITHUB_OUTPUT"
           echo "web_app_bucket=$(get_output WebAppBucketName)" >> "$GITHUB_OUTPUT"
@@ -148,19 +150,122 @@ jobs:
           echo "web_app_cf_domain=$(get_output WebAppCloudFrontDomain)" >> "$GITHUB_OUTPUT"
           echo "admin_cf_domain=$(get_output AdminCloudFrontDomain)" >> "$GITHUB_OUTPUT"
 
-      - name: Print API ALB DNS name
+      - name: Print API Elastic IP
         run: |
-          ALB_DNS=$(aws cloudformation describe-stacks \
+          API_EIP=$(aws cloudformation describe-stacks \
             --stack-name "arabic-voice-agent-prod" \
-            --query "Stacks[0].Outputs[?OutputKey=='ApiAlbDnsName'].OutputValue" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiElasticIp'].OutputValue" \
             --output text)
 
           echo "### API DNS record required" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Point \`api.mishmish.ai\` CNAME to: \`$ALB_DNS\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Point \`api.mishmish.ai\` A record to: \`$API_EIP\`" >> "$GITHUB_STEP_SUMMARY"
 
   # ------------------------------------------------------------------
-  # Job 3: Build static sites and upload to S3
+  # Job 3: Deploy API container to EC2 via SSM
+  # ------------------------------------------------------------------
+  deploy-api:
+    name: Deploy API container
+    needs: [build-api-image, deploy-infra]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: production
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Wait for SSM agent to be ready
+        run: |
+          INSTANCE_ID="${{ needs.deploy-infra.outputs.api_instance_id }}"
+          echo "Waiting for SSM agent on instance $INSTANCE_ID..."
+          for i in $(seq 1 30); do
+            STATUS=$(aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+              --query "InstanceInformationList[0].PingStatus" \
+              --output text 2>/dev/null || echo "NotFound")
+            if [ "$STATUS" = "Online" ]; then
+              echo "SSM agent is online."
+              break
+            fi
+            echo "  Attempt $i: SSM status=$STATUS, waiting 10s..."
+            sleep 10
+          done
+          if [ "$STATUS" != "Online" ]; then
+            echo "::error::SSM agent not online after 5 minutes"
+            exit 1
+          fi
+
+      - name: Deploy container via SSM
+        run: |
+          INSTANCE_ID="${{ needs.deploy-infra.outputs.api_instance_id }}"
+          IMAGE_URI="${{ needs.build-api-image.outputs.image_uri }}"
+          ECR_REGISTRY=$(echo "$IMAGE_URI" | cut -d'/' -f1)
+          REGION="${{ env.AWS_REGION }}"
+
+          # Write deploy script to temp file
+          cat > /tmp/deploy.sh <<SCRIPT
+          #!/bin/bash
+          set -euo pipefail
+          exec > >(tee -a /var/log/deploy.log) 2>&1
+          echo "=== Deploy started at \$(date) ==="
+          aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+          docker pull $IMAGE_URI
+          docker stop api 2>/dev/null || true
+          docker rm api 2>/dev/null || true
+          docker run -d --name api --restart unless-stopped -p 8000:8000 --env-file /etc/mishmish/api.env $IMAGE_URI
+          echo "Waiting for health check..."
+          for i in \$(seq 1 30); do
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health check failed after 60 seconds"
+          docker logs api --tail 50
+          exit 1
+          SCRIPT
+
+          # Convert script lines to JSON array for SSM
+          COMMANDS_JSON=$(jq -R -s 'split("\n") | map(select(length > 0))' < /tmp/deploy.sh)
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --timeout-seconds 300 \
+            --parameters "{\"commands\":$COMMANDS_JSON}" \
+            --query "Command.CommandId" --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+
+          # Wait for command to complete
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+
+          # Check result
+          RESULT=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query "Status" --output text)
+
+          echo "Command status: $RESULT"
+
+          if [ "$RESULT" != "Success" ]; then
+            echo "::error::SSM command failed with status: $RESULT"
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "StandardErrorContent" --output text
+            exit 1
+          fi
+
+  # ------------------------------------------------------------------
+  # Job 4: Build static sites and upload to S3
   # ------------------------------------------------------------------
   deploy-static-sites:
     name: Deploy static sites
@@ -230,8 +335,8 @@ jobs:
         run: |
           echo "### Production Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Service | Custom Domain | CloudFront/App Runner URL |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---------|---------------|--------------------------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Service | Custom Domain | CloudFront URL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|---------------|----------------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| API | https://api.mishmish.ai | ${{ needs.deploy-infra.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Web App | https://mishmish.ai | https://${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Admin | https://admin.mishmish.ai | https://${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
@@ -244,4 +349,4 @@ jobs:
           echo "| mishmish.ai | ALIAS/ANAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| www.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| admin.mishmish.ai | CNAME | ${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| api.mishmish.ai | CNAME | (see API DNS record section above) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api.mishmish.ai | A | (see API DNS record section above) |" >> "$GITHUB_STEP_SUMMARY"
