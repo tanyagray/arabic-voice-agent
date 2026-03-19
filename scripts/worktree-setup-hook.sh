@@ -4,26 +4,19 @@
 
 INPUT=$(cat)
 
-# Extract the worktree path from the hook JSON
+# Extract the worktree path from the hook JSON.
+# After EnterWorktree completes, cwd is switched to the new worktree,
+# which lives under .claude/worktrees/<name>/.
 WORKTREE_PATH=$(echo "$INPUT" | python3 -c "
 import json, sys, os
 try:
     d = json.load(sys.stdin)
-    # Try tool_response.worktree_path first
-    path = (d.get('tool_response', {}) or {}).get('worktree_path', '')
-    if not path:
-        # Fall back: derive from worktree_name in tool_input
-        name = (d.get('tool_input', {}) or {}).get('worktree_name', '')
-        if name:
-            cwd = d.get('cwd', '')
-            repo = cwd
-            while repo and not os.path.isdir(os.path.join(repo, '.claude', 'worktrees')):
-                parent = os.path.dirname(repo)
-                if parent == repo:
-                    break
-                repo = parent
-            path = os.path.join(repo, '.claude', 'worktrees', name)
-    print(path)
+    cwd = d.get('cwd', '')
+    # Verify cwd is inside a .claude/worktrees/ directory
+    if '/.claude/worktrees/' in cwd:
+        print(cwd)
+    else:
+        print('')
 except Exception:
     print('')
 ")
