@@ -294,7 +294,7 @@ Resources:
                   - cloudfront:UntagResource
                 Resource: "*"
 
-              # CloudFormation - manage preview and production stacks
+              # CloudFormation - manage bootstrap, preview, and production stacks
               - Sid: CloudFormation
                 Effect: Allow
                 Action:
@@ -315,6 +315,14 @@ Resources:
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/preview-pr-*/*"
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-prod/*"
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-preview/*"
+                  - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-bootstrap/*"
+
+              # IAM - list OIDC providers (needed by bootstrap deploy)
+              - Sid: OidcProviders
+                Effect: Allow
+                Action:
+                  - iam:ListOpenIDConnectProviders
+                Resource: "*"
 
               # EC2 - manage instances, security groups, EIPs
               - Sid: Ec2
