@@ -324,6 +324,7 @@ Resources:
                   - iam:ListOpenIDConnectProviders
                 Resource: "*"
 
+
               # EC2 - manage instances, security groups, EIPs
               - Sid: Ec2
                 Effect: Allow
