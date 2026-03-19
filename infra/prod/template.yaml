@@ -110,10 +110,36 @@ Resources:
           systemctl enable docker
           systemctl start docker
 
-          # Install Caddy
-          dnf install -y 'dnf-command(copr)'
-          dnf copr enable -y @caddy/caddy
-          dnf install -y caddy
+          # Install Caddy (direct binary — AL2023 has no RPM package)
+          CADDY_VERSION="2.9.1"
+          curl -sL "https://github.com/caddyserver/caddy/releases/download/v$${CADDY_VERSION}/caddy_$${CADDY_VERSION}_linux_amd64.tar.gz" -o /tmp/caddy.tar.gz
+          tar xzf /tmp/caddy.tar.gz -C /usr/bin caddy
+          chmod +x /usr/bin/caddy
+          rm /tmp/caddy.tar.gz
+
+          # Create caddy user/group and systemd service
+          groupadd -r caddy 2>/dev/null || true
+          useradd -r -g caddy -d /var/lib/caddy -s /sbin/nologin caddy 2>/dev/null || true
+          mkdir -p /var/lib/caddy /etc/caddy /var/log/caddy
+          chown caddy:caddy /var/lib/caddy /var/log/caddy
+
+          cat > /etc/systemd/system/caddy.service <<'SVCEOF'
+          [Unit]
+          Description=Caddy
+          After=network.target
+          [Service]
+          User=caddy
+          Group=caddy
+          ExecStart=/usr/bin/caddy run --environ --config /etc/caddy/Caddyfile
+          ExecReload=/usr/bin/caddy reload --config /etc/caddy/Caddyfile
+          TimeoutStopSec=5s
+          LimitNOFILE=1048576
+          AmbientCapabilities=CAP_NET_BIND_SERVICE
+          Restart=on-failure
+          [Install]
+          WantedBy=multi-user.target
+          SVCEOF
+          systemctl daemon-reload
           systemctl enable caddy
 
           # Install jq for JSON parsing
