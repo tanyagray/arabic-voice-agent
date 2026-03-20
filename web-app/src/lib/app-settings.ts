@@ -16,6 +16,8 @@ export interface AppConfig {
   supabaseUrl: string;
   supabasePublishableKey: string;
   supabase: SupabaseClient;
+  posthogKey: string;
+  posthogHost: string;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -50,6 +52,8 @@ export const AppSettings = {
       supabaseUrl: data.supabase_url,
       supabasePublishableKey: data.supabase_publishable_key,
       supabase,
+      posthogKey: data.posthog_key || '',
+      posthogHost: data.posthog_host || '',
     };
 
     return instance;

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { AppSettings } from '@/lib/app-settings';
+import { initPostHog } from '@/posthog';
 
 interface SupabaseContextType {
   client: SupabaseClient | null;
@@ -23,6 +24,7 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     AppSettings.init()
       .then((settings) => {
+        initPostHog();
         setState({ client: settings.supabase, isConfigured: true, loading: false, error: null });
       })
       .catch((err) => {
