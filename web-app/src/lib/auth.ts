@@ -1,4 +1,4 @@
-import { getSupabaseClient } from './supabase'
+import { AppSettings } from './app-settings'
 import type { User, Session } from '@supabase/supabase-js'
 
 // Alias Session as UserSession to distinguish from AgentSession
@@ -11,9 +11,7 @@ export interface AuthState {
 }
 
 function requireSupabase() {
-  const client = getSupabaseClient()
-  if (!client) throw new Error('Supabase client not initialized')
-  return client
+  return AppSettings.get().supabase
 }
 
 /**

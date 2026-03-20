@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createSupabaseClient, setSupabaseClient } from '@/lib/supabase';
-import { fetchConfig } from '@/lib/config';
+import { AppSettings } from '@/lib/app-settings';
 
 interface SupabaseContextType {
   client: SupabaseClient | null;
@@ -22,11 +21,9 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    fetchConfig()
-      .then((config) => {
-        const client = createSupabaseClient(config.supabaseUrl, config.supabasePublishableKey);
-        setSupabaseClient(client);
-        setState({ client, isConfigured: true, loading: false, error: null });
+    AppSettings.init()
+      .then((settings) => {
+        setState({ client: settings.supabase, isConfigured: true, loading: false, error: null });
       })
       .catch((err) => {
         console.error('Failed to load config:', err);

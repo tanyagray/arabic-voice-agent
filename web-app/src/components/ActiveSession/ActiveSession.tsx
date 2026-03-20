@@ -79,8 +79,8 @@ function SessionContent({
           return;
         }
 
-        const { getApiUrl } = await import('@/lib/config');
-        const apiUrl = getApiUrl();
+        const { AppSettings } = await import('@/lib/app-settings');
+        const apiUrl = AppSettings.apiUrl;
         const wsUrl = apiUrl.replace(/^http/, 'ws');
 
         await client.connect({

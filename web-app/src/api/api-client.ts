@@ -6,9 +6,9 @@
  */
 
 import axios from 'axios';
-import { getApiUrl } from '../lib/config';
+import { AppSettings } from '../lib/app-settings';
 
-const baseURL = getApiUrl();
+const baseURL = AppSettings.apiUrl;
 
 /**
  * Axios instance configured for the backend API.
@@ -30,11 +30,11 @@ export const apiClient = axios.create({
 // Request interceptor to add JWT token to all requests
 apiClient.interceptors.request.use(
   async (config) => {
-    const { getSupabaseClient } = await import('../lib/supabase');
-    const supabase = getSupabaseClient();
-
-    // Skip auth if Supabase client isn't ready yet (config still loading, or Storybook)
-    if (!supabase) {
+    let supabase;
+    try {
+      supabase = AppSettings.get().supabase;
+    } catch {
+      // Config still loading or Storybook — skip auth
       return config;
     }
 
