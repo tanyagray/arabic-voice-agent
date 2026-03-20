@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session, SupabaseClient } from '@supabase/supabase-js';
+import posthog from '@/posthog';
 import { useSupabaseOptional } from './SupabaseContext';
 import { isAnonymousUser } from '@/lib/auth';
 
@@ -74,6 +75,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       setSession(session);
       setUser(session?.user ?? null);
+
+      // Sync PostHog identity with Supabase auth state
+      const u = session?.user;
+      if (_event === 'SIGNED_OUT') {
+        posthog.reset();
+      } else if (u && !u.is_anonymous) {
+        posthog.identify(u.id, { email: u.email });
+      }
     });
 
     return () => subscription.unsubscribe();
