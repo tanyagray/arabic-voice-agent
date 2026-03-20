@@ -132,7 +132,10 @@ jobs:
       contents: read
     environment: dev
     outputs:
-      api_url: ${{ steps.api-url.outputs.api_url }}
+      api_url: ${{ steps.urls.outputs.api_url }}
+      web_app_url: ${{ steps.urls.outputs.web_app_url }}
+      admin_url: ${{ steps.urls.outputs.admin_url }}
+      instance_id: ${{ steps.preview-infra.outputs.instance_id }}
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -163,11 +166,13 @@ jobs:
           echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
           echo "elastic_ip=$ELASTIC_IP" >> "$GITHUB_OUTPUT"
 
-      - name: Compute API URL
-        id: api-url
+      - name: Compute preview URLs
+        id: urls
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
-          echo "api_url=https://pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+          echo "api_url=https://api-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+          echo "web_app_url=https://pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+          echo "admin_url=https://admin-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
 
       - name: Deploy container via SSM
         run: |
@@ -177,7 +182,6 @@ jobs:
           REGION="${{ env.AWS_REGION }}"
           PR_NUM="${{ github.event.pull_request.number }}"
           PORT=$((10000 + PR_NUM))
-          DOMAIN="pr-${PR_NUM}.preview.mishmish.ai"
 
           SUPABASE_URL="${{ needs.supabase-credentials.outputs.url }}"
           ANON_KEY="${{ steps.supabase.outputs.anon_key }}"
@@ -225,20 +229,6 @@ jobs:
             -p ${PORT}:8000 \
             --env-file /etc/mishmish/pr-${PR_NUM}.env \
             $IMAGE_URI
-
-          # Update Caddy config — remove old block if exists, then add new one
-          sed -i '/^# BEGIN pr-${PR_NUM}$/,/^# END pr-${PR_NUM}$/d' /etc/caddy/Caddyfile
-          cat >> /etc/caddy/Caddyfile <<CADDYEOF
-
-          # BEGIN pr-${PR_NUM}
-          $DOMAIN {
-            reverse_proxy localhost:${PORT}
-          }
-          # END pr-${PR_NUM}
-          CADDYEOF
-
-          # Reload Caddy
-          systemctl reload caddy
 
           # Wait for health check
           echo "Waiting for health check on port ${PORT}..."
@@ -299,8 +289,8 @@ jobs:
       contents: read
     environment: dev
     outputs:
-      web_app_url: ${{ steps.outputs.outputs.web_app_url }}
-      admin_url: ${{ steps.outputs.outputs.admin_url }}
+      web_app_cf_domain: ${{ steps.outputs.outputs.web_app_cf_domain }}
+      admin_cf_domain: ${{ steps.outputs.outputs.admin_cf_domain }}
       web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
       admin_bucket: ${{ steps.outputs.outputs.admin_bucket }}
       web_app_dist_id: ${{ steps.outputs.outputs.web_app_dist_id }}
@@ -354,8 +344,11 @@ jobs:
               --output text
           }
 
-          echo "web_app_url=$(get_output WebAppUrl)" >> "$GITHUB_OUTPUT"
-          echo "admin_url=$(get_output AdminUrl)" >> "$GITHUB_OUTPUT"
+          # Extract raw CloudFront domain (strip https:// prefix)
+          WEB_APP_URL=$(get_output WebAppUrl)
+          ADMIN_URL=$(get_output AdminUrl)
+          echo "web_app_cf_domain=${WEB_APP_URL#https://}" >> "$GITHUB_OUTPUT"
+          echo "admin_cf_domain=${ADMIN_URL#https://}" >> "$GITHUB_OUTPUT"
           echo "web_app_bucket=$(get_output WebAppBucketName)" >> "$GITHUB_OUTPUT"
           echo "admin_bucket=$(get_output AdminBucketName)" >> "$GITHUB_OUTPUT"
           echo "web_app_dist_id=$(get_output WebAppDistributionId)" >> "$GITHUB_OUTPUT"
@@ -443,11 +436,80 @@ jobs:
             --distribution-id "${{ needs.deploy-static-infra.outputs.admin_dist_id }}" \
             --paths "/*"
 
+      # Configure Caddy to route all preview subdomains
+      - name: Configure Caddy routes via SSM
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PORT=$((10000 + PR_NUM))
+          INSTANCE_ID="${{ needs.deploy-preview-api.outputs.instance_id }}"
+          WEB_CF_DOMAIN="${{ needs.deploy-static-infra.outputs.web_app_cf_domain }}"
+          ADMIN_CF_DOMAIN="${{ needs.deploy-static-infra.outputs.admin_cf_domain }}"
+
+          cat > /tmp/caddy-config.sh <<SCRIPT
+          #!/bin/bash
+          set -euo pipefail
+          echo "=== Configuring Caddy for PR #$PR_NUM at \$(date) ==="
+
+          # Remove old block if exists
+          sed -i '/^# BEGIN pr-${PR_NUM}\$/,/^# END pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
+
+          # Add new block with all three services
+          cat >> /etc/caddy/Caddyfile <<'CADDYEOF'
+
+          # BEGIN pr-${PR_NUM}
+          api-pr-${PR_NUM}.preview.mishmish.ai {
+            reverse_proxy localhost:${PORT}
+          }
+          pr-${PR_NUM}.preview.mishmish.ai {
+            reverse_proxy https://${WEB_CF_DOMAIN} {
+              header_up Host {upstream_hostport}
+            }
+          }
+          admin-pr-${PR_NUM}.preview.mishmish.ai {
+            reverse_proxy https://${ADMIN_CF_DOMAIN} {
+              header_up Host {upstream_hostport}
+            }
+          }
+          # END pr-${PR_NUM}
+          CADDYEOF
+
+          systemctl reload caddy
+          echo "Caddy configured for PR #$PR_NUM"
+          SCRIPT
+
+          COMMANDS_JSON=$(jq -R -s 'split("\n") | map(select(length > 0))' < /tmp/caddy-config.sh)
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --timeout-seconds 120 \
+            --parameters "{\"commands\":$COMMANDS_JSON}" \
+            --query "Command.CommandId" --output text)
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+
+          RESULT=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query "Status" --output text)
+
+          echo "Caddy config status: $RESULT"
+          if [ "$RESULT" != "Success" ]; then
+            echo "::error::Caddy config failed"
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "StandardErrorContent" --output text
+            exit 1
+          fi
+
       # Set Supabase SITE_URL to the preview web-app URL
       - name: Set Supabase SITE_URL
         run: |
           BRANCH_REF="${{ needs.supabase-credentials.outputs.branch_ref }}"
-          SITE_URL="${{ needs.deploy-static-infra.outputs.web_app_url }}"
+          SITE_URL="${{ needs.deploy-preview-api.outputs.web_app_url }}"
           supabase secrets set --project-ref "$BRANCH_REF" SITE_URL="$SITE_URL"
           echo "Set SITE_URL=$SITE_URL on Supabase branch $BRANCH_REF"
 
@@ -461,9 +523,9 @@ jobs:
               '',
               '| Service | URL |',
               '|---------|-----|',
+              `| Web App | ${{ needs.deploy-preview-api.outputs.web_app_url }} |`,
+              `| Admin | ${{ needs.deploy-preview-api.outputs.admin_url }} |`,
               `| API | ${{ needs.deploy-preview-api.outputs.api_url }} |`,
-              `| Web App | ${{ needs.deploy-static-infra.outputs.web_app_url }} |`,
-              `| Admin | ${{ needs.deploy-static-infra.outputs.admin_url }} |`,
               '',
               `_Supabase branch: ${{ needs.supabase-credentials.outputs.url }}_`,
             ].join('\n');

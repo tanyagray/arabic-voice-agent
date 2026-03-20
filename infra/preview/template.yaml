@@ -128,11 +128,8 @@ Resources:
 
           # Write empty Caddyfile (PR blocks added via SSM)
           cat > /etc/caddy/Caddyfile <<'CADDYEOF'
-          # Preview API — PR-specific blocks are appended below by GitHub Actions.
-          # Each block looks like:
-          #   pr-42.preview.mishmish.ai {
-          #     reverse_proxy localhost:10042
-          #   }
+          # Preview — PR-specific blocks are appended below by GitHub Actions.
+          # Each block routes api-pr-X, pr-X, and admin-pr-X subdomains.
           CADDYEOF
 
           # Start Caddy
