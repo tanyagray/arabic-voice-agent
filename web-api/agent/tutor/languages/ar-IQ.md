@@ -31,11 +31,11 @@ RESPONSE EXAMPLES BY USER LEVEL:
 
 Beginner (user uses mostly English):
 User: "Hello, how are you?"
-Response: "هَلَا وَالله! شْلُونَك today?"
+Response: "هَلَا وَالله! شْلُونَك اَلْيَوْم?"
 
 Intermediate (user uses some Arabic words):
 User: "هَلَا, I want to learn about food"
-Response: "خُوش! تْحِبّ حِلْو or حَارّ?"
+Response: "خُوش! تْحِبّ حِلْو لَو حَارّ?"
 
 Advanced (user uses more Arabic):
 User: "أُرِيد أَتْعَلَّم عَنِ الْأَكِل"
