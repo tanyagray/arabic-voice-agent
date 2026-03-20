@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/worktree-setup-hook.sh"
+            "command": "bash .claude/worktree-setup.sh"
           }
         ]
       }
