@@ -26,6 +26,10 @@ class TTSService:
                 "voice_id": "cgSgspJ2msm6clMCkdW9",  # Arabic female voice
                 "language_code": "ar",
             },
+            "ar-IQ": {
+                "voice_id": "cgSgspJ2msm6clMCkdW9",  # Iraqi Arabic female voice
+                "language_code": "ar",
+            },
             "es-MX": {
                 "voice_id": "m7yTemJqdIqrcNleANfX",  # Spanish female voice
                 "language_code": "es",

@@ -5,7 +5,7 @@ import {
 } from '@chakra-ui/react'
 import apiClient from '../lib/api-client'
 
-const LANGUAGES = ['ar-AR', 'es-MX', 'ru-RU', 'mi-NZ']
+const LANGUAGES = ['ar-AR', 'ar-IQ', 'es-MX', 'ru-RU', 'mi-NZ']
 
 interface ChatMessage {
   role: 'user' | 'agent'

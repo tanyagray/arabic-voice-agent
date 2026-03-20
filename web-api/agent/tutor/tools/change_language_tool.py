@@ -8,6 +8,7 @@ from services.context_service import AppContext
 # Available languages based on files in the languages directory
 AVAILABLE_LANGUAGES = {
     "ar-AR": "Arabic",
+    "ar-IQ": "Iraqi Arabic",
     "es-MX": "Mexican Spanish",
     "ru-RU": "Russian",
     "mi-NZ": "Te Reo Māori (New Zealand Māori)"
@@ -26,12 +27,13 @@ def change_language(
 
     Available languages:
     - ar-AR: Arabic
+    - ar-IQ: Iraqi Arabic
     - es-MX: Mexican Spanish
     - ru-RU: Russian
     - mi-NZ: Te Reo Māori (New Zealand Māori)
 
     Args:
-        language_code: The language code to switch to (e.g., 'ar-AR', 'es-MX', 'ru-RU', 'mi-NZ')
+        language_code: The language code to switch to (e.g., 'ar-AR', 'ar-IQ', 'es-MX', 'ru-RU', 'mi-NZ')
 
     Returns:
         str: Confirmation message about the language change
