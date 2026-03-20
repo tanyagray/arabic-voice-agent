@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Box, Button, Container, Flex, Heading, Text, HStack } from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Heading, Image, Text, HStack } from '@chakra-ui/react';
 
 export function Header() {
   const { user, isAnonymous, signOut } = useAuth();
@@ -20,7 +20,10 @@ export function Header() {
       <Container maxW="7xl" px={0}>
         <Flex justify="space-between" align="center">
           <Heading as="h1" size="md" fontWeight="bold" color="white">
-            🍑 mishmish.ai
+            <Flex align="center" gap={2}>
+              <Image src="/favicon.svg" alt="mishmish.ai logo" boxSize="24px" />
+              mishmish.ai
+            </Flex>
           </Heading>
           <Box>
             {isAnonymous ? (
