@@ -65,6 +65,7 @@ class TTSTranscriptProcessor(FrameProcessor):
                         message_source="tutor",
                         message_kind="transcript",
                         message_text=sentence_text,
+                        message_text_canonical=sentence_text,
                     )
                 except Exception as e:
                     logger.error(f"Failed to persist TTS transcript: {e}")

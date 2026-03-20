@@ -10,6 +10,7 @@ from .session_service import get_session
 from .websocket_service import Message, send_message, send_audio_message
 from .tts_service import get_tts_service
 from .transcript_service import create_transcript_message
+from .scaffolding_service import generate_scaffolded_text
 
 
 async def generate_agent_response(session_id: str, user_message: str, user_access_token: str | None = None) -> str:
@@ -110,13 +111,17 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None, u
     else:
         text_response = await generate_agent_followup(session_id, user_access_token)
 
+    # Generate scaffolded display text (arabizi) from the canonical Arabic response
+    scaffolded_response = await generate_scaffolded_text(text_response)
+
     # Create and save the tutor message to the database
     try:
         transcript_message = await create_transcript_message(
             session_id=session_id,
             message_source="tutor",
             message_kind="text",
-            message_text=text_response,
+            message_text=scaffolded_response,
+            message_text_canonical=text_response,
         )
 
         # Send the full message format via websocket
@@ -136,7 +141,7 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None, u
                 kind="transcript",
                 data={
                     "source": "tutor",
-                    "text": text_response
+                    "text": scaffolded_response
                 }
             )
         )
