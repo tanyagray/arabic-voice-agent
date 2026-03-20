@@ -33,11 +33,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS - adjust origins as needed for production
+# Configure CORS
+# Note: allow_credentials=True is incompatible with allow_origins=["*"] —
+# browsers reject Access-Control-Allow-Origin: * when credentials are included.
+# Since auth uses Authorization headers (not cookies), credentials mode is not needed.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update with specific origins in production
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
