@@ -23,6 +23,9 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path, override=True)
 
 
+from services import posthog_service  # noqa: E402 — must import after dotenv
+
+
 app = FastAPI(
     title="mishmish.ai API",
     description="Backend API for the mishmish.ai application",
@@ -45,6 +48,12 @@ app.include_router(realtime_pipecat_router)
 app.include_router(content_router)
 app.include_router(webhooks_router)
 app.include_router(admin_router)
+
+
+@app.on_event("shutdown")
+def shutdown_posthog():
+    """Flush pending PostHog events on shutdown."""
+    posthog_service.shutdown()
 
 
 @app.get("/")

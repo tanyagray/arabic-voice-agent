@@ -4,6 +4,7 @@ from typing import Dict, Optional
 from services.agent_session import AgentSession
 from services.supabase_client import get_supabase_user_client, get_supabase_admin_client
 from services.context_service import create_context, delete_context
+from services import posthog_service
 
 # In-memory session storage indexed by session_id
 _sessions: Dict[str, AgentSession] = {}
@@ -35,6 +36,14 @@ def create_session(user_access_token: str) -> str:
         session_id=session_id,
         user_id=session_id,  # Using session_id as user_id for now
         user_name="User"     # Placeholder user name
+    )
+
+    # Track session creation
+    user = getattr(session, "user", None)
+    posthog_service.capture(
+        distinct_id=user.id if user else session_id,
+        event="session_started",
+        properties={"session_id": session_id},
     )
 
     return session_id
