@@ -79,7 +79,8 @@ function SessionContent({
           return;
         }
 
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        const { AppSettings } = await import('@/lib/app-settings');
+        const apiUrl = AppSettings.apiUrl;
         const wsUrl = apiUrl.replace(/^http/, 'ws');
 
         await client.connect({

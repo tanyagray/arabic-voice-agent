@@ -1,25 +1,40 @@
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createSupabaseClient } from '@/lib/supabase';
+import { AppSettings } from '@/lib/app-settings';
+import { initPostHog } from '@/posthog';
 
 interface SupabaseContextType {
   client: SupabaseClient | null;
   isConfigured: boolean;
+  loading: boolean;
+  error: string | null;
 }
 
 const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
 
-export function SupabaseProvider({ children }: { children: React.ReactNode }) {
-  const value = useMemo(() => {
-    const client = createSupabaseClient();
-    return {
-      client,
-      isConfigured: client !== null,
-    };
+export function SupabaseProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<SupabaseContextType>({
+    client: null,
+    isConfigured: false,
+    loading: true,
+    error: null,
+  });
+
+  useEffect(() => {
+    AppSettings.init()
+      .then((settings) => {
+        initPostHog();
+        setState({ client: settings.supabase, isConfigured: true, loading: false, error: null });
+      })
+      .catch((err) => {
+        console.error('Failed to load config:', err);
+        setState({ client: null, isConfigured: false, loading: false, error: err.message });
+      });
   }, []);
 
   return (
-    <SupabaseContext.Provider value={value}>
+    <SupabaseContext.Provider value={state}>
       {children}
     </SupabaseContext.Provider>
   );
@@ -27,8 +42,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
 /**
  * Hook to get the Supabase client.
- * Throws if Supabase is not configured (env vars missing) or not within provider.
- * Use this for components that require Supabase.
+ * Throws if Supabase is not configured or not within provider.
  */
 export function useSupabase(): SupabaseClient {
   const context = useContext(SupabaseContext);
@@ -36,15 +50,14 @@ export function useSupabase(): SupabaseClient {
     throw new Error('useSupabase must be used within a SupabaseProvider');
   }
   if (context.client === null) {
-    throw new Error('Supabase is not configured. Missing environment variables.');
+    throw new Error('Supabase is not configured. Config may still be loading.');
   }
   return context.client;
 }
 
 /**
  * Hook to optionally get the Supabase client.
- * Returns null if Supabase is not configured.
- * Use this for components that can function without Supabase.
+ * Returns null if Supabase is not configured or still loading.
  */
 export function useSupabaseOptional(): SupabaseClient | null {
   const context = useContext(SupabaseContext);
@@ -56,7 +69,6 @@ export function useSupabaseOptional(): SupabaseClient | null {
 
 /**
  * Hook to check if Supabase is configured.
- * Returns true if env vars are present and client was created.
  */
 export function useSupabaseConfigured(): boolean {
   const context = useContext(SupabaseContext);
@@ -64,4 +76,15 @@ export function useSupabaseConfigured(): boolean {
     throw new Error('useSupabaseConfigured must be used within a SupabaseProvider');
   }
   return context.isConfigured;
+}
+
+/**
+ * Hook to get the loading/error state of config fetching.
+ */
+export function useSupabaseStatus(): { loading: boolean; error: string | null } {
+  const context = useContext(SupabaseContext);
+  if (context === undefined) {
+    throw new Error('useSupabaseStatus must be used within a SupabaseProvider');
+  }
+  return { loading: context.loading, error: context.error };
 }

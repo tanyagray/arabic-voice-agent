@@ -16,6 +16,7 @@ from routes.realtime_pipecat import router as realtime_pipecat_router
 from routes.content import router as content_router
 from routes.webhooks import router as webhooks_router
 from routes.admin import router as admin_router
+from routes.config import router as config_router
 
 # Load environment variables from .env file in the same directory as this script
 # Use override=True to ensure this .env takes precedence over parent directory .env files
@@ -48,6 +49,7 @@ app.include_router(realtime_pipecat_router)
 app.include_router(content_router)
 app.include_router(webhooks_router)
 app.include_router(admin_router)
+app.include_router(config_router)
 
 
 @app.on_event("shutdown")
