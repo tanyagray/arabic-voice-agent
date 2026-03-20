@@ -1,4 +1,7 @@
-"""Scaffolding service for generating learner-facing display text from canonical Arabic."""
+"""Scaffolding service for generating learner-facing display text from canonical Arabic.
+
+Translates Arabic into English, keeping familiar words inline as Arabizi.
+"""
 
 import os
 from openai import AsyncOpenAI
@@ -17,22 +20,36 @@ def _get_client() -> AsyncOpenAI:
 
 
 SCAFFOLDING_PROMPT = """\
-You are a transliteration assistant. Convert the following Arabic text to Arabizi \
-(romanized Arabic using English letters).
+You are a translation assistant for Arabic language learners. Translate the following \
+Arabic text into natural English.
+{familiar_words_instruction}
+Additionally, pick ONE new Arabic word from the text that is NOT in the familiar list \
+and keep it as Arabizi (romanized Arabic) instead of translating it. Choose a concrete, \
+useful word (nouns and verbs are best). This introduces new vocabulary gradually.
 
 Rules:
-- Transliterate ALL Arabic words to their romanized form using common Arabizi conventions.
-- Keep any English words as-is.
-- Preserve punctuation and sentence structure.
-- Use common Arabizi spellings (e.g., 3 for ع, 7 for ح, 2 for ء/ق).
-- Do NOT add translations, explanations, or extra text.
-- Return ONLY the transliterated text, nothing else.
-{familiar_words_instruction}
+- Translate the Arabic into fluent, natural English.
+- Keep familiar words (and their inflected forms) as Arabizi in the sentence.
+- Keep exactly one additional new word as Arabizi to introduce it to the learner.
+- Use common Arabizi conventions (e.g., 3 for ع, 7 for ح, 2 for ء/ق) for all Arabizi words.
+- The output must contain ZERO Arabic script — everything must be in English or Arabizi.
+- Do NOT add explanations, notes, or extra text.
+- Return ONLY the translated text, nothing else.
+
 Arabic text:
 {arabic_text}"""
 
 FAMILIAR_WORDS_INSTRUCTION = """
-The learner already knows these words — keep them in Arabic script instead of transliterating:
+The learner already knows the following Arabic words (given as base/stem forms). \
+Keep these words — and any inflected variants (plurals, conjugations, dual forms, etc.) — \
+in the translated sentence as Arabizi (romanized Arabic) instead of translating them to English.
+
+Use common Arabizi conventions (e.g., 3 for ع, 7 for ح, 2 for ء/ق).
+
+For example, if the learner knows "sayaara" (سيارة), then "السيارات" should appear as \
+"sayaaraat" rather than "cars".
+
+Familiar words:
 {words}
 """
 
@@ -42,19 +59,20 @@ async def generate_scaffolded_text(
     familiar_words: list[str] | None = None,
 ) -> str:
     """
-    Generate a scaffolded (Arabizi/romanized) version of Arabic text.
+    Generate scaffolded display text by translating Arabic into English.
 
-    Uses a lightweight LLM call to transliterate Arabic text to Arabizi,
-    optionally keeping familiar words in Arabic script.
+    Familiar words (and their inflected forms) are kept inline as Arabizi
+    instead of being translated. Additionally, one new word is kept as
+    Arabizi to gradually introduce new vocabulary.
 
     Args:
-        arabic_text: The full Arabic text with harakaat to transliterate.
-        familiar_words: Optional list of Arabic words the learner already knows.
-                       These will be kept in Arabic script. Empty/None means
-                       transliterate everything.
+        arabic_text: The full Arabic text with harakaat to translate.
+        familiar_words: Optional list of Arabic stem/base words the learner knows.
+                       These (and inflected variants) will appear as Arabizi.
+                       Empty/None means only one new word appears as Arabizi.
 
     Returns:
-        The romanized/Arabizi version of the text.
+        English text with familiar + one new word as inline Arabizi.
     """
     # Build familiar words instruction
     familiar_words_instruction = ""
