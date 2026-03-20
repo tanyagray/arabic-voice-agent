@@ -1,44 +1,76 @@
 #!/usr/bin/env bash
-# PostToolUse hook for EnterWorktree — sets up a new worktree after creation.
+# WorktreeCreate hook — fully replaces Claude Code's default worktree creation.
 #
-# Receives JSON on stdin from Claude Code. Extracts the worktree path,
-# then: pulls latest main, copies .env files, patches ports, and installs deps.
+# Receives JSON on stdin with { worktreeName: string }.
+# Creates the worktree, copies .env files, patches ports, installs deps.
+# Prints ONLY the absolute worktree path to stdout. Everything else goes to stderr.
 #
 # Port allocation (deterministic, based on worktree name hash, slot 1-20):
-#   web-api  : 8000 + slot*10   (8010–8200)  — also used for WEBHOOK_BASE_URL
-#   web-app  : 5200 + slot       (5201–5220)  — Vite dev server
-#   admin-app: 5220 + slot       (5221–5240)  — Vite dev server
-#   debugpy  : 5670 + slot       (5671–5690)  — Python remote debugger
+#   web-api  : 8000 + slot*10   (8010-8200)  — also used for WEBHOOK_BASE_URL
+#   web-app  : 5200 + slot       (5201-5220)  — Vite dev server
+#   admin-app: 5220 + slot       (5221-5240)  — Vite dev server
+#   debugpy  : 5670 + slot       (5671-5690)  — Python remote debugger
 
 set -euo pipefail
+
+# Read stdin ONCE — only one chance to read it
+INPUT=$(cat)
 
 # Ensure common tool paths are available (uv, npm, etc.)
 export PATH="$HOME/.local/bin:$HOME/.nvm/versions/node/$(ls "$HOME/.nvm/versions/node/" 2>/dev/null | tail -1)/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 # ---------------------------------------------------------------------------
-# Parse hook JSON to get the worktree path
+# Parse hook JSON
 # ---------------------------------------------------------------------------
 
-INPUT=$(cat)
-
-WORKTREE_PATH=$(echo "$INPUT" | python3 -c "
+WORKTREE_NAME=$(echo "$INPUT" | python3 -c "
 import json, sys
-try:
-    d = json.load(sys.stdin)
-    cwd = d.get('cwd', '')
-    print(cwd if '/.claude/worktrees/' in cwd else '')
-except Exception:
-    print('')
+d = json.load(sys.stdin)
+print(d.get('name', '') or d.get('worktreeName', ''))
 ")
 
-if [ -z "$WORKTREE_PATH" ] || [ ! -d "$WORKTREE_PATH" ]; then
-    exit 0
+if [ -z "$WORKTREE_NAME" ]; then
+    echo "ERROR: worktreeName not found in input" >&2
+    exit 1
 fi
 
-MAIN_ROOT=$(git -C "$WORKTREE_PATH" worktree list --porcelain | head -1 | sed 's/^worktree //')
-WORKTREE_NAME=$(basename "$WORKTREE_PATH")
+REPO_PATH=$(git rev-parse --show-toplevel)
+WORKTREE_PATH="${REPO_PATH}/.claude/worktrees/${WORKTREE_NAME}"
+BRANCH="worktree-${WORKTREE_NAME}"
+LOG="/tmp/worktree-setup-${WORKTREE_NAME}.log"
 
-# Compute deterministic slot 1-20 from worktree name
+echo "[worktree-setup] Setting up worktree: $WORKTREE_NAME" >&2
+
+# ---------------------------------------------------------------------------
+# Create the worktree — ALL git output to stderr/dev/null
+# ---------------------------------------------------------------------------
+
+mkdir -p "$(dirname "$WORKTREE_PATH")"
+
+# Clean up stale worktree/branch if they exist
+if [ -d "$WORKTREE_PATH" ]; then
+    git worktree remove --force "$WORKTREE_PATH" >/dev/null 2>&1 || true
+fi
+if git branch --list "$BRANCH" | grep -q .; then
+    git branch -D "$BRANCH" >/dev/null 2>&1 || true
+fi
+
+# Fetch latest before creating worktree so it starts from up-to-date main
+echo "[worktree-setup] Fetching latest from origin..." >&2
+if git -C "$REPO_PATH" fetch origin >/dev/null 2>&1; then
+    BASE_REF="origin/main"
+    echo "[worktree-setup]   creating worktree from origin/main" >&2
+else
+    BASE_REF="HEAD"
+    echo "[worktree-setup]   warning: fetch failed (offline?) — using local HEAD" >&2
+fi
+
+git worktree add -b "$BRANCH" "$WORKTREE_PATH" "$BASE_REF" >/dev/null 2>&1
+
+# ---------------------------------------------------------------------------
+# Compute deterministic port slot 1-20
+# ---------------------------------------------------------------------------
+
 SLOT=$(python3 -c "
 import hashlib, sys
 name = sys.argv[1]
@@ -51,26 +83,9 @@ WEB_PORT=$((5200 + SLOT))
 ADMIN_PORT=$((5220 + SLOT))
 DEBUGPY_PORT=$((5670 + SLOT))
 
-echo "[worktree-setup] Setting up worktree: $WORKTREE_NAME (slot $SLOT)"
-echo "[worktree-setup]   web-api  → http://localhost:$API_PORT"
-echo "[worktree-setup]   web-app  → http://localhost:$WEB_PORT"
-echo "[worktree-setup]   admin    → http://localhost:$ADMIN_PORT"
-
-# ---------------------------------------------------------------------------
-# Pull latest from remote main branch
-# ---------------------------------------------------------------------------
-
-echo "[worktree-setup] Fetching latest from origin..."
-DEFAULT_BRANCH=$(git -C "$MAIN_ROOT" remote show origin 2>/dev/null \
-    | grep 'HEAD branch' | awk '{print $NF}')
-DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
-
-if git -C "$WORKTREE_PATH" fetch origin 2>&1; then
-    git -C "$WORKTREE_PATH" rebase "origin/$DEFAULT_BRANCH" 2>&1 \
-        || echo "[worktree-setup]   warning: rebase against origin/$DEFAULT_BRANCH had conflicts — resolve manually"
-else
-    echo "[worktree-setup]   warning: git fetch failed (offline?) — skipping pull"
-fi
+echo "[worktree-setup]   web-api  -> http://localhost:$API_PORT" >&2
+echo "[worktree-setup]   web-app  -> http://localhost:$WEB_PORT" >&2
+echo "[worktree-setup]   admin    -> http://localhost:$ADMIN_PORT" >&2
 
 # ---------------------------------------------------------------------------
 # Copy .env files from the main worktree
@@ -78,23 +93,23 @@ fi
 
 copy_env() {
     local relative_path="$1"
-    local src="$MAIN_ROOT/$relative_path"
+    local src="$REPO_PATH/$relative_path"
     local dest="$WORKTREE_PATH/$relative_path"
 
     mkdir -p "$(dirname "$dest")"
 
     if [ -f "$src" ]; then
         cp "$src" "$dest"
-        echo "[worktree-setup]   copied $relative_path"
+        echo "[worktree-setup]   copied $relative_path" >&2
     elif [ -f "${src}.example" ]; then
         cp "${src}.example" "$dest"
-        echo "[worktree-setup]   copied $relative_path (from .example)"
+        echo "[worktree-setup]   copied $relative_path (from .example)" >&2
     else
-        echo "[worktree-setup]   skipped $relative_path (not found)"
+        echo "[worktree-setup]   skipped $relative_path (not found)" >&2
     fi
 }
 
-echo "[worktree-setup] Copying .env files..."
+echo "[worktree-setup] Copying .env files..." >&2
 copy_env ".env"
 copy_env "web-api/.env"
 copy_env "web-app/.env"
@@ -106,7 +121,7 @@ copy_env "admin-app/.env"
 
 LAUNCH_JSON="$WORKTREE_PATH/.claude/launch.json"
 if [ -f "$LAUNCH_JSON" ]; then
-    echo "[worktree-setup] Patching .claude/launch.json..."
+    echo "[worktree-setup] Patching .claude/launch.json..." >&2
     python3 - "$LAUNCH_JSON" "$API_PORT" "$WEB_PORT" "$ADMIN_PORT" <<'PYEOF'
 import json, sys
 
@@ -146,7 +161,7 @@ patch_env() {
     done
 }
 
-echo "[worktree-setup] Patching ports..."
+echo "[worktree-setup] Patching ports..." >&2
 
 # web-api: PORT and WEBHOOK_BASE_URL
 patch_env "$WORKTREE_PATH/web-api/.env" \
@@ -173,35 +188,27 @@ patch_env "$WORKTREE_PATH/admin-app/.env" \
     "s|^PORT=.*|PORT=$ADMIN_PORT|"
 
 # ---------------------------------------------------------------------------
-# Install dependencies (parallel)
+# Copy dependencies from main repo (much faster than installing)
 # ---------------------------------------------------------------------------
 
-echo "[worktree-setup] Installing dependencies..."
+echo "[worktree-setup] Copying dependencies..." >&2
 
-(
-    cd "$WORKTREE_PATH/web-api"
-    uv sync --quiet && echo "[worktree-setup]   web-api deps installed"
-) &
-PID_API=$!
+if [ -d "$REPO_PATH/web-api/.venv" ]; then
+    cp -R "$REPO_PATH/web-api/.venv" "$WORKTREE_PATH/web-api/.venv"
+    echo "[worktree-setup]   web-api .venv copied" >&2
+fi
 
-(
-    cd "$WORKTREE_PATH/web-app"
-    npm install --silent && echo "[worktree-setup]   web-app deps installed"
-) &
-PID_WEB=$!
+if [ -d "$REPO_PATH/web-app/node_modules" ]; then
+    cp -R "$REPO_PATH/web-app/node_modules" "$WORKTREE_PATH/web-app/node_modules"
+    echo "[worktree-setup]   web-app node_modules copied" >&2
+fi
 
-(
-    cd "$WORKTREE_PATH/admin-app"
-    npm install --silent && echo "[worktree-setup]   admin-app deps installed"
-) &
-PID_ADMIN=$!
+if [ -d "$REPO_PATH/admin-app/node_modules" ]; then
+    cp -R "$REPO_PATH/admin-app/node_modules" "$WORKTREE_PATH/admin-app/node_modules"
+    echo "[worktree-setup]   admin-app node_modules copied" >&2
+fi
 
-wait $PID_API || echo "[worktree-setup]   web-api: dependency install failed (check manually)"
-wait $PID_WEB || echo "[worktree-setup]   web-app: dependency install failed (check manually)"
-wait $PID_ADMIN || echo "[worktree-setup]   admin-app: dependency install failed (check manually)"
+echo "[worktree-setup] Worktree $WORKTREE_NAME ready." >&2
 
-echo ""
-echo "[worktree-setup] Worktree $WORKTREE_NAME ready."
-echo "[worktree-setup]   API:      http://localhost:$API_PORT"
-echo "[worktree-setup]   web-app:  http://localhost:$WEB_PORT"
-echo "[worktree-setup]   admin:    http://localhost:$ADMIN_PORT"
+# THIS IS THE ONLY LINE ON STDOUT
+echo "$WORKTREE_PATH"
