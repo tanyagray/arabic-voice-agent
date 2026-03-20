@@ -6,12 +6,9 @@
  */
 
 import axios from 'axios';
-import { supabase } from '../lib/supabase';
+import { getApiUrl } from '../lib/config';
 
-// Note: supabase may be null if env vars are missing (e.g., in Storybook)
-// The interceptor handles this gracefully by not adding auth headers
-
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const baseURL = getApiUrl();
 
 /**
  * Axios instance configured for the backend API.
@@ -33,7 +30,10 @@ export const apiClient = axios.create({
 // Request interceptor to add JWT token to all requests
 apiClient.interceptors.request.use(
   async (config) => {
-    // Skip auth if Supabase is not configured (e.g., in Storybook)
+    const { getSupabaseClient } = await import('../lib/supabase');
+    const supabase = getSupabaseClient();
+
+    // Skip auth if Supabase client isn't ready yet (config still loading, or Storybook)
     if (!supabase) {
       return config;
     }

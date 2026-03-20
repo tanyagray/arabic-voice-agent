@@ -1,18 +1,12 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+let singletonClient: SupabaseClient | null = null;
 
 /**
- * Creates a Supabase client if env vars are present.
- * Returns null if env vars are missing (e.g., in Storybook without config).
+ * Creates a Supabase client with the given URL and key.
  */
-export function createSupabaseClient(): SupabaseClient | null {
-  if (!supabaseUrl || !supabasePublishableKey) {
-    return null;
-  }
-
-  return createClient(supabaseUrl, supabasePublishableKey, {
+export function createSupabaseClient(url: string, publishableKey: string): SupabaseClient {
+  return createClient(url, publishableKey, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
@@ -22,19 +16,16 @@ export function createSupabaseClient(): SupabaseClient | null {
 }
 
 /**
- * Gets a Supabase client, throwing if not configured.
- * Use this for non-React code that requires Supabase.
+ * Sets the singleton Supabase client (called once after config is fetched).
  */
-export function getSupabaseClient(): SupabaseClient {
-  const client = createSupabaseClient();
-  if (!client) {
-    throw new Error('Missing Supabase environment variables');
-  }
-  return client;
+export function setSupabaseClient(client: SupabaseClient): void {
+  singletonClient = client;
 }
 
 /**
- * Singleton Supabase client for backwards compatibility.
- * May be null if env vars are missing.
+ * Returns the singleton Supabase client, or null if config hasn't loaded yet.
+ * Use this for non-React code (e.g., API interceptors).
  */
-export const supabase: SupabaseClient | null = createSupabaseClient();
+export function getSupabaseClient(): SupabaseClient | null {
+  return singletonClient;
+}
