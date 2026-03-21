@@ -180,7 +180,11 @@ Resources:
           # Write Caddyfile
           cat > /etc/caddy/Caddyfile <<'CADDYEOF'
           ${ApiDomain} {
-            reverse_proxy localhost:8000
+            reverse_proxy localhost:8000 {
+              header_down Access-Control-Allow-Origin *
+              header_down Access-Control-Allow-Methods *
+              header_down Access-Control-Allow-Headers *
+            }
           }
           CADDYEOF
 

@@ -492,7 +492,11 @@ jobs:
 
           # BEGIN pr-${PR_NUM}
           api-pr-${PR_NUM}.preview.mishmish.ai {
-            reverse_proxy localhost:${PORT}
+            reverse_proxy localhost:${PORT} {
+              header_down Access-Control-Allow-Origin *
+              header_down Access-Control-Allow-Methods *
+              header_down Access-Control-Allow-Headers *
+            }
           }
           pr-${PR_NUM}.preview.mishmish.ai {
             reverse_proxy https://${WEB_CF_DOMAIN} {
