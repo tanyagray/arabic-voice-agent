@@ -492,11 +492,19 @@ jobs:
 
           # BEGIN pr-${PR_NUM}
           api-pr-${PR_NUM}.preview.mishmish.ai {
-            reverse_proxy localhost:${PORT} {
-              header_down Access-Control-Allow-Origin *
-              header_down Access-Control-Allow-Methods *
-              header_down Access-Control-Allow-Headers *
+            @cors_preflight method OPTIONS
+            handle @cors_preflight {
+              header Access-Control-Allow-Origin "*"
+              header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+              header Access-Control-Allow-Headers "*"
+              header Access-Control-Max-Age "86400"
+              respond "" 204
             }
+            header Access-Control-Allow-Origin "*"
+            header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            header Access-Control-Allow-Headers "*"
+
+            reverse_proxy localhost:${PORT}
           }
           pr-${PR_NUM}.preview.mishmish.ai {
             reverse_proxy https://${WEB_CF_DOMAIN} {
