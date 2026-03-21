@@ -7,6 +7,10 @@ on:
 env:
   AWS_REGION: us-west-2
 
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   # ------------------------------------------------------------------
   # Job 1: Wait for Supabase preview branch to be ready
@@ -308,19 +312,49 @@ jobs:
           STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
           STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
             --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+          echo "Current stack status: $STATUS"
+
+          # Wait for any in-progress operations to finish first
+          case "$STATUS" in
+            CREATE_IN_PROGRESS)
+              echo "Stack is being created, waiting..."
+              aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME" 2>/dev/null || true
+              STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+                --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+              ;;
+            UPDATE_IN_PROGRESS|UPDATE_COMPLETE_CLEANUP_IN_PROGRESS)
+              echo "Stack is being updated, waiting..."
+              aws cloudformation wait stack-update-complete --stack-name "$STACK_NAME" 2>/dev/null || true
+              STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+                --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+              ;;
+            DELETE_IN_PROGRESS)
+              echo "Stack is being deleted, waiting..."
+              aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" 2>/dev/null || true
+              STATUS="DOES_NOT_EXIST"
+              ;;
+            UPDATE_ROLLBACK_IN_PROGRESS|UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS)
+              echo "Stack is rolling back an update, waiting..."
+              aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME" 2>/dev/null || true
+              STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+                --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+              ;;
+          esac
+
+          # Handle failure/rollback states
           if [ "$STATUS" = "ROLLBACK_IN_PROGRESS" ]; then
-            echo "Stack $STACK_NAME is rolling back, waiting..."
+            echo "Stack is rolling back, waiting..."
             aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME"
             STATUS="ROLLBACK_COMPLETE"
           fi
           if [ "$STATUS" = "UPDATE_ROLLBACK_FAILED" ]; then
-            echo "Stack $STACK_NAME is stuck in UPDATE_ROLLBACK_FAILED, attempting continue-update-rollback..."
+            echo "Stack stuck in UPDATE_ROLLBACK_FAILED, attempting continue-update-rollback..."
             aws cloudformation continue-update-rollback --stack-name "$STACK_NAME"
             aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME"
             STATUS="UPDATE_ROLLBACK_COMPLETE"
           fi
           if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "DELETE_FAILED" ]; then
-            echo "Stack $STACK_NAME is in $STATUS state, deleting before redeploy..."
+            echo "Stack in $STATUS state, deleting before redeploy..."
             aws cloudformation delete-stack --stack-name "$STACK_NAME"
             aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
           fi
