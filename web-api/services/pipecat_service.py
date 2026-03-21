@@ -6,7 +6,16 @@ from typing import Optional
 from fastapi import WebSocket
 from loguru import logger
 
-from pipecat.frames.frames import EndFrame, LLMRunFrame, TTSStartedFrame, TTSStoppedFrame, TTSTextFrame
+from pipecat.frames.frames import (
+    EndFrame,
+    LLMFullResponseEndFrame,
+    LLMFullResponseStartFrame,
+    LLMRunFrame,
+    TextFrame,
+    TTSStartedFrame,
+    TTSStoppedFrame,
+    TTSTextFrame,
+)
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
 from pipecat.pipeline.runner import PipelineRunner
@@ -34,44 +43,125 @@ from .session_service import get_session
 from .transcript_service import create_transcript_message
 
 
+class TransliterationGate(FrameProcessor):
+    """Buffers full LLM response, transliterates it, then releases to TTS.
+
+    Sits between LLM and TTS. Accumulates all TextFrame tokens until
+    LLMFullResponseEndFrame, calls the transliteration service, stores the
+    transliterated word queue on the TTSTranscriptProcessor, then releases
+    all buffered frames downstream.
+    """
+
+    def __init__(self, tts_transcript: "TTSTranscriptProcessor"):
+        super().__init__()
+        self._buffered_frames: list = []
+        self._buffering = False
+        self._tts_transcript = tts_transcript
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, LLMFullResponseStartFrame):
+            self._buffering = True
+            self._buffered_frames = []
+            await self.push_frame(frame, direction)
+
+        elif self._buffering and isinstance(frame, TextFrame) and not isinstance(frame, TTSTextFrame):
+            # Buffer LLM text tokens (guard against TTSTextFrame which is a TextFrame subclass)
+            self._buffered_frames.append(frame)
+
+        elif isinstance(frame, LLMFullResponseEndFrame):
+            self._buffering = False
+            canonical_text = "".join(f.text for f in self._buffered_frames)
+            logger.info(f"TransliterationGate: canonical='{canonical_text}'")
+
+            # Call transliteration service
+            transliterated = await generate_transliterated_text(canonical_text)
+            logger.info(f"TransliterationGate: transliterated='{transliterated}'")
+
+            # Build word queue and pass to TTSTranscriptProcessor
+            transliterated_words = transliterated.split()
+            self._tts_transcript.set_transliteration_queue(transliterated_words)
+
+            # Release all buffered text frames downstream to TTS
+            for buffered_frame in self._buffered_frames:
+                await self.push_frame(buffered_frame, direction)
+            self._buffered_frames = []
+
+            # Release the end frame
+            await self.push_frame(frame, direction)
+
+        else:
+            # Pass through all other frames immediately (audio, control, etc.)
+            await self.push_frame(frame, direction)
+
+
 class TTSTranscriptProcessor(FrameProcessor):
-    """Captures TTS text per-sentence and saves to database."""
+    """Replaces TTS text with transliterated words and saves to database.
+
+    Intercepts TTSTextFrame events (one per word, synchronized with audio),
+    replaces the frame text with the next transliterated word from the queue,
+    and accumulates both canonical and transliterated text for DB storage.
+    """
 
     def __init__(self, session_id: str):
         super().__init__()
         self._session_id = session_id
-        self._current_sentence: list[str] = []
+        self._current_sentence_canonical: list[str] = []
+        self._current_sentence_transliterated: list[str] = []
+        self._transliteration_queue: list[str] = []
+        self._queue_index: int = 0
+
+    def set_transliteration_queue(self, words: list[str]):
+        """Set the transliteration word queue for the current LLM response."""
+        self._transliteration_queue = words
+        self._queue_index = 0
+        logger.debug(f"TTSTranscriptProcessor: transliteration queue set ({len(words)} words)")
 
     async def process_frame(self, frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
         if isinstance(frame, TTSStartedFrame):
-            # New sentence starting
-            logger.debug(f"TTSTranscriptProcessor: TTSStartedFrame received")
-            self._current_sentence = []
+            logger.debug("TTSTranscriptProcessor: TTSStartedFrame received")
+            self._current_sentence_canonical = []
+            self._current_sentence_transliterated = []
+
         elif isinstance(frame, TTSTextFrame):
-            # Accumulate words
-            logger.debug(f"TTSTranscriptProcessor: TTSTextFrame received: '{frame.text}'")
-            if frame.text.strip():
-                self._current_sentence.append(frame.text.strip())
+            canonical_word = frame.text.strip()
+            if canonical_word:
+                self._current_sentence_canonical.append(canonical_word)
+
+                # Dequeue next transliterated word
+                if self._queue_index < len(self._transliteration_queue):
+                    transliterated_word = self._transliteration_queue[self._queue_index]
+                    self._queue_index += 1
+                else:
+                    transliterated_word = canonical_word
+                    logger.warning(f"Transliteration queue exhausted at word '{canonical_word}'")
+
+                self._current_sentence_transliterated.append(transliterated_word)
+                logger.debug(f"TTSTranscriptProcessor: '{canonical_word}' → '{transliterated_word}'")
+
+                # Mutate frame text so RTVIObserver sends transliterated to client
+                frame.text = transliterated_word
+
         elif isinstance(frame, TTSStoppedFrame):
-            # Sentence complete - save to database
-            logger.debug(f"TTSTranscriptProcessor: TTSStoppedFrame received, accumulated: {self._current_sentence}")
-            if self._current_sentence:
-                sentence_text = " ".join(self._current_sentence)
-                logger.info(f"TTS sentence complete: {sentence_text}")
+            if self._current_sentence_canonical:
+                canonical_text = " ".join(self._current_sentence_canonical)
+                transliterated_text = " ".join(self._current_sentence_transliterated)
+                logger.info(f"TTS sentence: canonical='{canonical_text}' display='{transliterated_text}'")
                 try:
-                    transliterated = await generate_transliterated_text(sentence_text)
                     await create_transcript_message(
                         session_id=self._session_id,
                         message_source="tutor",
                         message_kind="transcript",
-                        message_text=transliterated,
-                        message_text_canonical=sentence_text,
+                        message_text=transliterated_text,
+                        message_text_canonical=canonical_text,
                     )
                 except Exception as e:
                     logger.error(f"Failed to persist TTS transcript: {e}")
-                self._current_sentence = []
+                self._current_sentence_canonical = []
+                self._current_sentence_transliterated = []
 
         # Always pass the frame downstream
         await self.push_frame(frame, direction)
@@ -161,15 +251,18 @@ async def run_pipecat_agent(
         rtvi=rtvi,
         params=RTVIObserverParams(
             user_transcription_enabled=True,
-            bot_llm_enabled=True,
+            bot_llm_enabled=False,
             bot_tts_enabled=True,
             bot_speaking_enabled=True,
             user_speaking_enabled=True,
         ),
     )
 
-    # Create TTS transcript processor to save per-sentence transcripts
+    # Create TTS transcript processor (must be created before TransliterationGate)
     tts_transcript = TTSTranscriptProcessor(session_id)
+
+    # Create transliteration gate between LLM and TTS
+    transliteration_gate = TransliterationGate(tts_transcript)
 
     # Build pipeline
     pipeline = Pipeline(
@@ -179,8 +272,9 @@ async def run_pipecat_agent(
             stt,  # Speech-to-text
             user_aggregator,  # User context aggregation
             llm,  # Language model
-            tts,  # Text-to-speech
-            tts_transcript,  # Capture TTS sentences for database
+            transliteration_gate,  # Buffer response, transliterate, build word queue
+            tts,  # Text-to-speech (receives canonical Arabic)
+            tts_transcript,  # Replace TTS words with transliterated, save to DB
             transport.output(),  # WebSocket output
             assistant_aggregator,  # Assistant context aggregation
         ]
