@@ -1,6 +1,8 @@
 """Scaffolding service for generating learner-facing display text from canonical Arabic.
 
-Translates Arabic into English, keeping familiar words inline as Arabizi.
+Two modes:
+- Scaffolded text: Translates Arabic into English, keeping familiar words as Arabizi.
+- Transliterated text: Pure Arabizi romanization of Arabic (no translation).
 """
 
 import os
@@ -105,3 +107,56 @@ async def generate_scaffolded_text(
         logger.error(f"Failed to generate scaffolded text: {e}")
         # Fall back to the original Arabic text if the LLM call fails
         return arabic_text
+
+
+TRANSLITERATION_PROMPT = """\
+You are an Arabizi transliteration tool. Transliterate the following text so that \
+all Arabic script is written using the English alphabet (Arabizi). Do NOT translate — \
+keep the same Arabic words, just write them with Latin letters.
+
+Rules:
+- Transliterate every Arabic word into Arabizi (romanized Arabic).
+- Use common Arabizi conventions: 3 for ع, 7 for ح, 2 for ء or ق, 5 for خ, 8 for غ, 6 for ط, 9 for ص.
+- Preserve any English words already in the text exactly as they are.
+- The output must contain ZERO Arabic script.
+- Do NOT translate any Arabic words into English — only romanize them.
+- Do NOT add explanations, notes, or extra text.
+- Return ONLY the transliterated text, nothing else.
+
+Text:
+{text}"""
+
+
+async def generate_transliterated_text(text: str) -> str:
+    """
+    Transliterate Arabic script to Arabizi (romanized Arabic).
+
+    Unlike scaffolded text, this does no translation — it purely romanizes
+    Arabic words using the English alphabet. Any English words in the input
+    are preserved as-is.
+
+    Args:
+        text: Text that may contain Arabic script.
+
+    Returns:
+        The same text with all Arabic script replaced by Arabizi.
+    """
+    try:
+        client = _get_client()
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": TRANSLITERATION_PROMPT.format(text=text)}],
+            temperature=0.2,
+            max_tokens=500,
+        )
+
+        result = response.choices[0].message.content
+        if result:
+            return result.strip()
+
+        logger.warning("Empty response from transliteration LLM call, falling back to original text")
+        return text
+
+    except Exception as e:
+        logger.error(f"Failed to generate transliterated text: {e}")
+        return text
