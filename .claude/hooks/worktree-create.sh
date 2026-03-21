@@ -114,6 +114,9 @@ copy_env ".env"
 copy_env "web-api/.env"
 copy_env "web-app/.env"
 copy_env "admin-app/.env"
+copy_env "supabase/.env"
+copy_env "supabase/.env.keys"
+copy_env "supabase/.env.local"
 
 # ---------------------------------------------------------------------------
 # Patch .claude/launch.json with worktree-specific ports
