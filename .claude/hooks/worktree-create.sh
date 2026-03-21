@@ -114,6 +114,9 @@ copy_env ".env"
 copy_env "web-api/.env"
 copy_env "web-app/.env"
 copy_env "admin-app/.env"
+copy_env "supabase/.env"
+copy_env "supabase/.env.keys"
+copy_env "supabase/.env.local"
 
 # ---------------------------------------------------------------------------
 # Patch .claude/launch.json with worktree-specific ports
@@ -207,6 +210,18 @@ if [ -d "$REPO_PATH/admin-app/node_modules" ]; then
     cp -R "$REPO_PATH/admin-app/node_modules" "$WORKTREE_PATH/admin-app/node_modules"
     echo "[worktree-setup]   admin-app node_modules copied" >&2
 fi
+
+# Relink binaries — copied node_modules/.bin symlinks point to the old repo path.
+# A quick `npm install` fixes them (near-instant with node_modules already present).
+echo "[worktree-setup] Relinking node_modules binaries..." >&2
+
+for app in web-app admin-app; do
+    if [ -d "$WORKTREE_PATH/$app/node_modules" ]; then
+        (cd "$WORKTREE_PATH/$app" && npm install --prefer-offline --no-audit --no-fund) >>"$LOG" 2>&1 \
+            && echo "[worktree-setup]   $app binaries relinked" >&2 \
+            || echo "[worktree-setup]   warning: $app npm install failed (see $LOG)" >&2
+    fi
+done
 
 echo "[worktree-setup] Worktree $WORKTREE_NAME ready." >&2
 
