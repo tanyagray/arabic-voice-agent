@@ -29,6 +29,7 @@ from pipecat.processors.frameworks.rtvi import (
 )
 
 from .context_service import get_context
+from .scaffolding_service import generate_transliterated_text
 from .session_service import get_session
 from .transcript_service import create_transcript_message
 
@@ -60,11 +61,12 @@ class TTSTranscriptProcessor(FrameProcessor):
                 sentence_text = " ".join(self._current_sentence)
                 logger.info(f"TTS sentence complete: {sentence_text}")
                 try:
+                    transliterated = await generate_transliterated_text(sentence_text)
                     await create_transcript_message(
                         session_id=self._session_id,
                         message_source="tutor",
                         message_kind="transcript",
-                        message_text=sentence_text,
+                        message_text=transliterated,
                         message_text_canonical=sentence_text,
                     )
                 except Exception as e:
