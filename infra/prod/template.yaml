@@ -180,11 +180,22 @@ Resources:
           # Write Caddyfile
           cat > /etc/caddy/Caddyfile <<'CADDYEOF'
           ${ApiDomain} {
-            reverse_proxy localhost:8000 {
-              header_down Access-Control-Allow-Origin *
-              header_down Access-Control-Allow-Methods *
-              header_down Access-Control-Allow-Headers *
+            # CORS headers — belt-and-suspenders with FastAPI CORSMiddleware
+            # so that even 5xx errors from the app always include CORS headers.
+            @cors_preflight method OPTIONS
+            handle @cors_preflight {
+              header Access-Control-Allow-Origin "*"
+              header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+              header Access-Control-Allow-Headers "*"
+              header Access-Control-Max-Age "86400"
+              respond "" 204
             }
+            # ? prefix = set only if not already present (avoids duplicate with FastAPI)
+            header ?Access-Control-Allow-Origin "*"
+            header ?Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            header ?Access-Control-Allow-Headers "*"
+
+            reverse_proxy localhost:8000
           }
           CADDYEOF
 

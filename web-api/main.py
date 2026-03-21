@@ -5,9 +5,11 @@ This server provides API endpoints for session management, content delivery, and
 """
 
 import os
+import traceback
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
 from routes.session import router as session_router
@@ -44,6 +46,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Catch-all exception handler to ensure unhandled errors still return proper
+# JSON responses with CORS headers (the CORSMiddleware wraps the response,
+# but only if a response object is actually produced — unhandled exceptions
+# in some Starlette versions can bypass it).
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
+
 
 # Include routes
 app.include_router(session_router)

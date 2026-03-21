@@ -23,4 +23,5 @@ def capture(distinct_id: str, event: str, properties: dict | None = None) -> Non
 
 def shutdown() -> None:
     """Flush pending events. Call on app shutdown."""
-    posthog.shutdown()
+    if not posthog.disabled:
+        posthog.shutdown()
