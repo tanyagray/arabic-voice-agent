@@ -1,0 +1,96 @@
+name: Deploy static sites
+
+on:
+  workflow_call:
+    inputs:
+      api_url:
+        required: true
+        type: string
+      web_app_bucket:
+        required: true
+        type: string
+      admin_bucket:
+        required: true
+        type: string
+      web_app_dist_id:
+        required: true
+        type: string
+      admin_dist_id:
+        required: true
+        type: string
+      web_app_cf_domain:
+        required: true
+        type: string
+      admin_cf_domain:
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-west-2
+
+jobs:
+  deploy:
+    name: Upload to S3 & invalidate CloudFront
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: production
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download web-app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-app-dist
+          path: web-app/dist/
+
+      - name: Download admin-app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-app-dist
+          path: admin-app/dist/
+
+      - name: Upload web-app to S3
+        run: |
+          aws s3 sync web-app/dist/ \
+            "s3://${{ inputs.web_app_bucket }}/" \
+            --delete
+
+      - name: Upload admin-app to S3
+        run: |
+          aws s3 sync admin-app/dist/ \
+            "s3://${{ inputs.admin_bucket }}/" \
+            --delete
+
+      - name: Invalidate CloudFront caches
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ inputs.web_app_dist_id }}" \
+            --paths "/*"
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ inputs.admin_dist_id }}" \
+            --paths "/*"
+
+      - name: Print deployment URLs
+        run: |
+          echo "### Production Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Service | Custom Domain | CloudFront URL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|---------------|----------------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API | https://api.mishmish.ai | ${{ inputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Web App | https://mishmish.ai | https://${{ inputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Admin | https://admin.mishmish.ai | https://${{ inputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "_Claude Agent is managed by the \`arabic-voice-agent-claude-agent\` stack — see the aws-sync-claude-agent workflow._" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**DNS records required** (set these at your DNS provider):" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Record | Type | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| mishmish.ai | ALIAS/ANAME | ${{ inputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| www.mishmish.ai | CNAME | ${{ inputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| admin.mishmish.ai | CNAME | ${{ inputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api.mishmish.ai | A | (see API DNS record section above) |" >> "$GITHUB_STEP_SUMMARY"

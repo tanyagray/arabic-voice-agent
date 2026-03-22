@@ -1,18 +1,24 @@
-name: Supabase — Deploy (Prod)
+name: Deploy Supabase migrations
 
 on:
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to checkout
+        required: true
+        type: string
 
 jobs:
   deploy:
+    name: Push migrations & config
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-    runs-on: ubuntu-latest
     environment: production
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: supabase/setup-cli@v1
         with:
