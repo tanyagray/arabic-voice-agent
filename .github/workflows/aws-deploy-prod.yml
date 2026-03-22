@@ -1,4 +1,4 @@
-name: Deploy Production (AWS)
+name: AWS — Deploy (Prod)
 
 on:
   release:
@@ -335,7 +335,7 @@ jobs:
           echo "| Web App | https://mishmish.ai | https://${{ needs.deploy-infra.outputs.web_app_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Admin | https://admin.mishmish.ai | https://${{ needs.deploy-infra.outputs.admin_cf_domain }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "_Claude Agent is managed by the \`arabic-voice-agent-claude-agent\` stack — see the sync-claude-agent workflow._" >> "$GITHUB_STEP_SUMMARY"
+          echo "_Claude Agent is managed by the \`arabic-voice-agent-claude-agent\` stack — see the aws-sync-claude-agent workflow._" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**DNS records required** (set these at your DNS provider):" >> "$GITHUB_STEP_SUMMARY"
           echo "| Record | Type | Value |" >> "$GITHUB_STEP_SUMMARY"

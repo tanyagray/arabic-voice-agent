@@ -1,4 +1,4 @@
-name: 🛠 Android CI / Build & Release APK
+name: Flutter — Build & Release APK (Dev)
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
     tags:    [ 'v*.*.*' ]
     paths:
       - 'flutter-app/**'
-      - '.github/workflows/flutter-app-deploy-dev.yml'
+      - '.github/workflows/flutter-app-build-dev.yml'
 
 permissions:
   contents: write   # allow creating/updating Releases & uploading assets

@@ -1,4 +1,4 @@
-name: Deploy to Supabase (Production)
+name: Supabase — Deploy (Prod)
 
 on:
   release:

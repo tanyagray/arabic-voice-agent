@@ -1,4 +1,4 @@
-name: Preview Deploy (AWS)
+name: AWS — Preview Deploy
 
 on:
   pull_request:

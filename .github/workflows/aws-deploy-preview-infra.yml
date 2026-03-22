@@ -1,4 +1,4 @@
-name: Deploy Preview Infrastructure (AWS)
+name: AWS — Deploy Preview Infra
 
 on:
   workflow_dispatch:
