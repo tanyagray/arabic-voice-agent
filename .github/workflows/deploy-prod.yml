@@ -1,14 +1,8 @@
 name: Deploy Production (AWS)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "web-api/**"
-      - "web-app/**"
-      - "admin-app/**"
-      - "infra/prod/**"
-      - "infra/Dockerfile"
+  release:
+    types: [published]
   workflow_dispatch:
 
 env:
