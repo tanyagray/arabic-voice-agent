@@ -1,8 +1,17 @@
 import { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Box, Button, Input, VStack, Link, Stack, Alert, Heading } from '@chakra-ui/react';
+import { Box, Button, Input, VStack, Link, Stack, Alert, Heading, Separator, Text } from '@chakra-ui/react';
 import { Field } from "@/components/ui/field"
+
+const GoogleIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+    <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 3.58z" fill="#EA4335"/>
+  </svg>
+);
 
 const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -10,7 +19,7 @@ const SignIn: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +32,15 @@ const SignIn: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setError(null);
+      await signInWithGoogle();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     }
   };
 
@@ -39,77 +57,87 @@ const SignIn: React.FC = () => {
           🍑 mishmish.ai
         </Heading>
       </Box>
-      <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-        <VStack gap={4} w="full">
-          {error && (
-            <Alert.Root status="error" variant="surface">
-              <Alert.Indicator />
-              <Alert.Title>{error}</Alert.Title>
-            </Alert.Root>
-          )}
-          <Stack gap={2} w="full">
-            <Field label="Email address" required>
-              <Input
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                bg="white/90"
-                backdropFilter="blur(4px)"
-              />
-            </Field>
-            <Field label="Password" required>
-              <Input
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                bg="white/90"
-                backdropFilter="blur(4px)"
-              />
-            </Field>
-          </Stack>
+      <VStack gap={4} w="full">
+        {error && (
+          <Alert.Root status="error" variant="surface">
+            <Alert.Indicator />
+            <Alert.Title>{error}</Alert.Title>
+          </Alert.Root>
+        )}
 
-          <Button
-            type="submit"
-            disabled={loading}
-            loading={loading}
-            w="full"
-            color="gray.900"
-            bg="accent.400"
-            _hover={{ bg: "accent.500" }}
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </Button>
+        <Button
+          onClick={handleGoogleSignIn}
+          w="full"
+          bg="white"
+          color="gray.700"
+          _hover={{ bg: "gray.100" }}
+          fontWeight="medium"
+        >
+          <GoogleIcon />
+          Sign in with Google
+        </Button>
 
-          <VStack gap={2} fontSize="sm" w="full">
-            <Link
-              asChild
-              color="blue.200"
-              _hover={{ color: "blue.100" }}
-              fontWeight="medium"
+        <Stack direction="row" align="center" w="full" gap={3}>
+          <Separator flex="1" borderColor="white/30" />
+          <Text fontSize="sm" color="white/60" flexShrink={0}>or</Text>
+          <Separator flex="1" borderColor="white/30" />
+        </Stack>
+
+        <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+          <VStack gap={4} w="full">
+            <Stack gap={2} w="full">
+              <Field label="Email address" required>
+                <Input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  bg="white/90"
+                  backdropFilter="blur(4px)"
+                />
+              </Field>
+              <Field label="Password" required>
+                <Input
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  bg="white/90"
+                  backdropFilter="blur(4px)"
+                />
+              </Field>
+            </Stack>
+
+            <Button
+              type="submit"
+              disabled={loading}
+              loading={loading}
+              w="full"
+              color="gray.900"
+              bg="accent.400"
+              _hover={{ bg: "accent.500" }}
             >
-              <RouterLink to="/forgot-password">
-                Forgot your password?
-              </RouterLink>
-            </Link>
-            <Link
-              asChild
-              color="blue.200"
-              _hover={{ color: "blue.100" }}
-              fontWeight="medium"
-            >
-              <RouterLink to="/sign-up">
-                Don't have an account? Sign up
-              </RouterLink>
-            </Link>
+              {loading ? 'Signing in...' : 'Sign in with email'}
+            </Button>
           </VStack>
-        </VStack>
-      </form>
+        </form>
+
+        <Link
+          asChild
+          color="blue.200"
+          _hover={{ color: "blue.100" }}
+          fontWeight="medium"
+          fontSize="sm"
+        >
+          <RouterLink to="/forgot-password">
+            Forgot your password?
+          </RouterLink>
+        </Link>
+      </VStack>
     </VStack>
   );
 };

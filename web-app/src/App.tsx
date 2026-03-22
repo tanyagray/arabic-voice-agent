@@ -6,7 +6,6 @@ import { useAuth } from './context/AuthContext';
 // Lazy load pages
 const HomePage = lazy(() => import('./pages/HomePage'));
 const SignIn = lazy(() => import('./pages/auth/SignIn'));
-const SignUp = lazy(() => import('./pages/auth/SignUp'));
 const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
@@ -44,7 +43,6 @@ function App() {
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
           <Route path="/sign-in" element={<SignIn />} />
-          <Route path="/sign-up" element={<SignUp />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
