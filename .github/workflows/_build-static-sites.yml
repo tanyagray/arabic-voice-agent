@@ -7,6 +7,10 @@ on:
         description: Git ref to checkout
         required: true
         type: string
+      api_url:
+        description: API URL from deploy-infra output
+        required: true
+        type: string
 
 jobs:
   build:
@@ -26,7 +30,7 @@ jobs:
       - name: Build web-app
         working-directory: web-app
         env:
-          VITE_API_URL: ${{ vars.API_URL }}
+          VITE_API_URL: ${{ inputs.api_url }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
@@ -36,7 +40,7 @@ jobs:
       - name: Build admin-app
         working-directory: admin-app
         env:
-          VITE_API_URL: ${{ vars.API_URL }}
+          VITE_API_URL: ${{ inputs.api_url }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
