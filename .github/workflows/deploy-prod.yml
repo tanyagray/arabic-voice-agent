@@ -35,7 +35,7 @@ jobs:
             echo "ref=$TAG" >> "$GITHUB_OUTPUT"
           fi
 
-  # ── Phase 1: Build everything (validates code before touching prod) ───
+  # ── Phase 1: Build API image ──────────────────────────────────────────
   build-api-image:
     needs: resolve-ref
     permissions:
@@ -46,16 +46,7 @@ jobs:
       ref: ${{ needs.resolve-ref.outputs.ref }}
     secrets: inherit
 
-  build-static-sites:
-    needs: resolve-ref
-    permissions:
-      contents: read
-    uses: ./.github/workflows/_build-static-sites.yml
-    with:
-      ref: ${{ needs.resolve-ref.outputs.ref }}
-    secrets: inherit
-
-  # ── Phase 2: Infra + database migrations (parallel, after builds pass) ─
+  # ── Phase 2: Deploy infra + run migrations (after API image is built) ─
   deploy-infra:
     needs: build-api-image
     permissions:
@@ -68,7 +59,7 @@ jobs:
     secrets: inherit
 
   supabase:
-    needs: [build-api-image, build-static-sites]
+    needs: [build-api-image]
     permissions:
       contents: read
     uses: ./.github/workflows/_deploy-supabase.yml
@@ -76,7 +67,18 @@ jobs:
       ref: ${{ needs.resolve-ref.outputs.ref }}
     secrets: inherit
 
-  # ── Phase 3: Deploy services (parallel, after infra + migrations) ──────
+  # ── Phase 3: Build static sites (needs API URL from infra) ───────────
+  build-static-sites:
+    needs: [resolve-ref, deploy-infra]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_build-static-sites.yml
+    with:
+      ref: ${{ needs.resolve-ref.outputs.ref }}
+      api_url: ${{ needs.deploy-infra.outputs.api_url }}
+    secrets: inherit
+
+  # ── Phase 4: Deploy services (after builds + infra + migrations) ──────
   deploy-api:
     needs: [build-api-image, deploy-infra, supabase]
     permissions:
@@ -89,7 +91,7 @@ jobs:
     secrets: inherit
 
   deploy-static-sites:
-    needs: [deploy-infra, supabase]
+    needs: [build-static-sites, deploy-infra, supabase]
     permissions:
       id-token: write
       contents: read
