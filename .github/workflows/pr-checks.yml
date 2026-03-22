@@ -36,6 +36,7 @@ jobs:
             storybook
             supabase
             config
+            main
           requireScope: false
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: >
