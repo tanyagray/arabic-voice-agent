@@ -20,7 +20,13 @@ export interface AppConfig {
   posthogHost: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL;
+if (!API_URL) {
+  throw new Error(
+    'VITE_API_URL is not set. In development, add it to web-app/.env. ' +
+      'In production, set it as a build-time environment variable.',
+  );
+}
 
 let instance: AppConfig | null = null;
 

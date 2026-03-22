@@ -426,11 +426,21 @@ jobs:
           echo "::add-mask::$ANON_KEY"
           echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
 
+      # Validate required env vars before building
+      - name: Validate API URL
+        run: |
+          API_URL="${{ needs.deploy-preview-api.outputs.api_url }}"
+          if [ -z "$API_URL" ]; then
+            echo "::error::VITE_API_URL is empty. Check deploy-preview-api outputs."
+            exit 1
+          fi
+          echo "VITE_API_URL=$API_URL" >> "$GITHUB_ENV"
+
       # Build and deploy web-app
       - name: Build web-app
         working-directory: web-app
         env:
-          VITE_API_URL: ${{ needs.deploy-preview-api.outputs.api_url }}
+          VITE_API_URL: ${{ env.VITE_API_URL }}
           VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ steps.supabase.outputs.anon_key }}
         run: |
@@ -447,7 +457,7 @@ jobs:
       - name: Build admin-app
         working-directory: admin-app
         env:
-          VITE_API_URL: ${{ needs.deploy-preview-api.outputs.api_url }}
+          VITE_API_URL: ${{ env.VITE_API_URL }}
           VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
           VITE_SUPABASE_ANON_KEY: ${{ steps.supabase.outputs.anon_key }}
         run: |
