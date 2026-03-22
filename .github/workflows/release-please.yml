@@ -17,6 +17,6 @@ jobs:
       - name: Run release-please
         uses: googleapis/release-please-action@v4
         with:
-          # This should match the .release-please-config.json configuration
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
+          token: ${{ secrets.TANYAS_GITHUB_PAT }}
