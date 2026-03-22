@@ -1,4 +1,4 @@
-name: Sync Claude Agent Image
+name: AWS — Sync Claude Agent
 
 # This workflow is the sole owner of the arabic-voice-agent-claude-agent stack.
 # It runs on a schedule to detect new upstream image versions, and can also be

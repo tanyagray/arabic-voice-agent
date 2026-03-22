@@ -3,7 +3,7 @@ Description: >
   Claude Agent service for mishmish.ai.
   Deployed independently — not redeployed on every app deploy.
   App Runner AutoDeploymentsEnabled handles image updates automatically when a new
-  image is pushed to ECR:latest by the sync-claude-agent workflow.
+  image is pushed to ECR:latest by the aws-sync-claude-agent workflow.
 
 Parameters:
   ClaudeAgentEcrImageUri:
