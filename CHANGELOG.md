@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/tanyagray/arabic-voice-agent/compare/v1.0.0...v1.0.1) (2026-03-22)
+
+
+### Bug Fixes
+
+* **ci:** build static sites after deploy-infra to get API URL ([#113](https://github.com/tanyagray/arabic-voice-agent/issues/113)) ([f35feeb](https://github.com/tanyagray/arabic-voice-agent/commit/f35feeb7ff0601b4ddc3c34053a705b6f8e3e6a6))
+* **ci:** grant id-token permissions to reusable workflow calls ([#111](https://github.com/tanyagray/arabic-voice-agent/issues/111)) ([ea88dce](https://github.com/tanyagray/arabic-voice-agent/commit/ea88dcea4018a95e40d713ea4b9bc5ff68adb6b5))
+
 ## 1.0.0 (2026-03-22)
 
 
