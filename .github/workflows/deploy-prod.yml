@@ -1,0 +1,89 @@
+name: Deploy (Prod)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to deploy (leave empty for latest release)"
+        required: false
+        type: string
+
+jobs:
+  # ── Resolve which ref to build & deploy ────────────────────────────────
+  resolve-ref:
+    name: Resolve release ref
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      ref: ${{ steps.resolve.outputs.ref }}
+    steps:
+      - name: Resolve tag
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "ref=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ inputs.tag }}" ]; then
+            echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
+            echo "Resolved latest release: $TAG"
+            echo "ref=$TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Phase 1: Build everything (validates code before touching prod) ───
+  build-api-image:
+    needs: resolve-ref
+    uses: ./.github/workflows/_build-api-image.yml
+    with:
+      ref: ${{ needs.resolve-ref.outputs.ref }}
+    secrets: inherit
+
+  build-static-sites:
+    needs: resolve-ref
+    uses: ./.github/workflows/_build-static-sites.yml
+    with:
+      ref: ${{ needs.resolve-ref.outputs.ref }}
+    secrets: inherit
+
+  # ── Phase 2: Infra + database migrations (parallel, after builds pass) ─
+  deploy-infra:
+    needs: build-api-image
+    uses: ./.github/workflows/_deploy-infra.yml
+    with:
+      ref: ${{ needs.resolve-ref.outputs.ref }}
+      image_uri: ${{ needs.build-api-image.outputs.image_uri }}
+    secrets: inherit
+
+  supabase:
+    needs: [build-api-image, build-static-sites]
+    uses: ./.github/workflows/_deploy-supabase.yml
+    with:
+      ref: ${{ needs.resolve-ref.outputs.ref }}
+    secrets: inherit
+
+  # ── Phase 3: Deploy services (parallel, after infra + migrations) ──────
+  deploy-api:
+    needs: [build-api-image, deploy-infra, supabase]
+    uses: ./.github/workflows/_deploy-api.yml
+    with:
+      image_uri: ${{ needs.build-api-image.outputs.image_uri }}
+      api_instance_id: ${{ needs.deploy-infra.outputs.api_instance_id }}
+    secrets: inherit
+
+  deploy-static-sites:
+    needs: [deploy-infra, supabase]
+    uses: ./.github/workflows/_deploy-static-sites.yml
+    with:
+      api_url: ${{ needs.deploy-infra.outputs.api_url }}
+      web_app_bucket: ${{ needs.deploy-infra.outputs.web_app_bucket }}
+      admin_bucket: ${{ needs.deploy-infra.outputs.admin_bucket }}
+      web_app_dist_id: ${{ needs.deploy-infra.outputs.web_app_dist_id }}
+      admin_dist_id: ${{ needs.deploy-infra.outputs.admin_dist_id }}
+      web_app_cf_domain: ${{ needs.deploy-infra.outputs.web_app_cf_domain }}
+      admin_cf_domain: ${{ needs.deploy-infra.outputs.admin_cf_domain }}
+    secrets: inherit
