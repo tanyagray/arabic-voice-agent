@@ -10,10 +10,8 @@ create table public.transcript_messages (
   message_text_canonical text
 );
 
--- Create index on session_id for faster lookups
+-- Indexes
 create index idx_transcript_messages_session_id on public.transcript_messages(session_id);
-
--- Create index on user_id for user-specific queries
 create index idx_transcript_messages_user_id on public.transcript_messages(user_id);
 
 -- Table-level permissions
@@ -21,7 +19,18 @@ grant all on public.transcript_messages to service_role;
 grant all on public.transcript_messages to authenticated;
 grant all on public.transcript_messages to anon;
 
--- Create function to automatically update updated_at timestamp
+-- Enable Row Level Security
+alter table public.transcript_messages enable row level security;
+
+-- RLS Policies
+create policy "Users can manage their own transcript messages"
+  on public.transcript_messages
+  for all
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- Auto-update updated_at timestamp
 create or replace function public.update_transcript_messages_updated_at()
 returns trigger as $$
 begin
@@ -30,8 +39,11 @@ begin
 end;
 $$ language plpgsql;
 
--- Create trigger to update updated_at on row updates
 create trigger update_transcript_messages_updated_at
   before update on public.transcript_messages
   for each row
   execute function public.update_transcript_messages_updated_at();
+
+-- NOTE: Realtime publication is NOT captured by declarative diff.
+-- A manual migration is required for:
+--   ALTER PUBLICATION supabase_realtime ADD TABLE transcript_messages;
