@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Box, Button, Container, Flex, Heading, Image, Text, HStack } from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Heading, Image, Text } from '@chakra-ui/react';
 
 export function Header() {
   const { user, isAnonymous, signOut } = useAuth();
@@ -27,25 +27,15 @@ export function Header() {
           </Heading>
           <Box>
             {isAnonymous ? (
-              <HStack spaceX={3}>
-                <Button
-                  variant="ghost"
-                  color="white"
-                  _hover={{ color: "gray.200", bg: "white/10" }}
-                  onClick={() => navigate('/sign-in')}
-                >
-                  Sign In
-                </Button>
-                <Button
-                  bg="white"
-                  color="gray.900"
-                  _hover={{ bg: "gray.100" }}
-                  onClick={() => navigate('/sign-up')}
-                  fontWeight="medium"
-                >
-                  Sign Up
-                </Button>
-              </HStack>
+              <Button
+                bg="white"
+                color="gray.900"
+                _hover={{ bg: "gray.100" }}
+                onClick={() => navigate('/sign-in')}
+                fontWeight="medium"
+              >
+                Sign In
+              </Button>
             ) : (
               <Flex align="center" gap={4}>
                 <Text fontSize="sm" color="white/80">

@@ -17,6 +17,8 @@ interface AuthContextType {
   updatePassword: (password: string) => Promise<void>;
   verifyOtp: (email: string, token: string) => Promise<void>;
   resendVerification: (email: string) => Promise<void>;
+  // OAuth methods
+  signInWithGoogle: () => Promise<void>;
   // Anonymous auth method
   signInAnonymously: () => Promise<void>;
 }
@@ -160,6 +162,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
+  const signInWithGoogle = async () => {
+    const client = requireSupabase();
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    if (error) throw error;
+  };
+
   const signInAnonymouslyInternal = async (client: SupabaseClient) => {
     const { data, error } = await client.auth.signInAnonymously();
     if (error) throw error;
@@ -185,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updatePassword,
       verifyOtp,
       resendVerification,
+      signInWithGoogle,
       signInAnonymously
     }}>
       {children}
