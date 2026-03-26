@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import AuthLayout from './components/AuthLayout';
 import { useAuth } from './context/AuthContext';
+import { LoadingSpinner } from './components/LoadingSpinner';
 
 // Lazy load pages
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -9,19 +10,6 @@ const SignIn = lazy(() => import('./pages/auth/SignIn'));
 const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
-
-import { Spinner, Center, Text, VStack } from "@chakra-ui/react"
-
-function LoadingSpinner() {
-  return (
-    <Center minH="100vh">
-      <VStack gap={4}>
-        <Spinner size="xl" color="gray.900" borderWidth="2px" />
-        <Text color="gray.600">Loading...</Text>
-      </VStack>
-    </Center>
-  );
-}
 
 function App() {
   const { loading, user } = useAuth();

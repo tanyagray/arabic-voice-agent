@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session, SupabaseClient } from '@supabase/supabase-js';
 import posthog from '@/posthog';
-import { useSupabaseOptional } from './SupabaseContext';
+import { useSupabase } from './SupabaseContext';
 import { isAnonymousUser } from '@/lib/auth';
 
 interface AuthContextType {
@@ -26,68 +26,69 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const supabase = useSupabaseOptional();
+  const supabase = useSupabase();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // If Supabase is not configured, skip auth initialization
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
+    let cancelled = false;
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session loaded:', {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        isAnonymous: session?.user?.is_anonymous
-      });
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Set up auth state listener FIRST (Supabase recommended pattern).
+    // The INITIAL_SESSION event fires once with the current session,
+    // replacing the need for a separate getSession() call.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (cancelled) return;
 
-      // DUAL AUTH: If no session exists, auto-sign in anonymously
-      if (!session) {
-        console.log('No session found, signing in anonymously...');
-        return supabase.auth.signInAnonymously().then(({ data, error }) => {
-          if (error) {
-            console.error('Auth initialization error:', error);
-            setLoading(false);
-            return;
-          }
-          console.log('Anonymous sign-in successful:', data.user?.id);
-          setSession(data.session);
-          setUser(data.user);
-          setLoading(false);
+        console.log('Auth state changed:', {
+          event,
+          hasSession: !!session,
+          userId: session?.user?.id,
+          isAnonymous: session?.user?.is_anonymous,
         });
+
+        if (event === 'INITIAL_SESSION') {
+          if (session) {
+            setSession(session);
+            setUser(session.user);
+          } else {
+            // No existing session — auto-sign in anonymously
+            console.log('No session found, signing in anonymously...');
+            try {
+              const { data, error } = await supabase.auth.signInAnonymously();
+              if (error) {
+                console.error('Anonymous sign-in failed:', error);
+              } else if (!cancelled && data.session) {
+                console.log('Anonymous sign-in successful:', data.user?.id);
+                setSession(data.session);
+                setUser(data.user);
+              }
+            } catch (err) {
+              console.error('Anonymous sign-in error:', err);
+            }
+          }
+          if (!cancelled) setLoading(false);
+          return;
+        }
+
+        // Handle all other auth events (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.)
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        // Sync PostHog identity with Supabase auth state
+        if (event === 'SIGNED_OUT') {
+          posthog.reset();
+        } else if (session?.user && !session.user.is_anonymous) {
+          posthog.identify(session.user.id, { email: session.user.email });
+        }
       }
+    );
 
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('Auth state changed:', {
-        event: _event,
-        hasSession: !!session,
-        userId: session?.user?.id,
-        isAnonymous: session?.user?.is_anonymous
-      });
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      // Sync PostHog identity with Supabase auth state
-      const u = session?.user;
-      if (_event === 'SIGNED_OUT') {
-        posthog.reset();
-      } else if (u && !u.is_anonymous) {
-        posthog.identify(u.id, { email: u.email });
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [supabase]);
 
   // Helper to ensure Supabase is available for auth operations

@@ -5,12 +5,12 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useSupabaseOptional } from '@/context/SupabaseContext';
+import { useSupabase } from '@/context/SupabaseContext';
 import { useStore } from '@/store';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 
 export function useTranscriptMessages() {
-  const supabase = useSupabaseOptional();
+  const supabase = useSupabase();
   const activeSessionId = useStore((s) => s.session.activeSessionId);
   const setMessages = useStore((s) => s.session.setMessages);
   const addMessage = useStore((s) => s.session.addMessage);
@@ -19,8 +19,7 @@ export function useTranscriptMessages() {
   const seenMessageIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    // Skip if Supabase is not configured or no active session
-    if (!supabase || !activeSessionId) {
+    if (!activeSessionId) {
       setMessages([]);
       seenMessageIds.current.clear();
       return;
