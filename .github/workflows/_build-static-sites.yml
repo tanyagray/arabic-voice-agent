@@ -31,8 +31,6 @@ jobs:
         working-directory: web-app
         env:
           VITE_API_URL: ${{ inputs.api_url }}
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           npm ci
           npm run build
@@ -41,8 +39,6 @@ jobs:
         working-directory: admin-app
         env:
           VITE_API_URL: ${{ inputs.api_url }}
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           npm ci
           npm run build

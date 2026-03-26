@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { getSupabase } from '../lib/supabase'
 
 interface AuthContextValue {
   user: User | null
@@ -18,6 +18,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  const supabase = getSupabase()
 
   async function checkAdminRole(userId: string): Promise<boolean> {
     const { data } = await supabase
