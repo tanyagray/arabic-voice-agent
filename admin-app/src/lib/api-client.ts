@@ -1,11 +1,12 @@
 import axios from 'axios'
-import { supabase } from './supabase'
+import { AppSettings } from './app-settings'
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: AppSettings.apiUrl,
 })
 
 apiClient.interceptors.request.use(async (config) => {
+  const { supabase } = AppSettings.get()
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (token) {

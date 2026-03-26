@@ -418,21 +418,11 @@ jobs:
         with:
           version: latest
 
-      # Decode Supabase anon key for static site builds
-      - name: Decode Supabase credentials
-        id: supabase
-        run: |
-          ANON_KEY=$(echo -n "${{ needs.supabase-credentials.outputs.anon_key_b64 }}" | base64 -d | base64 -d)
-          echo "::add-mask::$ANON_KEY"
-          echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
-
       # Build and deploy web-app
       - name: Build web-app
         working-directory: web-app
         env:
           VITE_API_URL: ${{ needs.deploy-preview-api.outputs.api_url }}
-          VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ steps.supabase.outputs.anon_key }}
         run: |
           npm ci
           npm run build
@@ -448,8 +438,6 @@ jobs:
         working-directory: admin-app
         env:
           VITE_API_URL: ${{ needs.deploy-preview-api.outputs.api_url }}
-          VITE_SUPABASE_URL: ${{ needs.supabase-credentials.outputs.url }}
-          VITE_SUPABASE_ANON_KEY: ${{ steps.supabase.outputs.anon_key }}
         run: |
           npm ci
           npm run build
