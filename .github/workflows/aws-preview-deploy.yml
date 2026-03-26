@@ -219,6 +219,9 @@ jobs:
           # ECR login
           aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
+          # Prune unused images to prevent disk fill
+          docker image prune -af --filter "until=48h"
+
           # Pull image
           docker pull $IMAGE_URI
 
