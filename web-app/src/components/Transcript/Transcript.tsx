@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { forwardRef, memo, useEffect, useRef, type HTMLAttributes } from 'react';
 import { Box, Flex, Text } from '@chakra-ui/react';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
+import { MarkdownContent } from './MarkdownContent';
 
 export type { TranscriptMessage };
 
@@ -49,9 +50,13 @@ function TranscriptBubble({ message, isFirstInGroup }: TranscriptBubbleProps) {
         roundedBottomRight={roundedBottomRight}
         roundedBottomLeft={roundedBottomLeft}
       >
-        <Text fontSize="lg" lineHeight="relaxed">
-          {message.message_text}
-        </Text>
+        {isUser ? (
+          <Text fontSize="lg" lineHeight="relaxed">
+            {message.message_text}
+          </Text>
+        ) : (
+          <MarkdownContent>{message.message_text}</MarkdownContent>
+        )}
       </Box>
     </MotionBox>
   );
