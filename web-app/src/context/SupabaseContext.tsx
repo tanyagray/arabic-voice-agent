@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { Center, Text, VStack, Button } from '@chakra-ui/react';
 import { AppSettings } from '@/lib/app-settings';
 import { initPostHog } from '@/posthog';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 interface SupabaseContextType {
   client: SupabaseClient | null;
@@ -32,6 +34,21 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
         setState({ client: null, isConfigured: false, loading: false, error: err.message });
       });
   }, []);
+
+  if (state.loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (state.error) {
+    return (
+      <Center minH="100vh">
+        <VStack gap={4}>
+          <Text color="gray.600">Failed to load app configuration.</Text>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </VStack>
+      </Center>
+    );
+  }
 
   return (
     <SupabaseContext.Provider value={state}>
