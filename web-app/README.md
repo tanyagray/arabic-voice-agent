@@ -112,7 +112,6 @@ VITE_API_URL=https://your-api-domain.com
 
 The built static site can be deployed to:
 - Vercel
-- Netlify
 - AWS S3 + CloudFront
 - GitHub Pages
 - Any static hosting service
