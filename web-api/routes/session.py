@@ -73,9 +73,13 @@ async def create_session(access_token: str = Depends(get_current_user_token)):
         SessionResponse with the generated session ID
 
     Raises:
-        HTTPException: 401 if authentication fails
+        HTTPException: 401 if authentication fails, 500 if session creation fails
     """
-    session_id = session_service.create_session(access_token)
+    try:
+        session_id = session_service.create_session(access_token)
+    except Exception as e:
+        print(f"[Session] Failed to create session: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
 
     return SessionResponse(session_id=session_id)
 
