@@ -6,7 +6,7 @@ Guide for deploying mishmish.ai to production.
 
 - **Database & Auth**: Supabase (managed)
 - **Web API Backend**: Render or similar hosting
-- **Web App**: Static hosting (Vercel, Netlify, etc.)
+- **Web App**: Static hosting (AWS S3 + CloudFront)
 - **Mobile Apps**: App Store & Google Play
 
 ---
@@ -116,18 +116,6 @@ curl https://your-service.onrender.com/health
 
 3. **Configure Environment**:
    - Add `VITE_API_URL` environment variable pointing to your Render Web API
-
-### Using Netlify
-
-1. **Build the app**:
-   ```bash
-   cd web-app
-   npm run build
-   ```
-
-2. **Deploy**:
-   - Drag and drop the `dist/` folder to Netlify
-   - Or use Netlify CLI
 
 ---
 
@@ -347,7 +335,7 @@ render logs -s your-web-api-service --tail
 If deployment fails:
 
 1. **Render (Web API)**: Use "Rollback" button in dashboard
-2. **Vercel/Netlify (Web App)**: Rollback to previous deployment
+2. **Vercel (Web App)**: Rollback to previous deployment
 3. **Supabase**: Restore from backup
 4. **Mobile Apps**: Update app with hotfix, submit urgent review
 
@@ -359,7 +347,7 @@ If deployment fails:
 
 - Supabase Pro: ~$25/month
 - Render (Web API): ~$25/month (Starter plan)
-- Vercel/Netlify (Web App): ~$0-20/month
+- Vercel (Web App): ~$0-20/month
 - OpenAI GPT-4o: ~$100-300/month (usage-based)
 - ElevenLabs: ~$50-100/month (usage-based)
 - Soniox: ~$30-80/month (usage-based)
@@ -385,7 +373,7 @@ Adjust based on actual usage patterns.
 1. Make changes to `web-app/`
 2. Test locally with `npm run dev`
 3. Build with `npm run build`
-4. Deploy to Vercel/Netlify
+4. Deploy to Vercel
 5. Verify production deployment
 
 ### Updating Mobile Apps
