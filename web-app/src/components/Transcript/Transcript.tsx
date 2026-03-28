@@ -114,8 +114,6 @@ export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
         h="full"
         w="full"
         overflowY="auto"
-        pr={2}
-        pb={2}
         style={{
           maskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 3rem, black 100%)',
@@ -124,7 +122,7 @@ export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
         {...props}
       >
         {messages.length > 0 ? (
-          <Flex direction="column" gap={3}>
+          <Flex direction="column" gap={3} maxW="680px" mx="auto" px={4} pb={2}>
             {groupMessages(messages).map((group) => (
               <Flex key={group[0].message_id} direction="column" gap={1}>
                 <AnimatePresence initial={false}>
