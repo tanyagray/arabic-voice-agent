@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0](https://github.com/tanyagray/arabic-voice-agent/compare/v1.0.0...v1.1.0) (2026-03-28)
+
+
+### Features
+
+* **admin-app:** fetch Supabase config at runtime from /config endpoint ([#114](https://github.com/tanyagray/arabic-voice-agent/issues/114)) ([de957a9](https://github.com/tanyagray/arabic-voice-agent/commit/de957a948a31c6cb0dbe7ad74aa9e0c33954b1c8))
+* **web-app:** add markdown rendering to agent chat bubbles ([#117](https://github.com/tanyagray/arabic-voice-agent/issues/117)) ([f14f13a](https://github.com/tanyagray/arabic-voice-agent/commit/f14f13a18089ea30743b530efb102e0958b6ab56))
+
+
+### Bug Fixes
+
+* **ci:** build static sites after deploy-infra to get API URL ([#113](https://github.com/tanyagray/arabic-voice-agent/issues/113)) ([f35feeb](https://github.com/tanyagray/arabic-voice-agent/commit/f35feeb7ff0601b4ddc3c34053a705b6f8e3e6a6))
+* **ci:** grant id-token permissions to reusable workflow calls ([#111](https://github.com/tanyagray/arabic-voice-agent/issues/111)) ([ea88dce](https://github.com/tanyagray/arabic-voice-agent/commit/ea88dcea4018a95e40d713ea4b9bc5ff68adb6b5))
+* **ci:** prune old Docker images before pull in preview deploy ([#115](https://github.com/tanyagray/arabic-voice-agent/issues/115)) ([38755f0](https://github.com/tanyagray/arabic-voice-agent/commit/38755f08d6a5dd823c8ab25ddb74550d66594fb6))
+* **supabase:** fix NULL token columns in auth.users causing sign-in failure ([6bfcdbc](https://github.com/tanyagray/arabic-voice-agent/commit/6bfcdbceb92e739b0d14d6bcb5263f8679e82ba1))
+* **web-app,web-api:** handle transient 500 on first PR preview load ([#118](https://github.com/tanyagray/arabic-voice-agent/issues/118)) ([5db6895](https://github.com/tanyagray/arabic-voice-agent/commit/5db689534f044ceddbc600139d269d0d15c4b06e))
+* **web-app:** move scrollbar to viewport edge in chat transcript ([a0cc66a](https://github.com/tanyagray/arabic-voice-agent/commit/a0cc66a878fcda844563aed208b045a2f9d3d3ae))
+* **web-app:** resolve first-visit infinite loading spinner ([#116](https://github.com/tanyagray/arabic-voice-agent/issues/116)) ([f9d3986](https://github.com/tanyagray/arabic-voice-agent/commit/f9d39860e9b5a0ae162aeaf45c4da36742639b3e))
+
 ## 1.0.0 (2026-03-22)
 
 
