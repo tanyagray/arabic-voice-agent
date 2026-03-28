@@ -62,6 +62,7 @@ supabase migration up # Apply pending migrations locally (preferred)
 - Never push to remote/production Supabase (`supabase db push --linked` or any production deploy) without explicit permission.
 - For local development, apply migrations with `supabase migration up`.
 - All schema changes must be done via migration files in `supabase/migrations/`.
+- Before any database refactor, check whether `[experimental.pgdelta]` in `supabase/config.toml` is ready for use. As of March 2026 it was alpha (CLI v2.83.0, `@supabase/pg-delta@1.0.0-alpha.4`). If stable, it can replace the manual `supabase db diff` workflow with a proper declarative sync engine. See: supabase.com/docs/guides/local-development/declarative-database-schemas and github.com/supabase/pg-toolbelt.
 
 ## Architecture
 

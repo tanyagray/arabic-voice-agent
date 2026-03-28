@@ -111,6 +111,10 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
+# Allow connections via S3 compatible clients
+[storage.s3_protocol]
+enabled = false
+
 # Image transformation API is available to Supabase Pro plan.
 # [storage.image_transformation]
 # enabled = true
@@ -361,3 +365,11 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+
+# [experimental.pgdelta]
+# When enabled, pg-delta becomes the active engine for supported schema flows.
+# enabled = false
+# Directory under `supabase/` where declarative files are written.
+# declarative_schema_path = "./declarative"
+# JSON string passed through to pg-delta SQL formatting.
+# format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
