@@ -20,11 +20,13 @@ interface Phase2Response {
   model: string
   usage: Record<string, unknown>
   raw_output: string
+  prompt: string
 }
 
 interface LlmResponse {
   text: string
   text_canonical: string | null
+  system_prompt: string | null
   messages: unknown[]
   raw_responses: unknown[]
   phase2_response: Phase2Response | null
@@ -245,6 +247,27 @@ export function DebugPage({ title, defaultResponseMode = 'scaffolded' }: DebugPa
 
                 <Box flex={1} overflow="auto">
                   <Tabs.Content value="phase1" p={3}>
+                    {lastResponse.system_prompt && (
+                      <Box mb={4}>
+                        <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
+                          System Prompt
+                        </Text>
+                        <Box
+                          bg="gray.50"
+                          border="1px solid"
+                          borderColor="gray.200"
+                          borderRadius="md"
+                          p={3}
+                          fontSize="xs"
+                          whiteSpace="pre-wrap"
+                          fontFamily="mono"
+                          maxH="300px"
+                          overflowY="auto"
+                        >
+                          {lastResponse.system_prompt}
+                        </Box>
+                      </Box>
+                    )}
                     <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
                       Agent SDK raw responses ({lastResponse.raw_responses.length} call{lastResponse.raw_responses.length !== 1 ? 's' : ''})
                     </Text>
@@ -253,6 +276,27 @@ export function DebugPage({ title, defaultResponseMode = 'scaffolded' }: DebugPa
                   <Tabs.Content value="phase2" p={3}>
                     {lastResponse.phase2_response ? (
                       <>
+                        {lastResponse.phase2_response.prompt && (
+                          <Box mb={4}>
+                            <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
+                              {phase2Label} Prompt
+                            </Text>
+                            <Box
+                              bg="gray.50"
+                              border="1px solid"
+                              borderColor="gray.200"
+                              borderRadius="md"
+                              p={3}
+                              fontSize="xs"
+                              whiteSpace="pre-wrap"
+                              fontFamily="mono"
+                              maxH="300px"
+                              overflowY="auto"
+                            >
+                              {lastResponse.phase2_response.prompt}
+                            </Box>
+                          </Box>
+                        )}
                         <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
                           {phase2Label} response (model: {lastResponse.phase2_response.model})
                         </Text>

@@ -51,11 +51,12 @@ Familiar words:
 class PhaseResult:
     """Result of a scaffolding/transliteration LLM call with metadata for debugging."""
 
-    def __init__(self, text: str, model: str, usage: dict, raw_output: str):
+    def __init__(self, text: str, model: str, usage: dict, raw_output: str, prompt: str = ""):
         self.text = text
         self.model = model
         self.usage = usage
         self.raw_output = raw_output
+        self.prompt = prompt
 
     def to_dict(self) -> dict:
         return {
@@ -63,6 +64,7 @@ class PhaseResult:
             "model": self.model,
             "usage": self.usage,
             "raw_output": self.raw_output,
+            "prompt": self.prompt,
         }
 
 
@@ -199,23 +201,28 @@ async def generate_scaffolded_text_with_metadata(
             temperature=0.3,
             max_tokens=500,
         )
-        return _extract_phase_result(response, arabic_text)
+        result = _extract_phase_result(response, arabic_text)
+        result.prompt = prompt
+        return result
     except Exception as e:
         logger.error(f"Failed to generate scaffolded text: {e}")
-        return PhaseResult(text=arabic_text, model="error", usage={}, raw_output=str(e))
+        return PhaseResult(text=arabic_text, model="error", usage={}, raw_output=str(e), prompt=prompt)
 
 
 async def generate_transliterated_text_with_metadata(text: str) -> PhaseResult:
     """Like generate_transliterated_text but returns full PhaseResult with LLM metadata."""
+    prompt = _load_transliteration_prompt().format(text=text)
     try:
         client = _get_client()
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": _load_transliteration_prompt().format(text=text)}],
+            messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             max_tokens=500,
         )
-        return _extract_phase_result(response, text)
+        result = _extract_phase_result(response, text)
+        result.prompt = prompt
+        return result
     except Exception as e:
         logger.error(f"Failed to generate transliterated text: {e}")
-        return PhaseResult(text=text, model="error", usage={}, raw_output=str(e))
+        return PhaseResult(text=text, model="error", usage={}, raw_output=str(e), prompt=prompt)

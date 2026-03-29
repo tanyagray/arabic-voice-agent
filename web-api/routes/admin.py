@@ -14,6 +14,7 @@ from services.agent_session import AgentSession
 from services.supabase_client import get_supabase_admin_client
 from services.context_service import create_context, get_context, delete_context
 from agent.tutor.tutor_agent import agent
+from agent.tutor.tutor_instructions import _load_instructions
 from agents import Runner
 
 LANGUAGES_DIR = Path(__file__).parent.parent / "agent" / "tutor" / "languages"
@@ -39,6 +40,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     text: str
     text_canonical: str | None = None
+    system_prompt: str | None = None
     messages: list[Any]
     raw_responses: list[Any]
     phase2_response: dict[str, Any] | None = None
@@ -179,6 +181,22 @@ async def admin_chat(
     context = get_context(session_id)
     result = await Runner.run(agent, request.message, session=session, context=context)
 
+    # Resolve the system prompt that was used for this request
+    language = context.agent.language if context and context.agent else "ar-AR"
+    try:
+        system_prompt = _load_instructions(language)
+        # Append USER INFO the same way get_instructions does
+        user_info_lines = []
+        if context and context.user:
+            if context.user.user_id:
+                user_info_lines.append(f"- id: {context.user.user_id}")
+            if context.user.user_name:
+                user_info_lines.append(f"- name: {context.user.user_name}")
+        user_context = "\n".join(user_info_lines) if user_info_lines else "- No user information available"
+        system_prompt = f"{system_prompt}\n\nUSER INFO:\n{user_context}\n"
+    except FileNotFoundError:
+        system_prompt = f"[Error: instructions file not found for language '{language}']"
+
     # Serialize new_items (messages, tool calls, etc.)
     messages: list[Any] = []
     for item in result.new_items:
@@ -223,6 +241,7 @@ async def admin_chat(
     return ChatResponse(
         text=phase2_result.text,
         text_canonical=canonical_text,
+        system_prompt=system_prompt,
         messages=messages,
         raw_responses=raw_responses,
         phase2_response=phase2_result.to_dict(),
