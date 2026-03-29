@@ -1,12 +1,22 @@
-import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useEffect, useState, useCallback } from 'react'
+import { useParams } from 'react-router-dom'
 import {
-  Alert, Badge, Box, Button, Flex, Heading, Text, Textarea, Spinner
+  Alert, Badge, Box, Button, Flex, Heading, Textarea, Spinner
 } from '@chakra-ui/react'
 import apiClient from '../lib/api-client'
+import { useLanguage } from '../hooks/useLanguage'
+import { LanguageSelector } from '../components/LanguageSelector'
+
+const PROMPT_TYPE_LABELS: Record<string, string> = {
+  base: 'Base Prompt',
+  scaffolding: 'Scaffolding Prompt',
+  transliteration: 'Transliteration Prompt',
+}
 
 export function PromptEditPage() {
-  const { language } = useParams<{ language: string }>()
+  const { promptType } = useParams<{ promptType: string }>()
+  const { language, languages, loading: langLoading, setLanguage } = useLanguage()
+
   const [content, setContent] = useState('')
   const [savedContent, setSavedContent] = useState('')
   const [loading, setLoading] = useState(true)
@@ -15,25 +25,49 @@ export function PromptEditPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const hasChanges = content !== savedContent
+  const isPerLanguage = promptType === 'base'
+
+  const fetchPrompt = useCallback(async () => {
+    if (!promptType) return
+    if (isPerLanguage && !language) return
+
+    setLoading(true)
+    setError(null)
+    setSuccessMsg(null)
+
+    const url = isPerLanguage
+      ? `/admin/prompts/base/${language}`
+      : `/admin/prompts/${promptType}`
+
+    try {
+      const res = await apiClient.get<{ content: string }>(url)
+      setContent(res.data.content)
+      setSavedContent(res.data.content)
+    } catch {
+      setError('Failed to load prompt')
+    } finally {
+      setLoading(false)
+    }
+  }, [promptType, language, isPerLanguage])
 
   useEffect(() => {
-    if (!language) return
-    apiClient.get<{ content: string }>(`/admin/prompts/${language}`)
-      .then((res) => {
-        setContent(res.data.content)
-        setSavedContent(res.data.content)
-      })
-      .catch(() => setError('Failed to load prompt'))
-      .finally(() => setLoading(false))
-  }, [language])
+    if (!langLoading) {
+      fetchPrompt()
+    }
+  }, [fetchPrompt, langLoading])
 
   async function handleSave() {
-    if (!language) return
+    if (!promptType) return
     setSaving(true)
     setError(null)
     setSuccessMsg(null)
+
+    const url = isPerLanguage
+      ? `/admin/prompts/base/${language}`
+      : `/admin/prompts/${promptType}`
+
     try {
-      await apiClient.put(`/admin/prompts/${language}`, { content })
+      await apiClient.put(url, { content })
       setSavedContent(content)
       setSuccessMsg('Saved successfully')
     } catch {
@@ -43,19 +77,20 @@ export function PromptEditPage() {
     }
   }
 
-  if (loading) return <Box p={8}><Spinner /></Box>
+  const title = PROMPT_TYPE_LABELS[promptType || ''] || 'Prompt'
+
+  if (langLoading) return <Box p={8}><Spinner /></Box>
 
   return (
     <Box p={6} h="100%" display="flex" flexDirection="column">
       <Flex align="center" gap={3} mb={4}>
-        <Link to="/prompts">
-          <Text color="blue.500" fontSize="sm">← Back</Text>
-        </Link>
         <Heading size="md">
-          {language}
+          {title}
           {hasChanges && <Badge ml={2} colorPalette="orange">Unsaved changes</Badge>}
         </Heading>
-        <Button ml="auto" colorPalette="blue" size="sm" onClick={handleSave} loading={saving} disabled={!hasChanges}>
+        <Box ml="auto" />
+        <LanguageSelector language={language} languages={languages} onChange={setLanguage} />
+        <Button colorPalette="blue" size="sm" onClick={handleSave} loading={saving} disabled={!hasChanges}>
           Save
         </Button>
       </Flex>
@@ -71,43 +106,21 @@ export function PromptEditPage() {
         </Alert.Root>
       )}
 
-      <Flex gap={4} flex={1} overflow="hidden">
-        {/* Editor */}
-        <Box flex={1} display="flex" flexDirection="column">
-          <Text fontSize="xs" fontWeight="semibold" color="gray.500" mb={1} textTransform="uppercase">Editor</Text>
-          <Textarea
-            flex={1}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            fontFamily="mono"
-            fontSize="sm"
-            resize="none"
-            h="100%"
-            minH="500px"
-            bg="white"
-          />
-        </Box>
-
-        {/* Preview */}
-        <Box flex={1} display="flex" flexDirection="column">
-          <Text fontSize="xs" fontWeight="semibold" color="gray.500" mb={1} textTransform="uppercase">Preview</Text>
-          <Box
-            flex={1}
-            p={4}
-            bg="white"
-            border="1px solid"
-            borderColor="gray.200"
-            borderRadius="md"
-            overflowY="auto"
-            minH="500px"
-            fontFamily="mono"
-            fontSize="sm"
-            whiteSpace="pre-wrap"
-          >
-            {content}
-          </Box>
-        </Box>
-      </Flex>
+      {loading ? (
+        <Box p={8}><Spinner /></Box>
+      ) : (
+        <Textarea
+          flex={1}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          fontFamily="mono"
+          fontSize="sm"
+          resize="none"
+          h="100%"
+          minH="500px"
+          bg="white"
+        />
+      )}
     </Box>
   )
 }

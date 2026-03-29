@@ -17,6 +17,7 @@ from agent.tutor.tutor_agent import agent
 from agents import Runner
 
 LANGUAGES_DIR = Path(__file__).parent.parent / "agent" / "tutor" / "languages"
+PROMPTS_DIR = Path(__file__).parent.parent / "agent" / "tutor" / "prompts"
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -60,33 +61,77 @@ class ContextResponse(BaseModel):
 
 # ── Prompt file endpoints ─────────────────────────────────────────────────────
 
-@router.get("/prompts")
-async def list_prompts(_: str = Depends(get_admin_user)) -> list[str]:
-    """List available language prompt files."""
+@router.get("/prompts/languages")
+async def list_languages(_: str = Depends(get_admin_user)) -> list[str]:
+    """List available language codes."""
     if not LANGUAGES_DIR.exists():
         return []
     return [p.stem for p in sorted(LANGUAGES_DIR.glob("*.md"))]
 
 
-@router.get("/prompts/{language}")
-async def get_prompt(language: str, _: str = Depends(get_admin_user)) -> PromptContent:
-    """Return the markdown content of a language prompt file."""
+@router.get("/prompts/base/{language}")
+async def get_base_prompt(language: str, _: str = Depends(get_admin_user)) -> PromptContent:
+    """Return the markdown content of a language base prompt file."""
     path = LANGUAGES_DIR / f"{language}.md"
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Prompt file not found: {language}")
     return PromptContent(content=path.read_text(encoding="utf-8"))
 
 
-@router.put("/prompts/{language}")
-async def update_prompt(
+@router.put("/prompts/base/{language}")
+async def update_base_prompt(
     language: str,
     body: PromptContent,
     _: str = Depends(get_admin_user),
 ) -> PromptContent:
-    """Overwrite a language prompt file."""
+    """Overwrite a language base prompt file."""
     path = LANGUAGES_DIR / f"{language}.md"
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Prompt file not found: {language}")
+    path.write_text(body.content, encoding="utf-8")
+    return PromptContent(content=body.content)
+
+
+@router.get("/prompts/scaffolding")
+async def get_scaffolding_prompt(_: str = Depends(get_admin_user)) -> PromptContent:
+    """Return the scaffolding prompt content."""
+    path = PROMPTS_DIR / "scaffolding.md"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Scaffolding prompt file not found")
+    return PromptContent(content=path.read_text(encoding="utf-8"))
+
+
+@router.put("/prompts/scaffolding")
+async def update_scaffolding_prompt(
+    body: PromptContent,
+    _: str = Depends(get_admin_user),
+) -> PromptContent:
+    """Overwrite the scaffolding prompt file."""
+    path = PROMPTS_DIR / "scaffolding.md"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Scaffolding prompt file not found")
+    path.write_text(body.content, encoding="utf-8")
+    return PromptContent(content=body.content)
+
+
+@router.get("/prompts/transliteration")
+async def get_transliteration_prompt(_: str = Depends(get_admin_user)) -> PromptContent:
+    """Return the transliteration prompt content."""
+    path = PROMPTS_DIR / "transliteration.md"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Transliteration prompt file not found")
+    return PromptContent(content=path.read_text(encoding="utf-8"))
+
+
+@router.put("/prompts/transliteration")
+async def update_transliteration_prompt(
+    body: PromptContent,
+    _: str = Depends(get_admin_user),
+) -> PromptContent:
+    """Overwrite the transliteration prompt file."""
+    path = PROMPTS_DIR / "transliteration.md"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Transliteration prompt file not found")
     path.write_text(body.content, encoding="utf-8")
     return PromptContent(content=body.content)
 

@@ -5,7 +5,6 @@ import { AuthProvider } from './context/AuthContext'
 import { AuthGuard } from './components/AuthGuard'
 import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
-import { PromptsPage } from './pages/PromptsPage'
 import { PromptEditPage } from './pages/PromptEditPage'
 import { ChatDebugPage } from './pages/ChatDebugPage'
 import { VoiceDebugPage } from './pages/VoiceDebugPage'
@@ -24,9 +23,9 @@ function App() {
                 <AuthGuard>
                   <Layout>
                     <Routes>
-                      <Route path="/" element={<Navigate to="/prompts" replace />} />
-                      <Route path="/prompts" element={<PromptsPage />} />
-                      <Route path="/prompts/:language" element={<PromptEditPage />} />
+                      <Route path="/" element={<Navigate to="/prompts/base" replace />} />
+                      <Route path="/prompts" element={<Navigate to="/prompts/base" replace />} />
+                      <Route path="/prompts/:promptType" element={<PromptEditPage />} />
                       <Route path="/debug/chat" element={<ChatDebugPage />} />
                       <Route path="/debug/voice" element={<VoiceDebugPage />} />
                     </Routes>

@@ -6,11 +6,14 @@ Two modes:
 """
 
 import os
+from pathlib import Path
 from openai import AsyncOpenAI
 from loguru import logger
 
 
 _client: AsyncOpenAI | None = None
+
+PROMPTS_DIR = Path(__file__).parent.parent / "agent" / "tutor" / "prompts"
 
 
 def _get_client() -> AsyncOpenAI:
@@ -21,25 +24,14 @@ def _get_client() -> AsyncOpenAI:
     return _client
 
 
-SCAFFOLDING_PROMPT = """\
-You are a translation assistant for Arabic language learners. Translate the following \
-Arabic text into natural English.
-{familiar_words_instruction}
-Additionally, pick ONE new Arabic word from the text that is NOT in the familiar list \
-and keep it as Arabizi (romanized Arabic) instead of translating it. Choose a concrete, \
-useful word (nouns and verbs are best). This introduces new vocabulary gradually.
+def _load_scaffolding_prompt() -> str:
+    path = PROMPTS_DIR / "scaffolding.md"
+    return path.read_text(encoding="utf-8")
 
-Rules:
-- Translate the Arabic into fluent, natural English.
-- Keep familiar words (and their inflected forms) as Arabizi in the sentence.
-- Keep exactly one additional new word as Arabizi to introduce it to the learner.
-- Use common Arabizi conventions (e.g., 3 for ع, 7 for ح, 2 for ء/ق) for all Arabizi words.
-- The output must contain ZERO Arabic script — everything must be in English or Arabizi.
-- Do NOT add explanations, notes, or extra text.
-- Return ONLY the translated text, nothing else.
 
-Arabic text:
-{arabic_text}"""
+def _load_transliteration_prompt() -> str:
+    path = PROMPTS_DIR / "transliteration.md"
+    return path.read_text(encoding="utf-8")
 
 FAMILIAR_WORDS_INSTRUCTION = """
 The learner already knows the following Arabic words (given as base/stem forms). \
@@ -100,7 +92,7 @@ async def generate_scaffolded_text(
         words_str = ", ".join(familiar_words)
         familiar_words_instruction = FAMILIAR_WORDS_INSTRUCTION.format(words=words_str)
 
-    prompt = SCAFFOLDING_PROMPT.format(
+    prompt = _load_scaffolding_prompt().format(
         arabic_text=arabic_text,
         familiar_words_instruction=familiar_words_instruction,
     )
@@ -127,24 +119,6 @@ async def generate_scaffolded_text(
         return arabic_text
 
 
-TRANSLITERATION_PROMPT = """\
-You are an Arabizi transliteration tool. Transliterate the following text so that \
-all Arabic script is written using the English alphabet (Arabizi). Do NOT translate — \
-keep the same Arabic words, just write them with Latin letters.
-
-Rules:
-- Transliterate every Arabic word into Arabizi (romanized Arabic).
-- Use common Arabizi conventions: 3 for ع, 7 for ح, 2 for ء or ق, 5 for خ, 8 for غ, 6 for ط, 9 for ص.
-- Preserve any English words already in the text exactly as they are.
-- Preserve word boundaries exactly — the number of whitespace-separated words in \
-the output MUST equal the number of whitespace-separated words in the input.
-- The output must contain ZERO Arabic script.
-- Do NOT translate any Arabic words into English — only romanize them.
-- Do NOT add explanations, notes, or extra text.
-- Return ONLY the transliterated text, nothing else.
-
-Text:
-{text}"""
 
 
 async def generate_transliterated_text(text: str) -> str:
@@ -165,7 +139,7 @@ async def generate_transliterated_text(text: str) -> str:
         client = _get_client()
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": TRANSLITERATION_PROMPT.format(text=text)}],
+            messages=[{"role": "user", "content": _load_transliteration_prompt().format(text=text)}],
             temperature=0.2,
             max_tokens=500,
         )
@@ -212,7 +186,7 @@ async def generate_scaffolded_text_with_metadata(
         words_str = ", ".join(familiar_words)
         familiar_words_instruction = FAMILIAR_WORDS_INSTRUCTION.format(words=words_str)
 
-    prompt = SCAFFOLDING_PROMPT.format(
+    prompt = _load_scaffolding_prompt().format(
         arabic_text=arabic_text,
         familiar_words_instruction=familiar_words_instruction,
     )
@@ -237,7 +211,7 @@ async def generate_transliterated_text_with_metadata(text: str) -> PhaseResult:
         client = _get_client()
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": TRANSLITERATION_PROMPT.format(text=text)}],
+            messages=[{"role": "user", "content": _load_transliteration_prompt().format(text=text)}],
             temperature=0.2,
             max_tokens=500,
         )
