@@ -37,9 +37,10 @@ from pipecat.processors.frameworks.rtvi import (
     RTVIObserverParams,
 )
 
+from agent.tutor.tutor_instructions import _load_instructions
+from .agent_session import AgentSession
 from .context_service import get_context
 from .scaffolding_service import generate_transliterated_text
-from .session_service import get_session
 from .transcript_service import create_transcript_message
 
 
@@ -167,9 +168,40 @@ class TTSTranscriptProcessor(FrameProcessor):
         await self.push_frame(frame, direction)
 
 
+def _convert_session_items_to_messages(items: list[dict]) -> list[dict]:
+    """Convert OpenAI Agents SDK session items to simple chat messages.
+
+    Filters for message-type items and extracts role/content pairs suitable
+    for Pipecat's LLMContext.
+    """
+    messages = []
+    for item in items:
+        if item.get("type") != "message":
+            continue
+        role = item.get("role")
+        if role not in ("user", "assistant"):
+            continue
+        content = item.get("content", "")
+        # Content may be a list of content blocks (OpenAI format)
+        if isinstance(content, list):
+            text_parts = []
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "output_text":
+                    text_parts.append(block.get("text", ""))
+                elif isinstance(block, dict) and block.get("type") == "input_text":
+                    text_parts.append(block.get("text", ""))
+                elif isinstance(block, str):
+                    text_parts.append(block)
+            content = " ".join(text_parts)
+        if content:
+            messages.append({"role": role, "content": content})
+    return messages
+
+
 async def run_pipecat_agent(
     websocket: WebSocket,
     session_id: str,
+    session: AgentSession,
     user_access_token: Optional[str] = None,
 ) -> None:
     """
@@ -178,18 +210,9 @@ async def run_pipecat_agent(
     Args:
         websocket: FastAPI WebSocket connection
         session_id: Session identifier
+        session: The AgentSession with conversation history
         user_access_token: Optional user access token for authentication
     """
-    # Validate session exists
-    session = get_session(session_id, user_access_token)
-    if not session:
-        await websocket.send_json({
-            "kind": "error",
-            "data": {"message": f"Session '{session_id}' not found"}
-        })
-        await websocket.close(code=1008, reason="Session not found")
-        return
-
     # Get context for language and settings
     context = get_context(session_id)
     language = context.agent.language if context else "ar-AR"
@@ -236,12 +259,20 @@ async def run_pipecat_agent(
         voice_id=lang_config["elevenlabs_voice"],
     )
 
-    # Create LLM context with system prompt
-    system_prompt = "You are a helpful Arabic language tutor. Keep your responses concise and conversational. When the conversation starts, greet the user warmly."
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": "Hello"},
-    ]
+    # Build LLM context from real tutor instructions + conversation history
+    system_prompt = _load_instructions(language)
+    messages: list[dict] = [{"role": "system", "content": system_prompt}]
+
+    # Load prior conversation history from the session
+    session_items = await session.get_items()
+    if session_items:
+        history = _convert_session_items_to_messages(session_items)
+        messages.extend(history)
+        logger.info(f"Loaded {len(history)} messages from session history for {session_id}")
+
+    # Always end with a user message so the LLM responds when LLMRunFrame fires
+    messages.append({"role": "system", "content": "The user just joined a voice call with you. Greet them warmly."})
+
     llm_context = LLMContext(messages)
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(llm_context)
 
@@ -318,6 +349,11 @@ async def run_pipecat_agent(
             )
         except Exception as e:
             logger.error(f"Failed to persist user transcript: {e}")
+        # Write back to AgentSession so chat agent can see voice history
+        try:
+            await session.add_items([{"type": "message", "role": "user", "content": message.content}])
+        except Exception as e:
+            logger.error(f"Failed to write user turn to AgentSession: {e}")
 
     # Debug: Log assistant aggregator events
     @assistant_aggregator.event_handler("on_assistant_turn_started")
@@ -328,6 +364,11 @@ async def run_pipecat_agent(
     async def on_assistant_turn_stopped(aggregator, message):
         # Note: Transcript is saved per-sentence by TTSTranscriptProcessor
         logger.debug(f"Assistant turn stopped (full response): {message.content}")
+        # Write back to AgentSession so chat agent can see voice history
+        try:
+            await session.add_items([{"type": "message", "role": "assistant", "content": message.content}])
+        except Exception as e:
+            logger.error(f"Failed to write assistant turn to AgentSession: {e}")
 
     # RTVI event handlers
     @rtvi.event_handler("on_client_ready")

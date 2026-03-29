@@ -54,7 +54,7 @@ async def pipecat_session_websocket(websocket: WebSocket, session_id: str):
 
         # Run the pipecat agent
         logger.info(f"Starting pipecat agent for session {session_id}")
-        await run_pipecat_agent(websocket, session_id, token)
+        await run_pipecat_agent(websocket, session_id, session, token)
 
     except WebSocketDisconnect:
         # Client disconnected
