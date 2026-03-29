@@ -1,7 +1,7 @@
 """Scaffolding service for generating learner-facing display text from canonical Arabic.
 
 Two modes:
-- Scaffolded text: Translates Arabic into English, keeping familiar words as Arabizi.
+- Scaffolded text: Translates Arabic into English, keeping learned words as Arabizi.
 - Transliterated text: Pure Arabizi romanization of Arabic (no translation).
 """
 
@@ -33,7 +33,7 @@ def _load_transliteration_prompt() -> str:
     path = PROMPTS_DIR / "transliteration.md"
     return path.read_text(encoding="utf-8")
 
-FAMILIAR_WORDS_WITH_WORDS = """The learner already knows the following Arabic words (given as base/stem forms). \
+LEARNED_WORDS_WITH_WORDS = """The learner has previously learned the following Arabic words (given as base/stem forms). \
 Keep these words — and any inflected variants (plurals, conjugations, dual forms, etc.) — \
 in the translated sentence as Arabizi (romanized Arabic) instead of translating them to English.
 
@@ -42,10 +42,11 @@ Use common Arabizi conventions (e.g., 3 for ع, 7 for ح, 2 for ء/ق).
 For example, if the learner knows "sayaara" (سيارة), then "السيارات" should appear as \
 "sayaaraat" rather than "cars".
 
-Familiar words:
+Learned words:
 {words}"""
 
-FAMILIAR_WORDS_EMPTY = "No familiar words. The learner has no previously learned vocabulary yet."
+LEARNED_WORDS_EMPTY = "No learned words yet. Translate the ENTIRE text to English, except for the one new \
+Arabizi word described above."
 
 
 class PhaseResult:
@@ -70,34 +71,35 @@ class PhaseResult:
 
 async def generate_scaffolded_text(
     arabic_text: str,
-    familiar_words: list[str] | None = None,
+    learned_words: list[str] | None = None,
 ) -> str:
     """
     Generate scaffolded display text by translating Arabic into English.
 
-    Familiar words (and their inflected forms) are kept inline as Arabizi
+    Learned words (and their inflected forms) are kept inline as Arabizi
     instead of being translated. Additionally, one new word is kept as
     Arabizi to gradually introduce new vocabulary.
 
     Args:
         arabic_text: The full Arabic text with harakaat to translate.
-        familiar_words: Optional list of Arabic stem/base words the learner knows.
-                       These (and inflected variants) will appear as Arabizi.
-                       Empty/None means only one new word appears as Arabizi.
+        learned_words: Optional list of Arabic stem/base words the learner has
+                       previously learned. These (and inflected variants) will
+                       appear as Arabizi. Empty/None means only one new word
+                       appears as Arabizi.
 
     Returns:
-        English text with familiar + one new word as inline Arabizi.
+        English text with learned + one new word as inline Arabizi.
     """
-    # Build familiar words instruction
-    if familiar_words:
-        words_str = ", ".join(familiar_words)
-        familiar_words_instruction = FAMILIAR_WORDS_WITH_WORDS.format(words=words_str)
+    # Build learned words instruction
+    if learned_words:
+        words_str = ", ".join(learned_words)
+        learned_words_instruction = LEARNED_WORDS_WITH_WORDS.format(words=words_str)
     else:
-        familiar_words_instruction = FAMILIAR_WORDS_EMPTY
+        learned_words_instruction = LEARNED_WORDS_EMPTY
 
     prompt = _load_scaffolding_prompt().format(
         arabic_text=arabic_text,
-        familiar_words_instruction=familiar_words_instruction,
+        learned_words_instruction=learned_words_instruction,
     )
 
     try:
@@ -181,18 +183,18 @@ def _extract_phase_result(response, fallback_text: str) -> PhaseResult:
 
 async def generate_scaffolded_text_with_metadata(
     arabic_text: str,
-    familiar_words: list[str] | None = None,
+    learned_words: list[str] | None = None,
 ) -> PhaseResult:
     """Like generate_scaffolded_text but returns full PhaseResult with LLM metadata."""
-    if familiar_words:
-        words_str = ", ".join(familiar_words)
-        familiar_words_instruction = FAMILIAR_WORDS_WITH_WORDS.format(words=words_str)
+    if learned_words:
+        words_str = ", ".join(learned_words)
+        learned_words_instruction = LEARNED_WORDS_WITH_WORDS.format(words=words_str)
     else:
-        familiar_words_instruction = FAMILIAR_WORDS_EMPTY
+        learned_words_instruction = LEARNED_WORDS_EMPTY
 
     prompt = _load_scaffolding_prompt().format(
         arabic_text=arabic_text,
-        familiar_words_instruction=familiar_words_instruction,
+        learned_words_instruction=learned_words_instruction,
     )
 
     try:
