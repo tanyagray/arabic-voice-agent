@@ -61,9 +61,15 @@ export interface GetSessionsResponse {
 /**
  * Request payload for updating session context.
  */
+export type ResponseMode = 'scaffolded' | 'transliterated';
+
+/**
+ * Request payload for updating session context.
+ */
 export interface PatchSessionContextRequest {
   language?: string;
   active_tool?: string | null;
+  response_mode?: ResponseMode;
 }
 
 /**
@@ -73,4 +79,5 @@ export interface SessionContextResponse {
   session_id: string;
   language: string;
   active_tool: string | null;
+  response_mode: ResponseMode;
 }

@@ -23,6 +23,7 @@ class AgentState(BaseModel):
     active_tool: Optional[str] = None
     language: str = "ar-AR"
     audio_enabled: bool = False
+    response_mode: str = "scaffolded"  # "scaffolded" or "transliterated"
 
 
 class AppContext(BaseModel):
@@ -106,6 +107,23 @@ class AppContext(BaseModel):
             f"session_id={self.session_id}, "
             f"previous_state={previous_state}, "
             f"audio_enabled={self.agent.audio_enabled}"
+        )
+
+    def set_response_mode(self, mode: str) -> None:
+        """
+        Update the display mode and log the state change.
+
+        Args:
+            mode: "scaffolded" or "transliterated"
+        """
+        previous_mode = self.agent.response_mode
+        self.agent.response_mode = mode
+        self.updated_at = datetime.now()
+        print(
+            f"[AppContext Response Mode Change] "
+            f"session_id={self.session_id}, "
+            f"previous_mode={previous_mode}, "
+            f"response_mode={self.agent.response_mode}"
         )
 
     def log_state(self, event: str = "State") -> None:

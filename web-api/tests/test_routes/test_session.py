@@ -63,19 +63,28 @@ class TestListUserSessions:
 class TestSendChatMessage:
     """Tests for POST /sessions/{session_id}/chat endpoint."""
 
+    @patch("routes.session.scaffolding_service.generate_scaffolded_text")
+    @patch("routes.session.context_service.get_context")
     @patch("routes.session.agent_service.generate_agent_response")
     @patch("routes.session.transcript_service.create_transcript_message")
     @patch("routes.session.session_service.get_session")
     @patch("routes.session.get_current_user_token")
     def test_send_message_success(
-        self, mock_auth, mock_get_session, mock_create_transcript, mock_generate_response, client
+        self, mock_auth, mock_get_session, mock_create_transcript, mock_generate_response,
+        mock_get_context, mock_scaffold, client
     ):
         """Test successful chat message."""
         # Arrange
         mock_auth.return_value = "test-token"
         mock_get_session.return_value = {"session_id": "session-123"}
         mock_create_transcript.return_value = None
-        mock_generate_response.return_value = "Hello! How can I help you?"
+        mock_generate_response.return_value = "مرحبا! كيف يمكنني مساعدتك؟"
+
+        mock_context = Mock()
+        mock_context.agent.response_mode = "scaffolded"
+        mock_get_context.return_value = mock_context
+
+        mock_scaffold.return_value = "Hello! How can I help you?"
 
         # Act
         response = client.post(
@@ -88,6 +97,7 @@ class TestSendChatMessage:
         assert response.status_code == 200
         assert response.json() == {"text": "Hello! How can I help you?"}
         mock_generate_response.assert_called_once_with("session-123", "Hello", "test-token")
+        mock_scaffold.assert_called_once_with("مرحبا! كيف يمكنني مساعدتك؟")
 
     @patch("routes.session.session_service.get_session")
     @patch("routes.session.get_current_user_token")
@@ -126,6 +136,7 @@ class TestUpdateContext:
         mock_context.agent.audio_enabled = True
         mock_context.agent.language = "ar-AR"
         mock_context.agent.active_tool = None
+        mock_context.agent.response_mode = "scaffolded"
         mock_get_context.return_value = mock_context
 
         # Act
@@ -155,6 +166,7 @@ class TestUpdateContext:
         mock_context.agent.audio_enabled = False
         mock_context.agent.language = "es-MX"
         mock_context.agent.active_tool = None
+        mock_context.agent.response_mode = "scaffolded"
         mock_get_context.return_value = mock_context
 
         # Act

@@ -33,6 +33,7 @@ class UpdateContextRequest(BaseModel):
     """Request model for updating session context."""
     audio_enabled: bool | None = Field(None, description="Enable/disable audio responses")
     language: str | None = Field(None, description="Language code (e.g., 'ar-AR', 'es-MX')")
+    response_mode: str | None = Field(None, description="Display mode: 'scaffolded' or 'transliterated'")
 
 
 class ContextResponse(BaseModel):
@@ -41,6 +42,7 @@ class ContextResponse(BaseModel):
     audio_enabled: bool
     language: str
     active_tool: str | None
+    response_mode: str
 
 
 class SessionListItem(BaseModel):
@@ -138,8 +140,13 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
     # Step 1: Generate the agent response (full Arabic with harakaat)
     canonical_response = await agent_service.generate_agent_response(session_id, request.message, access_token)
 
-    # Step 2: Generate scaffolded display text (arabizi)
-    scaffolded_response = await scaffolding_service.generate_scaffolded_text(canonical_response)
+    # Step 2: Generate display text based on user's response_mode setting
+    context = context_service.get_context(session_id)
+    response_mode = context.agent.response_mode if context else "scaffolded"
+    if response_mode == "transliterated":
+        display_response = await scaffolding_service.generate_transliterated_text(canonical_response)
+    else:
+        display_response = await scaffolding_service.generate_scaffolded_text(canonical_response)
 
     # Save the agent's response to the database with both versions
     try:
@@ -147,14 +154,14 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
             session_id=session_id,
             message_source="tutor",
             message_kind="text",
-            message_text=scaffolded_response,
+            message_text=display_response,
             message_text_canonical=canonical_response,
         )
     except Exception as e:
         # Log the error but continue - don't fail the request if DB insert fails
         print(f"[Session] Failed to save agent response to database: {e}")
 
-    return TextResponse(text=scaffolded_response)
+    return TextResponse(text=display_response)
 
 
 @router.post("/{session_id}/event")
@@ -225,12 +232,17 @@ async def update_context(session_id: str, request: UpdateContextRequest, access_
     if request.language is not None:
         context.set_language(request.language)
 
+    # Update response_mode if provided
+    if request.response_mode is not None:
+        context.set_response_mode(request.response_mode)
+
     # Return updated context
     return ContextResponse(
         session_id=context.session_id,
         audio_enabled=context.agent.audio_enabled,
         language=context.agent.language,
-        active_tool=context.agent.active_tool
+        active_tool=context.agent.active_tool,
+        response_mode=context.agent.response_mode,
     )
 
 
@@ -264,7 +276,8 @@ async def get_context(session_id: str, access_token: str = Depends(get_current_u
         session_id=context.session_id,
         audio_enabled=context.agent.audio_enabled,
         language=context.agent.language,
-        active_tool=context.agent.active_tool
+        active_tool=context.agent.active_tool,
+        response_mode=context.agent.response_mode,
     )
 
 

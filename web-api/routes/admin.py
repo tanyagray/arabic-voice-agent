@@ -33,7 +33,6 @@ class CreateSessionResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
-    mode: str = "chat"  # "chat" (scaffolding) or "voice" (transliteration)
 
 
 class ChatResponse(BaseModel):
@@ -48,6 +47,7 @@ class ChatResponse(BaseModel):
 class UpdateContextRequest(BaseModel):
     audio_enabled: bool | None = None
     language: str | None = None
+    response_mode: str | None = None
 
 
 class ContextResponse(BaseModel):
@@ -55,6 +55,7 @@ class ContextResponse(BaseModel):
     audio_enabled: bool
     language: str
     active_tool: str | None
+    response_mode: str
 
 
 # ── Prompt file endpoints ─────────────────────────────────────────────────────
@@ -166,9 +167,10 @@ async def admin_chat(
             "total_tokens": sum(r.usage.total_tokens for r in result.raw_responses),
         }
 
-    # Phase 2: Generate display text from the canonical Arabic response
+    # Phase 2: Generate display text based on session's response_mode
     canonical_text = result.final_output
-    if request.mode == "voice":
+    response_mode = context.agent.response_mode if context else "scaffolded"
+    if response_mode == "transliterated":
         phase2_result = await generate_transliterated_text_with_metadata(canonical_text)
     else:
         phase2_result = await generate_scaffolded_text_with_metadata(canonical_text)
@@ -208,6 +210,7 @@ async def get_admin_context(session_id: str, _: str = Depends(get_admin_user)) -
         audio_enabled=ctx.agent.audio_enabled,
         language=ctx.agent.language,
         active_tool=ctx.agent.active_tool,
+        response_mode=ctx.agent.response_mode,
     )
 
 
@@ -227,11 +230,14 @@ async def update_admin_context(
         ctx.set_audio_enabled(request.audio_enabled)
     if request.language is not None:
         ctx.set_language(request.language)
+    if request.response_mode is not None:
+        ctx.set_response_mode(request.response_mode)
     return ContextResponse(
         session_id=ctx.session_id,
         audio_enabled=ctx.agent.audio_enabled,
         language=ctx.agent.language,
         active_tool=ctx.agent.active_tool,
+        response_mode=ctx.agent.response_mode,
     )
 
 

@@ -31,14 +31,22 @@ interface LlmResponse {
   usage: Record<string, unknown> | null
 }
 
+type ResponseMode = 'scaffolded' | 'transliterated'
+
+const RESPONSE_MODES: { value: ResponseMode; label: string }[] = [
+  { value: 'scaffolded', label: 'Scaffolded' },
+  { value: 'transliterated', label: 'Transliterated' },
+]
+
 interface DebugPageProps {
   title: string
-  mode: 'chat' | 'voice'
+  defaultResponseMode?: ResponseMode
 }
 
-export function DebugPage({ title, mode }: DebugPageProps) {
+export function DebugPage({ title, defaultResponseMode = 'scaffolded' }: DebugPageProps) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [language, setLanguage] = useState('ar-AR')
+  const [responseMode, setResponseMode] = useState<ResponseMode>(defaultResponseMode)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -54,7 +62,7 @@ export function DebugPage({ title, mode }: DebugPageProps) {
     const res = await apiClient.post<{ session_id: string }>('/admin/sessions')
     const id = res.data.session_id
     setSessionId(id)
-    await apiClient.patch(`/admin/sessions/${id}/context`, { language })
+    await apiClient.patch(`/admin/sessions/${id}/context`, { language, response_mode: responseMode })
     return id
   }
 
@@ -83,7 +91,6 @@ export function DebugPage({ title, mode }: DebugPageProps) {
 
       const res = await apiClient.post<LlmResponse>(`/admin/sessions/${sid}/chat`, {
         message: userText,
-        mode,
       })
       setMessages((prev) => [...prev, {
         role: 'agent',
@@ -106,7 +113,14 @@ export function DebugPage({ title, mode }: DebugPageProps) {
     }
   }
 
-  const phase2Label = mode === 'voice' ? 'Transliteration' : 'Scaffolding'
+  async function handleResponseModeChange(mode: ResponseMode) {
+    setResponseMode(mode)
+    if (sessionId) {
+      await apiClient.patch(`/admin/sessions/${sessionId}/context`, { response_mode: mode })
+    }
+  }
+
+  const phase2Label = responseMode === 'transliterated' ? 'Transliteration' : 'Scaffolding'
 
   return (
     <Box p={6} h="100%" display="flex" flexDirection="column">
@@ -123,6 +137,14 @@ export function DebugPage({ title, mode }: DebugPageProps) {
                 onChange={(e) => handleLanguageChange(e.target.value)}
               >
                 {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+            <NativeSelect.Root size="sm" w="160px">
+              <NativeSelect.Field
+                value={responseMode}
+                onChange={(e) => handleResponseModeChange(e.target.value as ResponseMode)}
+              >
+                {RESPONSE_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
               </NativeSelect.Field>
             </NativeSelect.Root>
             <Button size="sm" variant="outline" onClick={handleNewSession}>New Session</Button>
@@ -181,7 +203,7 @@ export function DebugPage({ title, mode }: DebugPageProps) {
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={mode === 'voice' ? 'Type instead of speaking…' : 'Type a message…'}
+                  placeholder="Type a message…"
                   size="sm"
                   disabled={sending}
                 />
