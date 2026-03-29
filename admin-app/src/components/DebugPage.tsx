@@ -3,6 +3,8 @@ import {
   Box, Button, Flex, Heading, Input, NativeSelect,
   Text, VStack, Badge, Spinner, Tabs
 } from '@chakra-ui/react'
+import JsonView from '@uiw/react-json-view'
+import { githubLightTheme } from '@uiw/react-json-view/githubLight'
 import apiClient from '../lib/api-client'
 
 const LANGUAGES = ['ar-AR', 'ar-IQ', 'es-MX', 'ru-RU', 'mi-NZ']
@@ -224,15 +226,7 @@ export function DebugPage({ title, mode }: DebugPageProps) {
                     <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
                       Agent SDK raw responses ({lastResponse.raw_responses.length} call{lastResponse.raw_responses.length !== 1 ? 's' : ''})
                     </Text>
-                    <Box
-                      as="pre"
-                      fontFamily="mono"
-                      fontSize="xs"
-                      whiteSpace="pre-wrap"
-                      wordBreak="break-all"
-                    >
-                      {JSON.stringify(lastResponse.raw_responses, null, 2)}
-                    </Box>
+                    <JsonView value={lastResponse.raw_responses} style={githubLightTheme} displayDataTypes={false} collapsed={2} />
                   </Tabs.Content>
                   <Tabs.Content value="phase2" p={3}>
                     {lastResponse.phase2_response ? (
@@ -240,60 +234,27 @@ export function DebugPage({ title, mode }: DebugPageProps) {
                         <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
                           {phase2Label} response (model: {lastResponse.phase2_response.model})
                         </Text>
-                        <Box
-                          as="pre"
-                          fontFamily="mono"
-                          fontSize="xs"
-                          whiteSpace="pre-wrap"
-                          wordBreak="break-all"
-                        >
-                          {JSON.stringify(lastResponse.phase2_response, null, 2)}
-                        </Box>
+                        <JsonView value={lastResponse.phase2_response} style={githubLightTheme} displayDataTypes={false} collapsed={2} />
                       </>
                     ) : (
                       <Text color="gray.400" fontSize="sm">No phase 2 response</Text>
                     )}
                   </Tabs.Content>
                   <Tabs.Content value="messages" p={3}>
-                    <Box
-                      as="pre"
-                      fontFamily="mono"
-                      fontSize="xs"
-                      whiteSpace="pre-wrap"
-                      wordBreak="break-all"
-                    >
-                      {JSON.stringify(lastResponse.messages, null, 2)}
-                    </Box>
+                    <JsonView value={lastResponse.messages} style={githubLightTheme} displayDataTypes={false} collapsed={2} />
                   </Tabs.Content>
                   <Tabs.Content value="usage" p={3}>
                     <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
                       Phase 1: Agent SDK
                     </Text>
-                    <Box
-                      as="pre"
-                      fontFamily="mono"
-                      fontSize="xs"
-                      whiteSpace="pre-wrap"
-                      wordBreak="break-all"
-                      mb={4}
-                    >
-                      {JSON.stringify(lastResponse.usage, null, 2)}
-                    </Box>
+                    <JsonView value={lastResponse.usage ?? {}} style={githubLightTheme} displayDataTypes={false} />
                     {lastResponse.phase2_response?.usage && (
-                      <>
+                      <Box mt={4}>
                         <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
                           Phase 2: {phase2Label}
                         </Text>
-                        <Box
-                          as="pre"
-                          fontFamily="mono"
-                          fontSize="xs"
-                          whiteSpace="pre-wrap"
-                          wordBreak="break-all"
-                        >
-                          {JSON.stringify(lastResponse.phase2_response.usage, null, 2)}
-                        </Box>
-                      </>
+                        <JsonView value={lastResponse.phase2_response.usage} style={githubLightTheme} displayDataTypes={false} />
+                      </Box>
                     )}
                   </Tabs.Content>
                 </Box>
