@@ -91,7 +91,8 @@ class DisplayTextGate(FrameProcessor):
                 self._tts_transcript.set_transliteration_queue(transliterated_words)
             else:
                 # Scaffolding: word count differs, store full text for DB persistence
-                display_text = await generate_scaffolded_text(canonical_text)
+                scaffolded = await generate_scaffolded_text(canonical_text)
+                display_text = scaffolded.text
                 logger.info(f"DisplayTextGate: scaffolded='{display_text}'")
                 self._tts_transcript.set_display_text(display_text)
 

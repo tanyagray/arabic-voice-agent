@@ -18,9 +18,18 @@ class TextRequest(BaseModel):
     message: str = Field(..., description="The text message to send")
 
 
+class Highlight(BaseModel):
+    """A highlighted Arabizi word or phrase in the scaffolded text."""
+    word: str = Field(..., description="The Arabizi word as it appears in the text")
+    meaning: str = Field(..., description="English meaning of the word")
+    start: int = Field(..., description="Start character index in the text")
+    end: int = Field(..., description="End character index in the text (exclusive)")
+
+
 class TextResponse(BaseModel):
     """Response model for text chat."""
     text: str = Field(..., description="The agent's response")
+    highlights: list[Highlight] = Field(default_factory=list, description="Arabizi words to highlight")
 
 
 class AudioUploadResponse(BaseModel):
@@ -143,10 +152,13 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
     # Step 2: Generate display text based on user's response_mode setting
     context = context_service.get_context(session_id)
     response_mode = context.agent.response_mode if context else "scaffolded"
+    highlights = []
     if response_mode == "transliterated":
         display_response = await scaffolding_service.generate_transliterated_text(canonical_response)
     else:
-        display_response = await scaffolding_service.generate_scaffolded_text(canonical_response)
+        scaffolded = await scaffolding_service.generate_scaffolded_text(canonical_response)
+        display_response = scaffolded.text
+        highlights = scaffolded.highlights
 
     # Save the agent's response to the database with both versions
     try:
@@ -161,7 +173,7 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
         # Log the error but continue - don't fail the request if DB insert fails
         print(f"[Session] Failed to save agent response to database: {e}")
 
-    return TextResponse(text=display_response)
+    return TextResponse(text=display_response, highlights=highlights)
 
 
 @router.post("/{session_id}/event")

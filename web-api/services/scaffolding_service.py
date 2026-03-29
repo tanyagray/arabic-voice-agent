@@ -5,6 +5,7 @@ Two modes:
 - Transliterated text: Pure Arabizi romanization of Arabic (no translation).
 """
 
+import json
 import os
 from pathlib import Path
 from openai import AsyncOpenAI
@@ -33,6 +34,29 @@ def _load_transliteration_prompt() -> str:
     path = PROMPTS_DIR / "transliteration.md"
     return path.read_text(encoding="utf-8")
 
+class ScaffoldedResult:
+    """Result of scaffolding: the display text plus highlighted Arabizi words."""
+
+    def __init__(self, text: str, highlights: list[dict] | None = None):
+        self.text = text
+        self.highlights = highlights or []
+
+    def to_dict(self) -> dict:
+        return {"text": self.text, "highlights": self.highlights}
+
+
+def _parse_scaffolding_json(raw: str, fallback_text: str) -> ScaffoldedResult:
+    """Parse the JSON response from the scaffolding LLM call."""
+    try:
+        data = json.loads(raw)
+        text = data.get("text", fallback_text)
+        highlights = data.get("highlights", [])
+        return ScaffoldedResult(text=text, highlights=highlights)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("Failed to parse scaffolding JSON, falling back to raw text")
+        return ScaffoldedResult(text=raw.strip() if raw else fallback_text)
+
+
 LEARNED_WORDS_WITH_WORDS = """The learner has previously learned the following Arabic words (given as base/stem forms). \
 Keep these words — and any inflected variants (plurals, conjugations, dual forms, etc.) — \
 in the translated sentence as Arabizi (romanized Arabic) instead of translating them to English.
@@ -52,27 +76,32 @@ Arabizi word described above."
 class PhaseResult:
     """Result of a scaffolding/transliteration LLM call with metadata for debugging."""
 
-    def __init__(self, text: str, model: str, usage: dict, raw_output: str, prompt: str = ""):
+    def __init__(self, text: str, model: str, usage: dict, raw_output: str, prompt: str = "",
+                 highlights: list[dict] | None = None):
         self.text = text
         self.model = model
         self.usage = usage
         self.raw_output = raw_output
         self.prompt = prompt
+        self.highlights = highlights or []
 
     def to_dict(self) -> dict:
-        return {
+        result = {
             "text": self.text,
             "model": self.model,
             "usage": self.usage,
             "raw_output": self.raw_output,
             "prompt": self.prompt,
         }
+        if self.highlights:
+            result["highlights"] = self.highlights
+        return result
 
 
 async def generate_scaffolded_text(
     arabic_text: str,
     learned_words: list[str] | None = None,
-) -> str:
+) -> ScaffoldedResult:
     """
     Generate scaffolded display text by translating Arabic into English.
 
@@ -88,7 +117,7 @@ async def generate_scaffolded_text(
                        appears as Arabizi.
 
     Returns:
-        English text with learned + one new word as inline Arabizi.
+        ScaffoldedResult with text and highlights array.
     """
     # Build learned words instruction
     if learned_words:
@@ -109,19 +138,19 @@ async def generate_scaffolded_text(
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=500,
+            response_format={"type": "json_object"},
         )
 
-        result = response.choices[0].message.content
-        if result:
-            return result.strip()
+        raw = response.choices[0].message.content
+        if raw:
+            return _parse_scaffolding_json(raw, arabic_text)
 
         logger.warning("Empty response from scaffolding LLM call, falling back to original text")
-        return arabic_text
+        return ScaffoldedResult(text=arabic_text)
 
     except Exception as e:
         logger.error(f"Failed to generate scaffolded text: {e}")
-        # Fall back to the original Arabic text if the LLM call fails
-        return arabic_text
+        return ScaffoldedResult(text=arabic_text)
 
 
 
@@ -161,13 +190,20 @@ async def generate_transliterated_text(text: str) -> str:
         return text
 
 
-def _extract_phase_result(response, fallback_text: str) -> PhaseResult:
+def _extract_phase_result(response, fallback_text: str, parse_json: bool = False) -> PhaseResult:
     """Extract a PhaseResult from an OpenAI ChatCompletion response."""
-    text = response.choices[0].message.content
-    if text:
-        text = text.strip()
+    raw = response.choices[0].message.content
+    highlights: list[dict] = []
+
+    if raw and parse_json:
+        parsed = _parse_scaffolding_json(raw, fallback_text)
+        text = parsed.text
+        highlights = parsed.highlights
+    elif raw:
+        text = raw.strip()
     else:
         text = fallback_text
+
     usage = response.usage
     return PhaseResult(
         text=text,
@@ -177,7 +213,8 @@ def _extract_phase_result(response, fallback_text: str) -> PhaseResult:
             "output_tokens": usage.completion_tokens if usage else 0,
             "total_tokens": usage.total_tokens if usage else 0,
         },
-        raw_output=text,
+        raw_output=raw or text,
+        highlights=highlights,
     )
 
 
@@ -204,8 +241,9 @@ async def generate_scaffolded_text_with_metadata(
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=500,
+            response_format={"type": "json_object"},
         )
-        result = _extract_phase_result(response, arabic_text)
+        result = _extract_phase_result(response, arabic_text, parse_json=True)
         result.prompt = prompt
         return result
     except Exception as e:

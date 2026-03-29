@@ -40,6 +40,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     text: str
     text_canonical: str | None = None
+    highlights: list[dict[str, Any]] = []
     system_prompt: str | None = None
     messages: list[Any]
     raw_responses: list[Any]
@@ -241,6 +242,7 @@ async def admin_chat(
     return ChatResponse(
         text=phase2_result.text,
         text_canonical=canonical_text,
+        highlights=phase2_result.highlights,
         system_prompt=system_prompt,
         messages=messages,
         raw_responses=raw_responses,

@@ -84,7 +84,10 @@ class TestSendChatMessage:
         mock_context.agent.response_mode = "scaffolded"
         mock_get_context.return_value = mock_context
 
-        mock_scaffold.return_value = "Hello! How can I help you?"
+        mock_result = Mock()
+        mock_result.text = "Hello! How can I help you?"
+        mock_result.highlights = []
+        mock_scaffold.return_value = mock_result
 
         # Act
         response = client.post(
@@ -95,7 +98,7 @@ class TestSendChatMessage:
 
         # Assert
         assert response.status_code == 200
-        assert response.json() == {"text": "Hello! How can I help you?"}
+        assert response.json() == {"text": "Hello! How can I help you?", "highlights": []}
         mock_generate_response.assert_called_once_with("session-123", "Hello", "test-token")
         mock_scaffold.assert_called_once_with("مرحبا! كيف يمكنني مساعدتك؟")
 
