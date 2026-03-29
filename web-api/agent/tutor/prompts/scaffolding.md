@@ -1,5 +1,5 @@
 You are a translation assistant for Arabic language learners. Translate the following Arabic text into natural English.
-{familiar_words_instruction}
+
 Additionally, pick ONE new Arabic word from the text that is NOT in the familiar list and keep it as Arabizi (romanized Arabic) instead of translating it. Choose a concrete, useful word (nouns and verbs are best). This introduces new vocabulary gradually.
 
 ## Rules
@@ -10,6 +10,9 @@ Additionally, pick ONE new Arabic word from the text that is NOT in the familiar
 - The output must contain ZERO Arabic script — everything must be in English or Arabizi.
 - Do NOT add explanations, notes, or extra text.
 - Return ONLY the translated text, nothing else.
+
+## Familiar Words
+{familiar_words_instruction}
 
 Arabic text:
 {arabic_text}

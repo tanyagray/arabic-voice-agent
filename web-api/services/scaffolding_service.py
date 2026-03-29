@@ -33,8 +33,7 @@ def _load_transliteration_prompt() -> str:
     path = PROMPTS_DIR / "transliteration.md"
     return path.read_text(encoding="utf-8")
 
-FAMILIAR_WORDS_INSTRUCTION = """
-The learner already knows the following Arabic words (given as base/stem forms). \
+FAMILIAR_WORDS_WITH_WORDS = """The learner already knows the following Arabic words (given as base/stem forms). \
 Keep these words — and any inflected variants (plurals, conjugations, dual forms, etc.) — \
 in the translated sentence as Arabizi (romanized Arabic) instead of translating them to English.
 
@@ -44,8 +43,9 @@ For example, if the learner knows "sayaara" (سيارة), then "السيارات
 "sayaaraat" rather than "cars".
 
 Familiar words:
-{words}
-"""
+{words}"""
+
+FAMILIAR_WORDS_EMPTY = "No familiar words. The learner has no previously learned vocabulary yet."
 
 
 class PhaseResult:
@@ -89,10 +89,11 @@ async def generate_scaffolded_text(
         English text with familiar + one new word as inline Arabizi.
     """
     # Build familiar words instruction
-    familiar_words_instruction = ""
     if familiar_words:
         words_str = ", ".join(familiar_words)
-        familiar_words_instruction = FAMILIAR_WORDS_INSTRUCTION.format(words=words_str)
+        familiar_words_instruction = FAMILIAR_WORDS_WITH_WORDS.format(words=words_str)
+    else:
+        familiar_words_instruction = FAMILIAR_WORDS_EMPTY
 
     prompt = _load_scaffolding_prompt().format(
         arabic_text=arabic_text,
@@ -183,10 +184,11 @@ async def generate_scaffolded_text_with_metadata(
     familiar_words: list[str] | None = None,
 ) -> PhaseResult:
     """Like generate_scaffolded_text but returns full PhaseResult with LLM metadata."""
-    familiar_words_instruction = ""
     if familiar_words:
         words_str = ", ".join(familiar_words)
-        familiar_words_instruction = FAMILIAR_WORDS_INSTRUCTION.format(words=words_str)
+        familiar_words_instruction = FAMILIAR_WORDS_WITH_WORDS.format(words=words_str)
+    else:
+        familiar_words_instruction = FAMILIAR_WORDS_EMPTY
 
     prompt = _load_scaffolding_prompt().format(
         arabic_text=arabic_text,
