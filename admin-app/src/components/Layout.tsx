@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext'
 
 const NAV_ITEMS = [
   { label: 'Prompts', path: '/prompts' },
-  { label: 'Test Agent', path: '/test' },
+  { label: 'Chat Debug', path: '/debug/chat' },
+  { label: 'Voice Debug', path: '/debug/voice' },
 ]
 
 export function Layout({ children }: { children: ReactNode }) {

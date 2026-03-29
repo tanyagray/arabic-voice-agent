@@ -56,6 +56,24 @@ Familiar words:
 """
 
 
+class PhaseResult:
+    """Result of a scaffolding/transliteration LLM call with metadata for debugging."""
+
+    def __init__(self, text: str, model: str, usage: dict, raw_output: str):
+        self.text = text
+        self.model = model
+        self.usage = usage
+        self.raw_output = raw_output
+
+    def to_dict(self) -> dict:
+        return {
+            "text": self.text,
+            "model": self.model,
+            "usage": self.usage,
+            "raw_output": self.raw_output,
+        }
+
+
 async def generate_scaffolded_text(
     arabic_text: str,
     familiar_words: list[str] | None = None,
@@ -162,3 +180,68 @@ async def generate_transliterated_text(text: str) -> str:
     except Exception as e:
         logger.error(f"Failed to generate transliterated text: {e}")
         return text
+
+
+def _extract_phase_result(response, fallback_text: str) -> PhaseResult:
+    """Extract a PhaseResult from an OpenAI ChatCompletion response."""
+    text = response.choices[0].message.content
+    if text:
+        text = text.strip()
+    else:
+        text = fallback_text
+    usage = response.usage
+    return PhaseResult(
+        text=text,
+        model=response.model,
+        usage={
+            "input_tokens": usage.prompt_tokens if usage else 0,
+            "output_tokens": usage.completion_tokens if usage else 0,
+            "total_tokens": usage.total_tokens if usage else 0,
+        },
+        raw_output=text,
+    )
+
+
+async def generate_scaffolded_text_with_metadata(
+    arabic_text: str,
+    familiar_words: list[str] | None = None,
+) -> PhaseResult:
+    """Like generate_scaffolded_text but returns full PhaseResult with LLM metadata."""
+    familiar_words_instruction = ""
+    if familiar_words:
+        words_str = ", ".join(familiar_words)
+        familiar_words_instruction = FAMILIAR_WORDS_INSTRUCTION.format(words=words_str)
+
+    prompt = SCAFFOLDING_PROMPT.format(
+        arabic_text=arabic_text,
+        familiar_words_instruction=familiar_words_instruction,
+    )
+
+    try:
+        client = _get_client()
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=500,
+        )
+        return _extract_phase_result(response, arabic_text)
+    except Exception as e:
+        logger.error(f"Failed to generate scaffolded text: {e}")
+        return PhaseResult(text=arabic_text, model="error", usage={}, raw_output=str(e))
+
+
+async def generate_transliterated_text_with_metadata(text: str) -> PhaseResult:
+    """Like generate_transliterated_text but returns full PhaseResult with LLM metadata."""
+    try:
+        client = _get_client()
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": TRANSLITERATION_PROMPT.format(text=text)}],
+            temperature=0.2,
+            max_tokens=500,
+        )
+        return _extract_phase_result(response, text)
+    except Exception as e:
+        logger.error(f"Failed to generate transliterated text: {e}")
+        return PhaseResult(text=text, model="error", usage={}, raw_output=str(e))

@@ -10,16 +10,31 @@ const LANGUAGES = ['ar-AR', 'ar-IQ', 'es-MX', 'ru-RU', 'mi-NZ']
 interface ChatMessage {
   role: 'user' | 'agent'
   text: string
+  textCanonical?: string
+}
+
+interface Phase2Response {
+  text: string
+  model: string
+  usage: Record<string, unknown>
+  raw_output: string
 }
 
 interface LlmResponse {
   text: string
+  text_canonical: string | null
   messages: unknown[]
   raw_responses: unknown[]
+  phase2_response: Phase2Response | null
   usage: Record<string, unknown> | null
 }
 
-export function TestAgentPage() {
+interface DebugPageProps {
+  title: string
+  mode: 'chat' | 'voice'
+}
+
+export function DebugPage({ title, mode }: DebugPageProps) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [language, setLanguage] = useState('ar-AR')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -64,8 +79,15 @@ export function TestAgentPage() {
         sid = await createSession()
       }
 
-      const res = await apiClient.post<LlmResponse>(`/admin/sessions/${sid}/chat`, { message: userText })
-      setMessages((prev) => [...prev, { role: 'agent', text: res.data.text }])
+      const res = await apiClient.post<LlmResponse>(`/admin/sessions/${sid}/chat`, {
+        message: userText,
+        mode,
+      })
+      setMessages((prev) => [...prev, {
+        role: 'agent',
+        text: res.data.text,
+        textCanonical: res.data.text_canonical ?? undefined,
+      }])
       setLastResponse(res.data)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Request failed'
@@ -82,9 +104,11 @@ export function TestAgentPage() {
     }
   }
 
+  const phase2Label = mode === 'voice' ? 'Transliteration' : 'Scaffolding'
+
   return (
     <Box p={6} h="100%" display="flex" flexDirection="column">
-      <Heading size="md" mb={4}>Test Agent</Heading>
+      <Heading size="md" mb={4}>{title}</Heading>
       <Flex gap={4} flex={1} overflow="hidden">
 
         {/* Chat panel */}
@@ -118,16 +142,22 @@ export function TestAgentPage() {
             )}
             {messages.map((msg, i) => (
               <Flex key={i} justify={msg.role === 'user' ? 'flex-end' : 'flex-start'}>
-                <Box
-                  maxW="75%"
-                  px={3}
-                  py={2}
-                  borderRadius="lg"
-                  bg={msg.role === 'user' ? 'blue.500' : 'gray.100'}
-                  color={msg.role === 'user' ? 'white' : 'gray.800'}
-                  fontSize="sm"
-                >
-                  {msg.text}
+                <Box maxW="75%">
+                  <Box
+                    px={3}
+                    py={2}
+                    borderRadius="lg"
+                    bg={msg.role === 'user' ? 'blue.500' : 'gray.100'}
+                    color={msg.role === 'user' ? 'white' : 'gray.800'}
+                    fontSize="sm"
+                  >
+                    {msg.text}
+                  </Box>
+                  {msg.role === 'agent' && msg.textCanonical && (
+                    <Text fontSize="xs" color="gray.500" mt={1} px={1} dir="rtl">
+                      {msg.textCanonical}
+                    </Text>
+                  )}
                 </Box>
               </Flex>
             ))}
@@ -149,7 +179,7 @@ export function TestAgentPage() {
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type a message…"
+                  placeholder={mode === 'voice' ? 'Type instead of speaking…' : 'Type a message…'}
                   size="sm"
                   disabled={sending}
                 />
@@ -181,15 +211,19 @@ export function TestAgentPage() {
             </Box>
           ) : (
             <Box flex={1} overflow="hidden">
-              <Tabs.Root defaultValue="raw_responses" h="100%" display="flex" flexDirection="column">
+              <Tabs.Root defaultValue="phase1" h="100%" display="flex" flexDirection="column">
                 <Tabs.List px={3} borderBottom="1px solid" borderColor="gray.100">
-                  <Tabs.Trigger value="raw_responses">Raw Responses</Tabs.Trigger>
+                  <Tabs.Trigger value="phase1">Phase 1: Agent</Tabs.Trigger>
+                  <Tabs.Trigger value="phase2">Phase 2: {phase2Label}</Tabs.Trigger>
                   <Tabs.Trigger value="messages">Messages</Tabs.Trigger>
                   <Tabs.Trigger value="usage">Usage</Tabs.Trigger>
                 </Tabs.List>
 
                 <Box flex={1} overflow="auto">
-                  <Tabs.Content value="raw_responses" p={3}>
+                  <Tabs.Content value="phase1" p={3}>
+                    <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
+                      Agent SDK raw responses ({lastResponse.raw_responses.length} call{lastResponse.raw_responses.length !== 1 ? 's' : ''})
+                    </Text>
                     <Box
                       as="pre"
                       fontFamily="mono"
@@ -199,6 +233,26 @@ export function TestAgentPage() {
                     >
                       {JSON.stringify(lastResponse.raw_responses, null, 2)}
                     </Box>
+                  </Tabs.Content>
+                  <Tabs.Content value="phase2" p={3}>
+                    {lastResponse.phase2_response ? (
+                      <>
+                        <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
+                          {phase2Label} response (model: {lastResponse.phase2_response.model})
+                        </Text>
+                        <Box
+                          as="pre"
+                          fontFamily="mono"
+                          fontSize="xs"
+                          whiteSpace="pre-wrap"
+                          wordBreak="break-all"
+                        >
+                          {JSON.stringify(lastResponse.phase2_response, null, 2)}
+                        </Box>
+                      </>
+                    ) : (
+                      <Text color="gray.400" fontSize="sm">No phase 2 response</Text>
+                    )}
                   </Tabs.Content>
                   <Tabs.Content value="messages" p={3}>
                     <Box
@@ -212,15 +266,35 @@ export function TestAgentPage() {
                     </Box>
                   </Tabs.Content>
                   <Tabs.Content value="usage" p={3}>
+                    <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
+                      Phase 1: Agent SDK
+                    </Text>
                     <Box
                       as="pre"
                       fontFamily="mono"
                       fontSize="xs"
                       whiteSpace="pre-wrap"
                       wordBreak="break-all"
+                      mb={4}
                     >
                       {JSON.stringify(lastResponse.usage, null, 2)}
                     </Box>
+                    {lastResponse.phase2_response?.usage && (
+                      <>
+                        <Text fontWeight="semibold" fontSize="xs" mb={2} color="gray.600">
+                          Phase 2: {phase2Label}
+                        </Text>
+                        <Box
+                          as="pre"
+                          fontFamily="mono"
+                          fontSize="xs"
+                          whiteSpace="pre-wrap"
+                          wordBreak="break-all"
+                        >
+                          {JSON.stringify(lastResponse.phase2_response.usage, null, 2)}
+                        </Box>
+                      </>
+                    )}
                   </Tabs.Content>
                 </Box>
               </Tabs.Root>

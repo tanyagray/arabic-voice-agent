@@ -7,7 +7,8 @@ import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
 import { PromptsPage } from './pages/PromptsPage'
 import { PromptEditPage } from './pages/PromptEditPage'
-import { TestAgentPage } from './pages/TestAgentPage'
+import { ChatDebugPage } from './pages/ChatDebugPage'
+import { VoiceDebugPage } from './pages/VoiceDebugPage'
 
 function App() {
   return (
@@ -26,7 +27,8 @@ function App() {
                       <Route path="/" element={<Navigate to="/prompts" replace />} />
                       <Route path="/prompts" element={<PromptsPage />} />
                       <Route path="/prompts/:language" element={<PromptEditPage />} />
-                      <Route path="/test" element={<TestAgentPage />} />
+                      <Route path="/debug/chat" element={<ChatDebugPage />} />
+                      <Route path="/debug/voice" element={<VoiceDebugPage />} />
                     </Routes>
                   </Layout>
                 </AuthGuard>
