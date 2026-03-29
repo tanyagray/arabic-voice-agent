@@ -21,7 +21,10 @@ export interface AppConfig {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-let instance: AppConfig | null = null
+// Preserve the Supabase client across Vite HMR reloads — creating a second
+// client for the same localStorage key causes navigator-lock contention that
+// hangs the auth flow indefinitely.
+let instance: AppConfig | null = import.meta.hot?.data?.instance ?? null
 
 export const AppSettings = {
   /**
@@ -73,3 +76,10 @@ export const AppSettings = {
     return API_URL
   },
 } as const
+
+// Store the instance on the HMR boundary so it survives module reloads
+if (import.meta.hot) {
+  import.meta.hot.dispose((data) => {
+    data.instance = instance
+  })
+}
