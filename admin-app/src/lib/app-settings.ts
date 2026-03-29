@@ -46,6 +46,10 @@ export const AppSettings = {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
+        // Disable navigator locks to avoid lock contention when React StrictMode
+        // double-mounts components (which creates orphaned locks that hang getSession).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => await fn(),
       },
     })
 

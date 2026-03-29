@@ -31,29 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const admin = await checkAdminRole(session.user.id)
-        if (!admin) {
-          await supabase.auth.signOut()
-          setLoading(false)
-          return
-        }
-        setSession(session)
-        setUser(session.user)
-        setIsAdmin(true)
-      }
-      setLoading(false)
-    })
-
+    // onAuthStateChange fires INITIAL_SESSION on mount, so a separate
+    // getSession() call is unnecessary.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const admin = await checkAdminRole(session.user.id)
+        const admin = await checkAdminRole(session.user.id).catch(() => false)
         if (!admin) {
           await supabase.auth.signOut()
-          setSession(null)
-          setUser(null)
-          setIsAdmin(false)
           return
         }
         setSession(session)
@@ -64,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null)
         setIsAdmin(false)
       }
+      setLoading(false)
     })
 
     return () => subscription.unsubscribe()

@@ -15,4 +15,15 @@ apiClient.interceptors.request.use(async (config) => {
   return config
 })
 
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      const { supabase } = AppSettings.get()
+      await supabase.auth.signOut()
+    }
+    return Promise.reject(error)
+  },
+)
+
 export default apiClient
