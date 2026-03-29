@@ -51,6 +51,6 @@ def get_instructions(
 
     return f"""{instructions}
 
-USER INFO:
+## User Info
 {user_context}
 """
