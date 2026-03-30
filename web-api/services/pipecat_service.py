@@ -24,6 +24,7 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 from pipecat.services.soniox.stt import SonioxSTTService, SonioxInputParams
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
+from pipecat.transcriptions.language import Language
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketParams,
@@ -90,15 +91,20 @@ class DisplayTextGate(FrameProcessor):
                 transliterated_words = display_text.split()
                 self._tts_transcript.set_transliteration_queue(transliterated_words)
             else:
-                # Scaffolding: word count differs, store full text for DB persistence
+                # Scaffolding: send scaffolded text directly to TTS
                 scaffolded = await generate_scaffolded_text(canonical_text)
                 display_text = scaffolded.text
                 logger.info(f"DisplayTextGate: scaffolded='{display_text}'")
-                self._tts_transcript.set_display_text(display_text)
+                # Store canonical for DB persistence alongside the display text
+                self._tts_transcript.set_scaffolded_canonical(canonical_text)
 
-            # Release all buffered text frames downstream to TTS
-            for buffered_frame in self._buffered_frames:
-                await self.push_frame(buffered_frame, direction)
+            # Release text to TTS — in scaffolded mode, replace with scaffolded text
+            if response_mode == "scaffolded" and display_text:
+                # Replace buffered canonical frames with a single scaffolded text frame
+                await self.push_frame(TextFrame(text=display_text), direction)
+            else:
+                for buffered_frame in self._buffered_frames:
+                    await self.push_frame(buffered_frame, direction)
             self._buffered_frames = []
 
             # Release the end frame
@@ -127,6 +133,8 @@ class TTSTranscriptProcessor(FrameProcessor):
         self._queue_index: int = 0
         # For scaffolded mode: full display text set by DisplayTextGate
         self._display_text: str | None = None
+        # For scaffolded mode: canonical text when TTS receives scaffolded text directly
+        self._scaffolded_canonical: str | None = None
 
     def set_transliteration_queue(self, words: list[str]):
         """Set the transliteration word queue (transliterated mode)."""
@@ -136,11 +144,23 @@ class TTSTranscriptProcessor(FrameProcessor):
         logger.debug(f"TTSTranscriptProcessor: transliteration queue set ({len(words)} words)")
 
     def set_display_text(self, text: str):
-        """Set full display text (scaffolded mode)."""
+        """Set full display text (scaffolded mode) — legacy, kept for compatibility."""
         self._display_text = text
         self._transliteration_queue = []  # clear transliteration queue
         self._queue_index = 0
         logger.debug(f"TTSTranscriptProcessor: scaffolded display text set")
+
+    def set_scaffolded_canonical(self, canonical_text: str):
+        """Set the canonical Arabic text for scaffolded mode DB persistence.
+
+        In scaffolded mode, TTS receives scaffolded text directly, so TTS words
+        ARE the display text. We just need to store the canonical for the DB.
+        """
+        self._scaffolded_canonical = canonical_text
+        self._transliteration_queue = []
+        self._display_text = None
+        self._queue_index = 0
+        logger.debug(f"TTSTranscriptProcessor: scaffolded canonical set")
 
     async def process_frame(self, frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
@@ -174,14 +194,20 @@ class TTSTranscriptProcessor(FrameProcessor):
 
         elif isinstance(frame, TTSStoppedFrame):
             if self._current_sentence_canonical:
-                canonical_text = " ".join(self._current_sentence_canonical)
-
-                if self._display_text is not None:
-                    # Scaffolded mode: use the full display text
+                if self._scaffolded_canonical is not None:
+                    # Scaffolded mode: TTS words are the scaffolded display text,
+                    # canonical was stored separately
+                    display_text = " ".join(self._current_sentence_canonical)
+                    canonical_text = self._scaffolded_canonical
+                    self._scaffolded_canonical = None
+                elif self._display_text is not None:
+                    # Legacy scaffolded mode (display text set directly)
+                    canonical_text = " ".join(self._current_sentence_canonical)
                     display_text = self._display_text
-                    self._display_text = None  # consume it
+                    self._display_text = None
                 else:
                     # Transliterated mode: join accumulated words
+                    canonical_text = " ".join(self._current_sentence_canonical)
                     display_text = " ".join(self._current_sentence_transliterated)
 
                 logger.info(f"TTS sentence: canonical='{canonical_text}' display='{display_text}'")
@@ -287,10 +313,13 @@ async def run_pipecat_agent(
         model="gpt-4o",
     )
 
-    # Configure TTS (ElevenLabs)
+    # Configure TTS (ElevenLabs) — use Arabic language hint for accent
     tts = ElevenLabsTTSService(
         api_key=os.getenv("ELEVEN_API_KEY"),
         voice_id=lang_config["elevenlabs_voice"],
+        params=ElevenLabsTTSService.InputParams(
+            language=Language.AR,
+        ),
     )
 
     # Build LLM context from real tutor instructions + conversation history
@@ -337,9 +366,9 @@ async def run_pipecat_agent(
             stt,  # Speech-to-text
             user_aggregator,  # User context aggregation
             llm,  # Language model
-            display_text_gate,  # Buffer response, generate display text, build word queue
-            tts,  # Text-to-speech (receives canonical Arabic)
-            tts_transcript,  # Replace TTS words with transliterated, save to DB
+            display_text_gate,  # Buffer response, generate display text
+            tts,  # Text-to-speech (receives scaffolded or canonical text)
+            tts_transcript,  # Word-sync for transliterated mode, save to DB
             transport.output(),  # WebSocket output
             assistant_aggregator,  # Assistant context aggregation
         ]
