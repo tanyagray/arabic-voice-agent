@@ -168,6 +168,7 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
             message_kind="text",
             message_text=display_response,
             message_text_canonical=canonical_response,
+            highlights=highlights or None,
         )
     except Exception as e:
         # Log the error but continue - don't fail the request if DB insert fails

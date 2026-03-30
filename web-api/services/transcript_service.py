@@ -16,6 +16,7 @@ class TranscriptMessage(BaseModel):
     message_kind: str  # 'transcript', 'audio', etc.
     message_text: str  # Display text (arabizi for tutor, raw input for user)
     message_text_canonical: Optional[str] = None  # Full Arabic with harakaat (tutor only)
+    highlights: list[dict] = []  # Arabizi word highlights: [{word, meaning, start, end}]
     created_at: datetime
     updated_at: datetime
 
@@ -26,6 +27,7 @@ async def create_transcript_message(
     message_kind: str,
     message_text: str,
     message_text_canonical: Optional[str] = None,
+    highlights: Optional[list[dict]] = None,
 ) -> TranscriptMessage:
     """
     Create and persist a transcript message to the database.
@@ -65,6 +67,7 @@ async def create_transcript_message(
         message_kind=message_kind,
         message_text=message_text,
         message_text_canonical=message_text_canonical,
+        highlights=highlights or [],
         created_at=now,
         updated_at=now,
     )
@@ -82,6 +85,8 @@ async def create_transcript_message(
     }
     if message.message_text_canonical is not None:
         insert_data["message_text_canonical"] = message.message_text_canonical
+    if message.highlights:
+        insert_data["highlights"] = message.highlights
 
     # Insert into database
     supabase.table("transcript_messages").insert(insert_data).execute()
@@ -124,6 +129,7 @@ async def get_session_messages(
             message_kind=msg["message_kind"],
             message_text=msg["message_text"],
             message_text_canonical=msg.get("message_text_canonical"),
+            highlights=msg.get("highlights") or [],
             created_at=datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")),
             updated_at=datetime.fromisoformat(msg["updated_at"].replace("Z", "+00:00")),
         )

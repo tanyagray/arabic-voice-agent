@@ -7,9 +7,11 @@ Additionally, pick ONE new Arabic word from the text that is NOT in the learned 
 - Keep learned words (and their inflected forms) as Arabizi in the sentence.
 - Keep exactly one additional new word as Arabizi to introduce it to the learner.
 - Always keep common Arabic loanwords as Arabizi — these are words widely understood in English (see list below). They should never be translated to English. Include them in `highlights` only if they are NOT in the learned words list.
+- IMPORTANT: Translate into natural English, then substitute Arabizi words in place of their English equivalents. Do NOT carry over Arabic grammar. Arabic uses the definite article (ال) far more than English — ignore it. If the natural English sentence would be "do you like cats or dogs?", the scaffolded version should be "do you like qitat or kilab?" — NOT "do you like the qitat or the kilab?". Never add "the" or "al-" before an Arabizi word unless the English sentence genuinely requires "the" in that position (e.g., "pass me the milh" where you'd say "pass me the salt").
 - Use common Arabizi conventions (e.g., 3 for ع, 7 for ح, 2 for ء/ق) for all Arabizi words.
 - The output must contain ZERO Arabic script — everything must be in English or Arabizi.
 - Do NOT add explanations, notes, or extra text.
+- ALL Arabizi words in the output text MUST appear in the `highlights` array — including common loanwords (unless they are in the learned words list). Do not leave any Arabizi word unhighlighted.
 
 ## Common Arabic Loanwords (always keep as Arabizi)
 inshallah, mashallah, yalla, marhaba, salaam, habibi, habibti, wallah, allahu, alhamdulillah, bismillah, shukran, khalas, haram, halal, jazak allahu khairan
@@ -18,16 +20,14 @@ inshallah, mashallah, yalla, marhaba, salaam, habibi, habibti, wallah, allahu, a
 Return a JSON object with:
 - `text`: the translated sentence (string)
 - `highlights`: an array of Arabizi words/phrases in the text, each with:
-  - `word`: the Arabizi word as it appears in the text
+  - `word`: the Arabizi word exactly as it appears in `text`
   - `meaning`: its English meaning
-  - `start`: character index where it starts in `text`
-  - `end`: character index where it ends in `text` (exclusive)
 
-If a word appears multiple times in the text, include a separate entry for each occurrence with the correct start/end positions.
+Do NOT include `start` or `end` indices — they will be computed automatically.
 
 Example output:
 ```json
-{{"text": "marhaba, how are you today?", "highlights": [{{"word": "marhaba", "meaning": "hello", "start": 0, "end": 7}}]}}
+{{"text": "marhaba, how are you today?", "highlights": [{{"word": "marhaba", "meaning": "hello"}}]}}
 ```
 
 ## Learned Words

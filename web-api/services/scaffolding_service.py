@@ -7,6 +7,7 @@ Two modes:
 
 import json
 import os
+import re
 from pathlib import Path
 from openai import AsyncOpenAI
 from loguru import logger
@@ -45,12 +46,40 @@ class ScaffoldedResult:
         return {"text": self.text, "highlights": self.highlights}
 
 
+def _compute_highlight_offsets(text: str, highlights: list[dict]) -> list[dict]:
+    """Find each highlight word in the text and fill in start/end offsets.
+
+    Uses word-boundary matching (case-insensitive) so that e.g. "an" does
+    not match inside "marhaban".  If a word appears multiple times, each
+    occurrence gets its own entry.  Highlights whose word cannot be found
+    at a word boundary are dropped.
+    """
+    result: list[dict] = []
+    for h in highlights:
+        word = h.get("word", "")
+        if not word:
+            continue
+        # Match the word at word boundaries, case-insensitive
+        pattern = re.compile(r'\b' + re.escape(word) + r'\b', re.IGNORECASE)
+        for m in pattern.finditer(text):
+            result.append({
+                "word": word,
+                "meaning": h.get("meaning", ""),
+                "start": m.start(),
+                "end": m.end(),
+            })
+    # Sort by position in text
+    result.sort(key=lambda h: h["start"])
+    return result
+
+
 def _parse_scaffolding_json(raw: str, fallback_text: str) -> ScaffoldedResult:
     """Parse the JSON response from the scaffolding LLM call."""
     try:
         data = json.loads(raw)
         text = data.get("text", fallback_text)
         highlights = data.get("highlights", [])
+        highlights = _compute_highlight_offsets(text, highlights)
         return ScaffoldedResult(text=text, highlights=highlights)
     except (json.JSONDecodeError, TypeError):
         logger.warning("Failed to parse scaffolding JSON, falling back to raw text")

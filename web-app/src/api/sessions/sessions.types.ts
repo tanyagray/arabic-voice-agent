@@ -8,6 +8,14 @@
  * Represents a single transcript message.
  * Matches the transcript_messages table schema in the database.
  */
+/** A highlighted Arabizi word in the scaffolded text. */
+export interface Highlight {
+  word: string;
+  meaning: string;
+  start: number;
+  end: number;
+}
+
 export interface TranscriptMessage {
   message_id: string;
   session_id: string;
@@ -16,6 +24,7 @@ export interface TranscriptMessage {
   message_kind: string;
   message_text: string;
   message_text_canonical?: string | null;
+  highlights?: Highlight[] | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, type FormEvent } from 'react'
+import { useState, useRef, useEffect, useCallback, type FormEvent } from 'react'
 import {
   Box, Button, Flex, Heading, Input, NativeSelect,
-  Text, VStack, Badge, Spinner, Tabs
+  Portal, Text, VStack, Badge, Spinner, Tabs
 } from '@chakra-ui/react'
 import JsonView from '@uiw/react-json-view'
 import { githubLightTheme } from '@uiw/react-json-view/githubLight'
@@ -9,10 +9,18 @@ import apiClient from '../lib/api-client'
 
 const LANGUAGES = ['ar-AR', 'ar-IQ', 'es-MX', 'ru-RU', 'mi-NZ']
 
+interface Highlight {
+  word: string
+  meaning: string
+  start: number
+  end: number
+}
+
 interface ChatMessage {
   role: 'user' | 'agent'
   text: string
   textCanonical?: string
+  highlights?: Highlight[]
 }
 
 interface Phase2Response {
@@ -26,6 +34,7 @@ interface Phase2Response {
 interface LlmResponse {
   text: string
   text_canonical: string | null
+  highlights: Highlight[]
   system_prompt: string | null
   messages: unknown[]
   raw_responses: unknown[]
@@ -39,6 +48,104 @@ const RESPONSE_MODES: { value: ResponseMode; label: string }[] = [
   { value: 'scaffolded', label: 'Scaffolded' },
   { value: 'transliterated', label: 'Transliterated' },
 ]
+
+interface PopoverState {
+  meaning: string
+  top: number
+  left: number
+}
+
+function HighlightedText({ text, highlights }: { text: string; highlights: Highlight[] }) {
+  const [popover, setPopover] = useState<PopoverState | null>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!popover) return
+    const close = () => setPopover(null)
+    const handlePointerDown = (e: PointerEvent) => {
+      if (popoverRef.current?.contains(e.target as Node)) return
+      close()
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [popover])
+
+  const handleWordClick = useCallback((meaning: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const rect = (e.target as HTMLElement).getBoundingClientRect()
+    setPopover({ meaning, top: rect.top - 4, left: rect.left + rect.width / 2 })
+  }, [])
+
+  const sorted = [...highlights].sort((a, b) => a.start - b.start)
+  const segments: { text: string; highlight?: Highlight }[] = []
+  let cursor = 0
+  for (const h of sorted) {
+    if (h.start > cursor) segments.push({ text: text.slice(cursor, h.start) })
+    segments.push({ text: text.slice(h.start, h.end), highlight: h })
+    cursor = h.end
+  }
+  if (cursor < text.length) segments.push({ text: text.slice(cursor) })
+
+  return (
+    <>
+      <Text fontSize="sm">
+        {segments.map((seg, i) =>
+          seg.highlight ? (
+            <Text
+              as="span"
+              key={i}
+              color="blue.600"
+              cursor="pointer"
+              fontWeight="medium"
+              _hover={{ textDecoration: 'underline' }}
+              onClick={(e) => handleWordClick(seg.highlight!.meaning, e)}
+            >
+              {seg.text}
+            </Text>
+          ) : (
+            <span key={i}>{seg.text}</span>
+          ),
+        )}
+      </Text>
+      {popover && (
+        <Portal>
+          <Box
+            ref={popoverRef}
+            position="fixed"
+            top={`${popover.top}px`}
+            left={`${popover.left}px`}
+            transform="translate(-50%, -100%)"
+            bg="gray.800"
+            color="white"
+            px={3}
+            py={1.5}
+            borderRadius="md"
+            boxShadow="lg"
+            fontSize="xs"
+            zIndex="popover"
+            whiteSpace="nowrap"
+          >
+            {popover.meaning}
+            <Box
+              position="absolute"
+              bottom="-6px"
+              left="50%"
+              transform="translateX(-50%)"
+              borderLeft="6px solid transparent"
+              borderRight="6px solid transparent"
+              borderTop="6px solid"
+              borderTopColor="gray.800"
+            />
+          </Box>
+        </Portal>
+      )}
+    </>
+  )
+}
 
 interface DebugPageProps {
   title: string
@@ -98,6 +205,7 @@ export function DebugPage({ title, defaultResponseMode = 'scaffolded' }: DebugPa
         role: 'agent',
         text: res.data.text,
         textCanonical: res.data.text_canonical ?? undefined,
+        highlights: res.data.highlights?.length ? res.data.highlights : undefined,
       }])
       setLastResponse(res.data)
     } catch (err: unknown) {
@@ -177,7 +285,11 @@ export function DebugPage({ title, defaultResponseMode = 'scaffolded' }: DebugPa
                     color={msg.role === 'user' ? 'white' : 'gray.800'}
                     fontSize="sm"
                   >
-                    {msg.text}
+                    {msg.role === 'agent' && msg.highlights?.length ? (
+                      <HighlightedText text={msg.text} highlights={msg.highlights} />
+                    ) : (
+                      msg.text
+                    )}
                   </Box>
                   {msg.role === 'agent' && msg.textCanonical && (
                     <Text fontSize="xs" color="gray.500" mt={1} px={1} dir="rtl">
