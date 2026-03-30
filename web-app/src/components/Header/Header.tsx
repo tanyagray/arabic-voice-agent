@@ -14,7 +14,7 @@ export function Header() {
       left={0}
       right={0}
       zIndex={50}
-      px={6}
+      px={{ base: 4, md: 6 }}
       py={4}
     >
       <Container maxW="7xl" px={0}>
