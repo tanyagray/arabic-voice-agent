@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import AuthLayout from './components/AuthLayout';
 import { useAuth } from './context/AuthContext';
+import { useTranslationWarning } from './hooks/useTranslationWarning';
 import { LoadingSpinner } from './components/LoadingSpinner';
 
 // Lazy load pages
@@ -13,6 +14,7 @@ const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 
 function App() {
   const { loading, user } = useAuth();
+  useTranslationWarning();
 
   if (loading) {
     return <LoadingSpinner />;
