@@ -6,8 +6,10 @@ Additionally, pick ONE new Arabic word from the text that is NOT in the learned 
 - Translate the Arabic into fluent, natural English.
 - Keep learned words (and their inflected forms) as Arabizi in the sentence.
 - Keep exactly one additional new word as Arabizi to introduce it to the learner.
+- IMPORTANT: When a word is kept as Arabizi (whether learned or newly introduced), ALL instances and inflected forms of that word in the message must also be kept as Arabizi. For example, if "umm" (mother) is Arabizi, then "ummi" (my mother) must also be Arabizi. If "qitta" (cat) is Arabizi, then "qittaat" (cats) must also be Arabizi. Never translate some occurrences and leave others — be consistent within the message.
 - Always keep common Arabic loanwords as Arabizi — these are words widely understood in English (see list below). They should never be translated to English. Include them in `highlights` only if they are NOT in the learned words list.
 - IMPORTANT: Translate into natural English, then substitute Arabizi words in place of their English equivalents. Do NOT carry over Arabic grammar. Arabic uses the definite article (ال) far more than English — ignore it. If the natural English sentence would be "do you like cats or dogs?", the scaffolded version should be "do you like qitat or kilab?" — NOT "do you like the qitat or the kilab?". Never add "the" or "al-" before an Arabizi word unless the English sentence genuinely requires "the" in that position (e.g., "pass me the milh" where you'd say "pass me the salt").
+- Translate Arabic pronouns with the correct gender: هو = "he", هي = "she". Never translate هو as "it" when referring to a person or animal. Use "it" only for inanimate objects.
 - Use common Arabizi conventions (e.g., 3 for ع, 7 for ح, 2 for ء/ق) for all Arabizi words.
 - The output must contain ZERO Arabic script — everything must be in English or Arabizi.
 - Do NOT add explanations, notes, or extra text.

@@ -112,8 +112,9 @@ export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
     };
 
     return (
-      <Box
+      <Flex
         ref={setRefs}
+        direction="column"
         h="full"
         w="full"
         overflowY="auto"
@@ -125,7 +126,7 @@ export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
         {...props}
       >
         {messages.length > 0 ? (
-          <Flex direction="column" gap={3} maxW="680px" mx="auto" px={4} pb={2}>
+          <Flex direction="column" gap={3} maxW="680px" mx="auto" px={4} pb={2} mt="auto">
             {groupMessages(messages).map((group) => (
               <Flex key={group[0].message_id} direction="column" gap={1}>
                 <AnimatePresence initial={false}>
@@ -147,7 +148,7 @@ export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
             </Text>
           </Flex>
         )}
-      </Box>
+      </Flex>
     );
   }
 ));
