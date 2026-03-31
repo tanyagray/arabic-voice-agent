@@ -45,6 +45,19 @@ class ScaffoldedResult:
     def to_dict(self) -> dict:
         return {"text": self.text, "highlights": self.highlights}
 
+    def build_tts_text(self) -> str:
+        """Build TTS-friendly text by replacing Arabizi words with Arabic script.
+
+        Uses highlight offsets (sorted by position) to substitute in reverse
+        order so earlier offsets stay valid.
+        """
+        result = self.text
+        for h in reversed(self.highlights):
+            canonical = h.get("canonical")
+            if canonical and "start" in h and "end" in h:
+                result = result[:h["start"]] + canonical + result[h["end"]:]
+        return result
+
 
 def _compute_highlight_offsets(text: str, highlights: list[dict]) -> list[dict]:
     """Find each highlight word in the text and fill in start/end offsets.
@@ -62,12 +75,15 @@ def _compute_highlight_offsets(text: str, highlights: list[dict]) -> list[dict]:
         # Match the word at word boundaries, case-insensitive
         pattern = re.compile(r'\b' + re.escape(word) + r'\b', re.IGNORECASE)
         for m in pattern.finditer(text):
-            result.append({
+            entry = {
                 "word": word,
                 "meaning": h.get("meaning", ""),
                 "start": m.start(),
                 "end": m.end(),
-            })
+            }
+            if h.get("canonical"):
+                entry["canonical"] = h["canonical"]
+            result.append(entry)
     # Sort by position in text
     result.sort(key=lambda h: h["start"])
     return result

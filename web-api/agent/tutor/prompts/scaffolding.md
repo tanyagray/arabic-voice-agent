@@ -24,12 +24,13 @@ Return a JSON object with:
 - `highlights`: an array of Arabizi words/phrases in the text, each with:
   - `word`: the Arabizi word exactly as it appears in `text`
   - `meaning`: its English meaning
+  - `canonical`: the original Arabic script for this word (e.g. "مرحبا" for "marhaba")
 
 Do NOT include `start` or `end` indices — they will be computed automatically.
 
 Example output:
 ```json
-{{"text": "marhaba, how are you today?", "highlights": [{{"word": "marhaba", "meaning": "hello"}}]}}
+{{"text": "marhaba, how are you today?", "highlights": [{{"word": "marhaba", "meaning": "hello", "canonical": "مرحبا"}}]}}
 ```
 
 ## Learned Words

@@ -91,17 +91,21 @@ class DisplayTextGate(FrameProcessor):
                 transliterated_words = display_text.split()
                 self._tts_transcript.set_transliteration_queue(transliterated_words)
             else:
-                # Scaffolding: send scaffolded text directly to TTS
+                # Scaffolding: build TTS text (Arabic script) and display text (Arabizi)
                 scaffolded = await generate_scaffolded_text(canonical_text)
                 display_text = scaffolded.text
-                logger.info(f"DisplayTextGate: scaffolded='{display_text}'")
-                # Store canonical for DB persistence alongside the display text
+                tts_text = scaffolded.build_tts_text()
+                logger.info(f"DisplayTextGate: scaffolded='{display_text}' tts='{tts_text}'")
+                # Set up word queue so TTS words (Arabic) get swapped to Arabizi for client
+                display_words = display_text.split()
+                self._tts_transcript.set_transliteration_queue(display_words)
+                # Store canonical for DB persistence
                 self._tts_transcript.set_scaffolded_canonical(canonical_text)
 
-            # Release text to TTS — in scaffolded mode, replace with scaffolded text
-            if response_mode == "scaffolded" and display_text:
-                # Replace buffered canonical frames with a single scaffolded text frame
-                await self.push_frame(TextFrame(text=display_text), direction)
+            # Release text to TTS
+            if response_mode == "scaffolded" and tts_text:
+                # Send Arabic-script version to TTS for proper pronunciation
+                await self.push_frame(TextFrame(text=tts_text), direction)
             else:
                 for buffered_frame in self._buffered_frames:
                     await self.push_frame(buffered_frame, direction)
@@ -153,13 +157,12 @@ class TTSTranscriptProcessor(FrameProcessor):
     def set_scaffolded_canonical(self, canonical_text: str):
         """Set the canonical Arabic text for scaffolded mode DB persistence.
 
-        In scaffolded mode, TTS receives scaffolded text directly, so TTS words
-        ARE the display text. We just need to store the canonical for the DB.
+        In scaffolded mode, TTS receives Arabic-script text but the display word
+        queue (set via set_transliteration_queue) swaps words to Arabizi for the
+        client. This just stores the original canonical for the DB.
         """
         self._scaffolded_canonical = canonical_text
-        self._transliteration_queue = []
         self._display_text = None
-        self._queue_index = 0
         logger.debug(f"TTSTranscriptProcessor: scaffolded canonical set")
 
     async def process_frame(self, frame, direction: FrameDirection):
@@ -195,11 +198,14 @@ class TTSTranscriptProcessor(FrameProcessor):
         elif isinstance(frame, TTSStoppedFrame):
             if self._current_sentence_canonical:
                 if self._scaffolded_canonical is not None:
-                    # Scaffolded mode: TTS words are the scaffolded display text,
-                    # canonical was stored separately
-                    display_text = " ".join(self._current_sentence_canonical)
+                    # Scaffolded mode: display text from word queue (Arabizi),
+                    # canonical stored separately
                     canonical_text = self._scaffolded_canonical
                     self._scaffolded_canonical = None
+                    if self._current_sentence_transliterated:
+                        display_text = " ".join(self._current_sentence_transliterated)
+                    else:
+                        display_text = " ".join(self._current_sentence_canonical)
                 elif self._display_text is not None:
                     # Legacy scaffolded mode (display text set directly)
                     canonical_text = " ".join(self._current_sentence_canonical)
