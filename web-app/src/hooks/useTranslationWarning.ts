@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { toaster } from '@/lib/toaster';
+import { toaster } from '@/components/ui/provider';
 
 /**
  * Detects browser auto-translation (Chrome, Safari, Edge, etc.) and shows
