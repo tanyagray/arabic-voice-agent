@@ -18,6 +18,8 @@ else:
 
 def capture(distinct_id: str, event: str, properties: dict | None = None) -> None:
     """Capture an analytics event."""
+    if not _api_key:
+        return
     posthog.capture(distinct_id=distinct_id, event=event, properties=properties or {})
 
 
