@@ -1,10 +1,14 @@
 """Session management routes and models."""
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+import logging
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Depends
 from pydantic import BaseModel, Field
 
 from services import session_service, agent_service, context_service, websocket_service, soniox_service, transcript_service, scaffolding_service
 from dependencies.auth import get_current_user_token
+
+logger = logging.getLogger(__name__)
 
 
 # Models
@@ -69,8 +73,41 @@ class SessionListResponse(BaseModel):
 router = APIRouter(prefix="/sessions", tags=["Session"])
 
 
+async def _generate_session_greeting(session_id: str, access_token: str) -> None:
+    """Background task: generate an initial agent greeting for a new session."""
+    try:
+        canonical_response = await agent_service.generate_greeting(session_id, access_token)
+
+        context = context_service.get_context(session_id)
+        response_mode = context.agent.response_mode if context else "scaffolded"
+
+        scaffolded = await scaffolding_service.generate_scaffolded_text(canonical_response)
+        transliterated = await scaffolding_service.generate_transliterated_text(canonical_response)
+        highlights = scaffolded.highlights
+
+        if response_mode == "canonical":
+            display_response = canonical_response
+        elif response_mode == "transliterated":
+            display_response = transliterated
+        else:
+            display_response = scaffolded.text
+
+        await transcript_service.create_transcript_message(
+            session_id=session_id,
+            message_source="tutor",
+            message_kind="text",
+            message_text=display_response,
+            message_text_canonical=canonical_response,
+            message_text_scaffolded=scaffolded.text,
+            message_text_transliterated=transliterated,
+            highlights=highlights or None,
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate greeting for session {session_id}: {e}")
+
+
 @router.post("", response_model=SessionResponse)
-async def create_session(access_token: str = Depends(get_current_user_token)):
+async def create_session(background_tasks: BackgroundTasks, access_token: str = Depends(get_current_user_token)):
     """
     Generate a new session ID.
 
@@ -78,6 +115,7 @@ async def create_session(access_token: str = Depends(get_current_user_token)):
     to track user sessions or conversations. Requires authentication.
 
     Args:
+        background_tasks: FastAPI background tasks for async greeting generation
         access_token: JWT access token from Authorization header (automatically extracted)
 
     Returns:
@@ -93,6 +131,8 @@ async def create_session(access_token: str = Depends(get_current_user_token)):
     except Exception as e:
         print(f"[Session] Failed to create session: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+
+    background_tasks.add_task(_generate_session_greeting, session_id, access_token)
 
     return SessionResponse(session_id=session_id)
 
