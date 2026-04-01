@@ -16,6 +16,8 @@ class TranscriptMessage(BaseModel):
     message_kind: str  # 'transcript', 'audio', etc.
     message_text: str  # Display text (arabizi for tutor, raw input for user)
     message_text_canonical: Optional[str] = None  # Full Arabic with harakaat (tutor only)
+    message_text_scaffolded: Optional[str] = None  # Scaffolded display text
+    message_text_transliterated: Optional[str] = None  # Transliterated display text
     highlights: list[dict] = []  # Arabizi word highlights: [{word, meaning, start, end}]
     created_at: datetime
     updated_at: datetime
@@ -27,6 +29,8 @@ async def create_transcript_message(
     message_kind: str,
     message_text: str,
     message_text_canonical: Optional[str] = None,
+    message_text_scaffolded: Optional[str] = None,
+    message_text_transliterated: Optional[str] = None,
     highlights: Optional[list[dict]] = None,
 ) -> TranscriptMessage:
     """
@@ -67,6 +71,8 @@ async def create_transcript_message(
         message_kind=message_kind,
         message_text=message_text,
         message_text_canonical=message_text_canonical,
+        message_text_scaffolded=message_text_scaffolded,
+        message_text_transliterated=message_text_transliterated,
         highlights=highlights or [],
         created_at=now,
         updated_at=now,
@@ -85,6 +91,10 @@ async def create_transcript_message(
     }
     if message.message_text_canonical is not None:
         insert_data["message_text_canonical"] = message.message_text_canonical
+    if message.message_text_scaffolded is not None:
+        insert_data["message_text_scaffolded"] = message.message_text_scaffolded
+    if message.message_text_transliterated is not None:
+        insert_data["message_text_transliterated"] = message.message_text_transliterated
     if message.highlights:
         insert_data["highlights"] = message.highlights
 
@@ -129,6 +139,8 @@ async def get_session_messages(
             message_kind=msg["message_kind"],
             message_text=msg["message_text"],
             message_text_canonical=msg.get("message_text_canonical"),
+            message_text_scaffolded=msg.get("message_text_scaffolded"),
+            message_text_transliterated=msg.get("message_text_transliterated"),
             highlights=msg.get("highlights") or [],
             created_at=datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")),
             updated_at=datetime.fromisoformat(msg["updated_at"].replace("Z", "+00:00")),

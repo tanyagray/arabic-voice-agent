@@ -152,15 +152,20 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
     # Step 2: Generate display text based on user's response_mode setting
     context = context_service.get_context(session_id)
     response_mode = context.agent.response_mode if context else "scaffolded"
-    highlights = []
-    if response_mode == "transliterated":
-        display_response = await scaffolding_service.generate_transliterated_text(canonical_response)
-    else:
-        scaffolded = await scaffolding_service.generate_scaffolded_text(canonical_response)
-        display_response = scaffolded.text
-        highlights = scaffolded.highlights
+    # Always generate both display variants so the user can switch modes
+    scaffolded = await scaffolding_service.generate_scaffolded_text(canonical_response)
+    transliterated = await scaffolding_service.generate_transliterated_text(canonical_response)
+    highlights = scaffolded.highlights
 
-    # Save the agent's response to the database with both versions
+    # Pick the display text based on current response_mode
+    if response_mode == "canonical":
+        display_response = canonical_response
+    elif response_mode == "transliterated":
+        display_response = transliterated
+    else:
+        display_response = scaffolded.text
+
+    # Save the agent's response to the database with all display variants
     try:
         await transcript_service.create_transcript_message(
             session_id=session_id,
@@ -168,6 +173,8 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
             message_kind="text",
             message_text=display_response,
             message_text_canonical=canonical_response,
+            message_text_scaffolded=scaffolded.text,
+            message_text_transliterated=transliterated,
             highlights=highlights or None,
         )
     except Exception as e:

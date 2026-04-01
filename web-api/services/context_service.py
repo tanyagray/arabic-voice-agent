@@ -23,7 +23,7 @@ class AgentState(BaseModel):
     active_tool: Optional[str] = None
     language: str = "ar-AR"
     audio_enabled: bool = False
-    response_mode: str = "scaffolded"  # "scaffolded" or "transliterated"
+    response_mode: str = "scaffolded"  # "scaffolded", "transliterated", or "canonical"
 
 
 class AppContext(BaseModel):

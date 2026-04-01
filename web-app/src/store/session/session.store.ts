@@ -11,11 +11,27 @@ import {
   getSessions,
   createSession,
   sendMessage as sendMessageApi,
+  patchSessionContext,
 } from '@/api/sessions/sessions.api';
+import type { ResponseMode } from '@/api/sessions/sessions.types';
 import type { SessionState } from './session.state';
 
 // Track the current pending message request's AbortController
 let pendingMessageController: AbortController | null = null;
+
+/** Read user preferences from localStorage. */
+function loadPreferences(): { language: string; response_mode: ResponseMode } {
+  return {
+    language: localStorage.getItem('pref-language') || 'ar-AR',
+    response_mode: (localStorage.getItem('pref-response-mode') as ResponseMode) || 'scaffolded',
+  };
+}
+
+/** Persist user preferences to localStorage. */
+function savePreferences(language: string, responseMode: ResponseMode) {
+  localStorage.setItem('pref-language', language);
+  localStorage.setItem('pref-response-mode', responseMode);
+}
 
 /**
  * Namespaced session slice state.
@@ -37,7 +53,7 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
     messages: [],
     context: {
       active_tool: null,
-      language: 'en',
+      ...loadPreferences(),
     },
 
     setActiveSessionId: (sessionId) =>
@@ -67,6 +83,15 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
             activeSessionId: mostRecentSessionId,
           },
         }));
+
+        // Sync user preferences from localStorage to the session context
+        if (mostRecentSessionId) {
+          const prefs = loadPreferences();
+          patchSessionContext(mostRecentSessionId, {
+            language: prefs.language,
+            response_mode: prefs.response_mode,
+          }).catch(() => {/* sync is best-effort */});
+        }
       };
 
       try {
@@ -103,7 +128,13 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
         },
       })),
 
-    setContext: (context) =>
+    setContext: (context) => {
+      // Persist preferences to localStorage
+      const current = get().session.context;
+      const newLanguage = context.language ?? current.language;
+      const newMode = context.response_mode ?? current.response_mode;
+      savePreferences(newLanguage, newMode);
+
       set((state) => ({
         session: {
           ...state.session,
@@ -112,7 +143,8 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
             ...context,
           },
         },
-      })),
+      }));
+    },
 
     reset: () =>
       set((state) => ({

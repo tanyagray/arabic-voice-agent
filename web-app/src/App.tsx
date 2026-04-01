@@ -11,6 +11,7 @@ const SignIn = lazy(() => import('./pages/auth/SignIn'));
 const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 function App() {
   const { loading, user } = useAuth();
@@ -27,8 +28,9 @@ function App() {
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <Routes>
-        {/* Main app route */}
+        {/* Main app routes */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/settings" element={<SettingsPage />} />
 
         {/* Auth routes */}
         <Route element={<AuthLayout />}>

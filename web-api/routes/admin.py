@@ -239,14 +239,20 @@ async def admin_chat(
     else:
         phase2_result = await generate_scaffolded_text_with_metadata(canonical_text)
 
+    # Pick display text based on mode
+    if response_mode == "canonical":
+        display_text = canonical_text
+    else:
+        display_text = phase2_result.text
+
     return ChatResponse(
-        text=phase2_result.text,
+        text=display_text,
         text_canonical=canonical_text,
-        highlights=phase2_result.highlights,
+        highlights=phase2_result.highlights if phase2_result else [],
         system_prompt=system_prompt,
         messages=messages,
         raw_responses=raw_responses,
-        phase2_response=phase2_result.to_dict(),
+        phase2_response=phase2_result.to_dict() if phase2_result else None,
         usage=usage,
     )
 

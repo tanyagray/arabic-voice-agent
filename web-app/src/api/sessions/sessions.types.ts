@@ -24,6 +24,8 @@ export interface TranscriptMessage {
   message_kind: string;
   message_text: string;
   message_text_canonical?: string | null;
+  message_text_scaffolded?: string | null;
+  message_text_transliterated?: string | null;
   highlights?: Highlight[] | null;
   created_at: string;
   updated_at: string;
@@ -70,7 +72,7 @@ export interface GetSessionsResponse {
 /**
  * Request payload for updating session context.
  */
-export type ResponseMode = 'scaffolded' | 'transliterated';
+export type ResponseMode = 'scaffolded' | 'transliterated' | 'canonical';
 
 /**
  * Request payload for updating session context.

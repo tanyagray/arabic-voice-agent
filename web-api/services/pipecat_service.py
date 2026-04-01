@@ -84,12 +84,19 @@ class DisplayTextGate(FrameProcessor):
 
             response_mode = self._get_response_mode()
 
-            if response_mode == "transliterated":
+            if response_mode == "canonical":
+                # Canonical: pass through raw Arabic text with no transformation
+                logger.info(f"DisplayTextGate: canonical (no transform)")
+                for buffered_frame in self._buffered_frames:
+                    await self.push_frame(buffered_frame, direction)
+            elif response_mode == "transliterated":
                 # Transliteration: word count matches canonical, enable word-by-word sync
                 display_text = await generate_transliterated_text(canonical_text)
                 logger.info(f"DisplayTextGate: transliterated='{display_text}'")
                 transliterated_words = display_text.split()
                 self._tts_transcript.set_transliteration_queue(transliterated_words)
+                for buffered_frame in self._buffered_frames:
+                    await self.push_frame(buffered_frame, direction)
             else:
                 # Scaffolding: build TTS text (Arabic script) and display text (Arabizi)
                 scaffolded = await generate_scaffolded_text(canonical_text)
@@ -102,13 +109,12 @@ class DisplayTextGate(FrameProcessor):
                 # Store canonical for DB persistence
                 self._tts_transcript.set_scaffolded_canonical(canonical_text)
 
-            # Release text to TTS
-            if response_mode == "scaffolded" and tts_text:
                 # Send Arabic-script version to TTS for proper pronunciation
-                await self.push_frame(TextFrame(text=tts_text), direction)
-            else:
-                for buffered_frame in self._buffered_frames:
-                    await self.push_frame(buffered_frame, direction)
+                if tts_text:
+                    await self.push_frame(TextFrame(text=tts_text), direction)
+                else:
+                    for buffered_frame in self._buffered_frames:
+                        await self.push_frame(buffered_frame, direction)
             self._buffered_frames = []
 
             # Release the end frame

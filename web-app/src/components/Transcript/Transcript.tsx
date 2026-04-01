@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { forwardRef, memo, useEffect, useRef, type HTMLAttributes } from 'react';
 import { Box, Flex, Text } from '@chakra-ui/react';
-import type { TranscriptMessage } from '@/api/sessions/sessions.types';
+import type { TranscriptMessage, ResponseMode } from '@/api/sessions/sessions.types';
 import { HighlightedText } from './HighlightedText';
 import { MarkdownContent } from './MarkdownContent';
+import { useStore } from '@/store';
 
 export type { TranscriptMessage };
 
@@ -17,12 +18,29 @@ export interface TranscriptProps extends HTMLAttributes<HTMLDivElement> {
 interface TranscriptBubbleProps {
   message: TranscriptMessage;
   isFirstInGroup: boolean;
+  responseMode: ResponseMode;
 }
 
 const MotionBox = motion.create(Box);
 
-function TranscriptBubble({ message, isFirstInGroup }: TranscriptBubbleProps) {
+/** Pick the display text for a tutor message based on response mode. */
+function getDisplayText(message: TranscriptMessage, mode: ResponseMode): string {
+  if (mode === 'canonical' && message.message_text_canonical) {
+    return message.message_text_canonical;
+  }
+  if (mode === 'transliterated' && message.message_text_transliterated) {
+    return message.message_text_transliterated;
+  }
+  if (mode === 'scaffolded' && message.message_text_scaffolded) {
+    return message.message_text_scaffolded;
+  }
+  // Fallback to the stored display text
+  return message.message_text;
+}
+
+function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptBubbleProps) {
   const isUser = message.message_source === 'user';
+  const isTutor = message.message_source === 'tutor';
 
   // First in group: small corner only on bottom (tail side)
   // Non-first: small corners on both top and bottom (tail side)
@@ -30,6 +48,9 @@ function TranscriptBubble({ message, isFirstInGroup }: TranscriptBubbleProps) {
   const roundedTopLeft = !isFirstInGroup && !isUser ? 'sm' : '2xl';
   const roundedBottomRight = isUser ? 'sm' : '2xl';
   const roundedBottomLeft = isUser ? '2xl' : 'sm';
+
+  const displayText = isTutor ? getDisplayText(message, responseMode) : message.message_text;
+  const showHighlights = isTutor && responseMode === 'scaffolded' && message.highlights?.length;
 
   return (
     <MotionBox
@@ -50,15 +71,16 @@ function TranscriptBubble({ message, isFirstInGroup }: TranscriptBubbleProps) {
         roundedTopLeft={roundedTopLeft}
         roundedBottomRight={roundedBottomRight}
         roundedBottomLeft={roundedBottomLeft}
+        dir={isTutor && responseMode === 'canonical' ? 'rtl' : undefined}
       >
         {isUser ? (
           <Text fontSize="lg" lineHeight="relaxed">
-            {message.message_text}
+            {displayText}
           </Text>
-        ) : message.highlights?.length ? (
-          <HighlightedText text={message.message_text} highlights={message.highlights} />
+        ) : showHighlights ? (
+          <HighlightedText text={displayText} highlights={message.highlights!} />
         ) : (
-          <MarkdownContent>{message.message_text}</MarkdownContent>
+          <MarkdownContent>{displayText}</MarkdownContent>
         )}
       </Box>
     </MotionBox>
@@ -86,6 +108,7 @@ function groupMessages(messages: TranscriptMessage[]): TranscriptMessage[][] {
  */
 export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
   ({ messages, emptyText = 'No messages yet', style, ...props }, ref) => {
+    const responseMode = useStore((s) => s.session.context.response_mode);
     const containerRef = useRef<HTMLDivElement>(null);
     const hasScrolledRef = useRef(false);
 
@@ -135,6 +158,7 @@ export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
                       key={message.message_id}
                       message={message}
                       isFirstInGroup={i === 0}
+                      responseMode={responseMode}
                     />
                   ))}
                 </AnimatePresence>

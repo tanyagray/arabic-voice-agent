@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Box, Button, Container, Flex, Heading, Image, Text } from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Heading, IconButton, Image, Text } from '@chakra-ui/react';
+import { LuSettings } from 'react-icons/lu';
 
 export function Header() {
   const { user, isAnonymous, signOut } = useAuth();
@@ -26,32 +27,44 @@ export function Header() {
             </Flex>
           </Heading>
           <Box>
-            {isAnonymous ? (
-              <Button
-                bg="white"
-                color="gray.900"
-                _hover={{ bg: "gray.100" }}
-                onClick={() => navigate('/sign-in')}
-                fontWeight="medium"
+            <Flex align="center" gap={2}>
+              <IconButton
+                aria-label="Settings"
+                variant="ghost"
+                size="sm"
+                color="white"
+                _hover={{ bg: "white/10" }}
+                onClick={() => navigate('/settings')}
               >
-                Sign In
-              </Button>
-            ) : (
-              <Flex align="center" gap={4}>
-                <Text fontSize="sm" color="white/80">
-                  {user?.email}
-                </Text>
+                <LuSettings />
+              </IconButton>
+              {isAnonymous ? (
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  color="white"
-                  _hover={{ color: "gray.200", bg: "white/10" }}
-                  onClick={() => signOut()}
+                  bg="white"
+                  color="gray.900"
+                  _hover={{ bg: "gray.100" }}
+                  onClick={() => navigate('/sign-in')}
+                  fontWeight="medium"
                 >
-                  Sign Out
+                  Sign In
                 </Button>
-              </Flex>
-            )}
+              ) : (
+                <Flex align="center" gap={4}>
+                  <Text fontSize="sm" color="white/80">
+                    {user?.email}
+                  </Text>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    color="white"
+                    _hover={{ color: "gray.200", bg: "white/10" }}
+                    onClick={() => signOut()}
+                  >
+                    Sign Out
+                  </Button>
+                </Flex>
+              )}
+            </Flex>
           </Box>
         </Flex>
       </Container>

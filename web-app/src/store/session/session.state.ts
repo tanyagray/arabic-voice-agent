@@ -2,11 +2,12 @@
  * Type definitions for session state management.
  */
 
-import type { TranscriptMessage, Session } from '@/api/sessions/sessions.types';
+import type { TranscriptMessage, Session, ResponseMode } from '@/api/sessions/sessions.types';
 
 export interface SessionContext {
   active_tool: string | null;
   language: string;
+  response_mode: ResponseMode;
 }
 
 export interface SessionState {
