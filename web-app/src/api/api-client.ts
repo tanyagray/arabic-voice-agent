@@ -56,7 +56,25 @@ apiClient.interceptors.request.use(
 // Response interceptor for handling errors globally
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // On 401 (expired/invalid token), try refreshing the session and retry once
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const supabase = AppSettings.get().supabase;
+        const { data: { session } } = await supabase.auth.refreshSession();
+        if (session?.access_token) {
+          originalRequest.headers.Authorization = `Bearer ${session.access_token}`;
+          return apiClient(originalRequest);
+        }
+      } catch {
+        // Refresh failed — fall through to error handling below
+      }
+    }
+
     // Handle specific error cases
     if (error.response) {
       // Server responded with error status

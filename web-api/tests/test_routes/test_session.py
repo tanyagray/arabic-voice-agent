@@ -25,15 +25,26 @@ class TestCreateSession:
         assert response.json() == {"session_id": "session-123"}
         mock_create_session.assert_called_once_with("test-token")
 
-    @patch("routes.session.get_current_user_token")
-    def test_create_session_unauthorized(self, mock_auth, client):
+    def test_create_session_unauthorized(self, client):
         """Test session creation without authentication."""
-        # Arrange
-        mock_auth.side_effect = Exception("Unauthorized")
+        # Act — no Authorization header
+        response = client.post("/sessions")
 
-        # Act & Assert
-        with pytest.raises(Exception):
-            client.post("/sessions")
+        # Assert — returns 401 or 403 when no credentials provided
+        assert response.status_code in (401, 403)
+
+
+    @patch("routes.session.session_service.create_session")
+    @patch("routes.session.get_current_user_token")
+    def test_create_session_expired_token(self, mock_auth, mock_create_session, client):
+        """Test session creation with expired token returns 401."""
+        from services.session_service import AuthenticationError
+        mock_auth.return_value = "expired-token"
+        mock_create_session.side_effect = AuthenticationError("Invalid or expired token")
+
+        response = client.post("/sessions", headers={"Authorization": "Bearer expired-token"})
+
+        assert response.status_code == 401
 
 
 class TestListUserSessions:

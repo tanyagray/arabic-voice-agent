@@ -6,6 +6,12 @@ from services.supabase_client import get_supabase_user_client, get_supabase_admi
 from services.context_service import create_context, delete_context
 from services import posthog_service
 
+
+class AuthenticationError(Exception):
+    """Raised when a user's access token is invalid or expired."""
+    pass
+
+
 # In-memory session storage indexed by session_id
 _sessions: Dict[str, AgentSession] = {}
 
@@ -20,12 +26,19 @@ def create_session(user_access_token: str) -> str:
 
     Returns:
         str: The generated Agent Session ID (UUID)
+
+    Raises:
+        AuthenticationError: If the token is invalid or expired
     """
     session_id = str(uuid.uuid4())
 
     # Create Supabase-backed agent session (persisted in database)
     # This uses the UserSession (via token) to authenticate
     supabase_client = get_supabase_user_client(user_access_token)
+
+    # Validate token before creating session
+    _validate_token(supabase_client, user_access_token)
+
     session = AgentSession(session_id, supabase_client, user_access_token)
 
     # Store session indexed by session_id
@@ -138,6 +151,17 @@ def get_all_sessions() -> Dict[str, AgentSession]:
     return _sessions.copy()
 
 
+def _validate_token(supabase_client, user_access_token: str):
+    """Validate user token and return user object. Raises AuthenticationError on failure."""
+    try:
+        user_response = supabase_client.auth.get_user(user_access_token)
+    except Exception as e:
+        raise AuthenticationError(f"Invalid or expired token: {e}")
+    if not user_response or not user_response.user:
+        raise AuthenticationError("Invalid or expired token")
+    return user_response.user
+
+
 def list_user_sessions(user_access_token: str) -> list[dict]:
     """
     List all sessions for a specific user from the database.
@@ -147,15 +171,13 @@ def list_user_sessions(user_access_token: str) -> list[dict]:
 
     Returns:
         list[dict]: List of session dictionaries containing session_id and created_at
+
+    Raises:
+        AuthenticationError: If the token is invalid or expired
     """
     supabase_client = get_supabase_user_client(user_access_token)
-
-    # Get user info
-    user_response = supabase_client.auth.get_user(user_access_token)
-    if not user_response or not user_response.user:
-        return []
-
-    user_id = user_response.user.id
+    user = _validate_token(supabase_client, user_access_token)
+    user_id = user.id
 
     # Query all sessions for this user
     response = supabase_client.table("agent_sessions").select("session_id, created_at").eq("user_id", user_id).order("created_at", desc=True).execute()
