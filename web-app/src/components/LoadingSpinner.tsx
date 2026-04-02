@@ -1,12 +1,15 @@
-import { Spinner, Center, Text, VStack } from "@chakra-ui/react";
+import { Spinner, Center } from "@chakra-ui/react";
 
 export function LoadingSpinner() {
   return (
-    <Center minH="100vh">
-      <VStack gap={4}>
-        <Spinner size="xl" color="gray.900" borderWidth="2px" />
-        <Text color="gray.600">Loading...</Text>
-      </VStack>
+    <Center
+      minH="100vh"
+      bgGradient="to-br"
+      gradientFrom="primary.500"
+      gradientVia="purple.600"
+      gradientTo="primary.700"
+    >
+      <Spinner size="xl" color="white" borderWidth="2px" />
     </Center>
   );
 }
