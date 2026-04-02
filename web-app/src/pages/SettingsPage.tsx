@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Container, Flex, Heading, Image, NativeSelect, Text, VStack } from '@chakra-ui/react';
+import { appGradient } from '@/lib/styles';
 import { Field } from '@/components/ui/field';
 import { useStore } from '@/store';
 import { patchSessionContext } from '@/api/sessions/sessions.api';
@@ -47,10 +48,7 @@ function SettingsPage() {
     <Flex
       minH="100vh"
       direction="column"
-      bgGradient="to-br"
-      gradientFrom="primary.500"
-      gradientVia="purple.600"
-      gradientTo="primary.700"
+      style={{ backgroundImage: appGradient }}
     >
       {/* Header */}
       <Box

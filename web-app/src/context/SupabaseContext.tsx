@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Text, VStack, Button, Flex } from '@chakra-ui/react';
 import { AppSettings } from '@/lib/app-settings';
+import { appGradient } from '@/lib/styles';
 import { initPostHog } from '@/posthog';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
@@ -45,10 +46,7 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
         minH="100vh"
         align="center"
         justify="center"
-        bgGradient="to-br"
-        gradientFrom="primary.500"
-        gradientVia="purple.600"
-        gradientTo="primary.700"
+        style={{ backgroundImage: appGradient }}
       >
         <VStack gap={4}>
           <Text color="white/80">Failed to load app configuration.</Text>
