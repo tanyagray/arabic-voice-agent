@@ -4,6 +4,7 @@ import { ActiveSession } from '../components/ActiveSession/ActiveSession';
 import { PipecatProvider } from '../providers/PipecatProvider';
 import { useStore } from '../store';
 import { Box, Flex } from '@chakra-ui/react';
+import { appGradient } from '@/lib/styles';
 
 function HomePage() {
   const loadSessions = useStore((s) => s.session.loadSessions);
@@ -19,10 +20,7 @@ function HomePage() {
       h="100vh"
       direction="column"
       overflow="hidden"
-      bgGradient="to-br"
-      gradientFrom="primary.500"
-      gradientVia="purple.600"
-      gradientTo="primary.700"
+      style={{ backgroundImage: appGradient }}
       _before={{
         content: '""',
         position: 'absolute',
