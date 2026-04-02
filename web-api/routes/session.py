@@ -284,10 +284,10 @@ async def update_context(session_id: str, request: UpdateContextRequest, access_
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
-    # Get the context
+    # Get the context, recreating it with defaults if lost (e.g. after server restart)
     context = context_service.get_context(session_id)
     if not context:
-        raise HTTPException(status_code=404, detail=f"Context not found for session '{session_id}'")
+        context = context_service.create_context(session_id=session_id)
 
     # Update audio_enabled if provided
     if request.audio_enabled is not None:
@@ -331,10 +331,10 @@ async def get_context(session_id: str, access_token: str = Depends(get_current_u
     if not session:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
-    # Get the context
+    # Get the context, recreating it with defaults if lost (e.g. after server restart)
     context = context_service.get_context(session_id)
     if not context:
-        raise HTTPException(status_code=404, detail=f"Context not found for session '{session_id}'")
+        context = context_service.create_context(session_id=session_id)
 
     # Return current context
     return ContextResponse(
