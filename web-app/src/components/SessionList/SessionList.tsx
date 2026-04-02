@@ -1,7 +1,8 @@
 import { motion } from 'motion/react';
-import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
+import { Box, Flex, Text, Spinner, IconButton } from '@chakra-ui/react';
+import { LuPlus } from 'react-icons/lu';
 import { useStore } from '@/store';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface SessionListProps {
   onSessionSelect?: (sessionId: string) => void;
@@ -22,11 +23,23 @@ export function SessionList({
   const activeSessionId = useStore((s) => s.session.activeSessionId);
   const loadSessions = useStore((s) => s.session.loadSessions);
   const setActiveSessionId = useStore((s) => s.session.setActiveSessionId);
+  const createNewSession = useStore((s) => s.session.createNewSession);
+  const [isCreating, setIsCreating] = useState(false);
 
   // load the list of sessions on mount
   useEffect(() => {
     loadSessions();
   }, []);
+
+  const handleNewChat = async () => {
+    setIsCreating(true);
+    try {
+      await createNewSession();
+      await loadSessions();
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -55,11 +68,22 @@ export function SessionList({
         boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
         direction="column"
       >
-        <Box p={4} borderBottom="1px" borderColor="whiteAlpha.200">
+        <Flex p={4} borderBottom="1px" borderColor="whiteAlpha.200" align="center" justify="space-between">
           <Text fontSize="lg" fontWeight="semibold" color="gray.200">
             Sessions
           </Text>
-        </Box>
+          <IconButton
+            aria-label="New chat"
+            size="sm"
+            variant="ghost"
+            color="gray.400"
+            _hover={{ color: 'white', bg: 'whiteAlpha.200' }}
+            onClick={handleNewChat}
+            loading={isCreating}
+          >
+            <LuPlus />
+          </IconButton>
+        </Flex>
         <Flex flex={1} align="center" justify="center">
           <Spinner size="lg" color="accent.500" />
         </Flex>
@@ -79,11 +103,22 @@ export function SessionList({
         boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
         direction="column"
       >
-        <Box p={4} borderBottom="1px" borderColor="whiteAlpha.200">
+        <Flex p={4} borderBottom="1px" borderColor="whiteAlpha.200" align="center" justify="space-between">
           <Text fontSize="lg" fontWeight="semibold" color="gray.200">
             Sessions
           </Text>
-        </Box>
+          <IconButton
+            aria-label="New chat"
+            size="sm"
+            variant="ghost"
+            color="gray.400"
+            _hover={{ color: 'white', bg: 'whiteAlpha.200' }}
+            onClick={handleNewChat}
+            loading={isCreating}
+          >
+            <LuPlus />
+          </IconButton>
+        </Flex>
         <Flex flex={1} align="center" justify="center" p={4}>
           <Text color="gray.500" fontSize="sm" textAlign="center">
             No sessions yet
