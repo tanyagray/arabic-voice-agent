@@ -1,14 +1,13 @@
 import { Spinner, Center } from "@chakra-ui/react";
 
+const backgroundStyle = {
+  backgroundImage:
+    "radial-gradient(circle at 40% 91%, rgba(251, 251, 251,0.04) 0%, rgba(251, 251, 251,0.04) 50%,rgba(229, 229, 229,0.04) 50%, rgba(229, 229, 229,0.04) 100%),radial-gradient(circle at 66% 97%, rgba(36, 36, 36,0.04) 0%, rgba(36, 36, 36,0.04) 50%,rgba(46, 46, 46,0.04) 50%, rgba(46, 46, 46,0.04) 100%),radial-gradient(circle at 86% 7%, rgba(40, 40, 40,0.04) 0%, rgba(40, 40, 40,0.04) 50%,rgba(200, 200, 200,0.04) 50%, rgba(200, 200, 200,0.04) 100%),radial-gradient(circle at 15% 16%, rgba(99, 99, 99,0.04) 0%, rgba(99, 99, 99,0.04) 50%,rgba(45, 45, 45,0.04) 50%, rgba(45, 45, 45,0.04) 100%),radial-gradient(circle at 75% 99%, rgba(243, 243, 243,0.04) 0%, rgba(243, 243, 243,0.04) 50%,rgba(37, 37, 37,0.04) 50%, rgba(37, 37, 37,0.04) 100%),linear-gradient(180deg, rgb(34, 222, 237),rgb(143,27,225))",
+} as const;
+
 export function LoadingSpinner() {
   return (
-    <Center
-      minH="100vh"
-      bgGradient="to-br"
-      gradientFrom="primary.500"
-      gradientVia="purple.600"
-      gradientTo="primary.700"
-    >
+    <Center minH="100vh" style={backgroundStyle}>
       <Spinner size="xl" color="white" borderWidth="2px" />
     </Center>
   );
