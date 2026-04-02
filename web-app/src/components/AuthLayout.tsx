@@ -1,6 +1,7 @@
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Center, Spinner, Box } from "@chakra-ui/react"
+import { Center, Box } from "@chakra-ui/react"
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const AuthLayout: React.FC = () => {
   const { user, loading, isAnonymous } = useAuth();
@@ -8,11 +9,7 @@ const AuthLayout: React.FC = () => {
 
   // Show loading state while checking authentication
   if (loading) {
-    return (
-      <Center minH="100vh">
-        <Spinner size="lg" />
-      </Center>
-    );
+    return <LoadingSpinner />;
   }
 
   // Allow anonymous users to access all auth pages
