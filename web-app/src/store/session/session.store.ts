@@ -156,14 +156,7 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set, get) => ({
       })),
 
     createNewSession: async () => {
-      const sessionId = await createSession();
-      set((state) => ({
-        session: {
-          ...state.session,
-          activeSessionId: sessionId,
-          messages: [],
-        },
-      }));
+      await createSession();
     },
 
     sendMessage: async (message: string) => {
