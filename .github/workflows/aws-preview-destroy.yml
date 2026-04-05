@@ -46,8 +46,10 @@ jobs:
           docker stop pr-${PR_NUM} 2>/dev/null || true
           docker rm pr-${PR_NUM} 2>/dev/null || true
 
-          # Remove Caddy config block
+          # Remove Caddy config blocks (all marker variants)
           sed -i '/^# BEGIN pr-${PR_NUM}$/,/^# END pr-${PR_NUM}$/d' /etc/caddy/Caddyfile
+          sed -i '/^# BEGIN api-pr-${PR_NUM}$/,/^# END api-pr-${PR_NUM}$/d' /etc/caddy/Caddyfile
+          sed -i '/^# BEGIN web-pr-${PR_NUM}$/,/^# END web-pr-${PR_NUM}$/d' /etc/caddy/Caddyfile
 
           # Reload Caddy
           systemctl reload caddy

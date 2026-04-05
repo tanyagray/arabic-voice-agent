@@ -13,10 +13,69 @@ concurrency:
 
 jobs:
   # ------------------------------------------------------------------
+  # Job 0: Detect what changed in this PR
+  # ------------------------------------------------------------------
+  detect-changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_api: ${{ steps.decide.outputs.deploy_api }}
+      deploy_frontend: ${{ steps.decide.outputs.deploy_frontend }}
+      deploy_supabase: ${{ steps.decide.outputs.deploy_supabase }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'web-api/**'
+              - 'infra/Dockerfile'
+            frontend:
+              - 'web-app/**'
+              - 'admin-app/**'
+            supabase:
+              - 'supabase/migrations/**'
+              - 'supabase/config.toml'
+              - 'supabase/seed/**'
+            infra:
+              - 'infra/preview/**'
+            workflows:
+              - '.github/workflows/aws-preview-deploy.yml'
+              - '.github/workflows/aws-preview-destroy.yml'
+
+      - name: Decide what to deploy
+        id: decide
+        run: |
+          # If infra templates or workflow files changed, deploy everything
+          if [ "${{ steps.filter.outputs.infra }}" = "true" ] || [ "${{ steps.filter.outputs.workflows }}" = "true" ]; then
+            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+            echo "deploy_frontend=true" >> "$GITHUB_OUTPUT"
+            echo "deploy_supabase=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy_api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
+            echo "deploy_frontend=${{ steps.filter.outputs.frontend }}" >> "$GITHUB_OUTPUT"
+            echo "deploy_supabase=${{ steps.filter.outputs.supabase }}" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "### Change Detection Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Component | Changed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----------|---------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API (web-api/) | ${{ steps.filter.outputs.api }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Frontend (web-app/, admin-app/) | ${{ steps.filter.outputs.frontend }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Supabase (migrations/) | ${{ steps.filter.outputs.supabase }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Infra (infra/preview/) | ${{ steps.filter.outputs.infra }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Workflows | ${{ steps.filter.outputs.workflows }} |" >> "$GITHUB_STEP_SUMMARY"
+
+  # ------------------------------------------------------------------
   # Job 1: Wait for Supabase preview branch to be ready
   # ------------------------------------------------------------------
   wait-for-supabase:
     name: Wait for Supabase preview branch
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deploy_supabase == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Wait for Supabase Preview check
@@ -34,11 +93,12 @@ jobs:
         run: exit 1
 
   # ------------------------------------------------------------------
-  # Job 2: Get Supabase branch credentials
+  # Job 2: Get Supabase credentials (preview branch or main project)
   # ------------------------------------------------------------------
   supabase-credentials:
-    name: Get Supabase branch credentials
-    needs: wait-for-supabase
+    name: Get Supabase credentials
+    needs: [detect-changes, wait-for-supabase]
+    if: always() && !failure() && !cancelled()
     runs-on: ubuntu-latest
     environment: dev
     outputs:
@@ -46,6 +106,7 @@ jobs:
       url: ${{ steps.supabase.outputs.url }}
       anon_key_b64: ${{ steps.supabase.outputs.anon_key_b64 }}
       service_key_b64: ${{ steps.supabase.outputs.service_key_b64 }}
+      is_preview_branch: ${{ steps.supabase.outputs.is_preview_branch }}
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
     steps:
@@ -53,27 +114,36 @@ jobs:
         with:
           version: latest
 
-      - name: Get Supabase branch credentials
+      - name: Get Supabase credentials
         id: supabase
         run: |
-          BRANCH_NAME="${{ github.head_ref }}"
           PROJECT_REF="${{ vars.SUPABASE_PROJECT_REF }}"
+          DEPLOY_SUPABASE="${{ needs.detect-changes.outputs.deploy_supabase }}"
 
-          # Find the preview branch matching our git branch
-          BRANCH_JSON=$(curl -sf \
-            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            "https://api.supabase.com/v1/projects/$PROJECT_REF/branches")
+          if [ "$DEPLOY_SUPABASE" = "true" ]; then
+            # Use preview branch
+            BRANCH_NAME="${{ github.head_ref }}"
+            BRANCH_JSON=$(curl -sf \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              "https://api.supabase.com/v1/projects/$PROJECT_REF/branches")
 
-          BRANCH_REF=$(echo "$BRANCH_JSON" | jq -r \
-            ".[] | select(.git_branch == \"$BRANCH_NAME\") | .project_ref // .ref" | head -1)
+            BRANCH_REF=$(echo "$BRANCH_JSON" | jq -r \
+              ".[] | select(.git_branch == \"$BRANCH_NAME\") | .project_ref // .ref" | head -1)
 
-          if [ -z "$BRANCH_REF" ]; then
-            echo "::error::No Supabase branch found for git branch: $BRANCH_NAME"
-            exit 1
+            if [ -z "$BRANCH_REF" ]; then
+              echo "::error::No Supabase branch found for git branch: $BRANCH_NAME"
+              exit 1
+            fi
+            echo "Using Supabase preview branch: $BRANCH_REF"
+            echo "is_preview_branch=true" >> "$GITHUB_OUTPUT"
+          else
+            # No migration changes — use main project credentials
+            BRANCH_REF="$PROJECT_REF"
+            echo "No migration changes — using main Supabase project: $BRANCH_REF"
+            echo "is_preview_branch=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "Found Supabase branch ref: $BRANCH_REF"
 
-          # Get API keys for the branch
+          # Get API keys
           KEYS_JSON=$(curl -sf \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             "https://api.supabase.com/v1/projects/$BRANCH_REF/api-keys")
@@ -92,10 +162,12 @@ jobs:
           echo "service_key_b64=$(echo -n "$SERVICE_KEY" | base64 -w0 | base64 -w0)" >> "$GITHUB_OUTPUT"
 
   # ------------------------------------------------------------------
-  # Job 3: Build and push API Docker image (runs in parallel with Jobs 1+2)
+  # Job 3: Build and push API Docker image
   # ------------------------------------------------------------------
   build-api-image:
     name: Build API Docker image
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deploy_api == 'true'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -129,16 +201,14 @@ jobs:
   # ------------------------------------------------------------------
   deploy-preview-api:
     name: Deploy preview API container
-    needs: [supabase-credentials, build-api-image]
+    needs: [detect-changes, supabase-credentials, build-api-image]
+    if: always() && !failure() && !cancelled() && needs.detect-changes.outputs.deploy_api == 'true'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     environment: dev
     outputs:
-      api_url: ${{ steps.urls.outputs.api_url }}
-      web_app_url: ${{ steps.urls.outputs.web_app_url }}
-      admin_url: ${{ steps.urls.outputs.admin_url }}
       instance_id: ${{ steps.preview-infra.outputs.instance_id }}
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
@@ -169,14 +239,6 @@ jobs:
             --output text)
           echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
           echo "elastic_ip=$ELASTIC_IP" >> "$GITHUB_OUTPUT"
-
-      - name: Compute preview URLs
-        id: urls
-        run: |
-          PR_NUM="${{ github.event.pull_request.number }}"
-          echo "api_url=https://api-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
-          echo "web_app_url=https://pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
-          echo "admin_url=https://admin-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
 
       - name: Deploy container via SSM
         run: |
@@ -284,12 +346,117 @@ jobs:
             exit 1
           fi
 
+      - name: Configure API Caddy route via SSM
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PORT=$((10000 + PR_NUM))
+          INSTANCE_ID="${{ steps.preview-infra.outputs.instance_id }}"
+
+          cat > /tmp/caddy-api.sh <<SCRIPT
+          #!/bin/bash
+          set -euo pipefail
+          echo "=== Configuring API Caddy route for PR #$PR_NUM at \$(date) ==="
+
+          # Remove old API block if exists
+          sed -i '/^# BEGIN api-pr-${PR_NUM}\$/,/^# END api-pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
+
+          # Also remove legacy monolithic block (from before selective deploys)
+          sed -i '/^# BEGIN pr-${PR_NUM}\$/,/^# END pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
+
+          # Add API reverse proxy block
+          cat >> /etc/caddy/Caddyfile <<'CADDYEOF'
+
+          # BEGIN api-pr-${PR_NUM}
+          api-pr-${PR_NUM}.preview.mishmish.ai {
+            @cors_preflight method OPTIONS
+            handle @cors_preflight {
+              header Access-Control-Allow-Origin "*"
+              header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+              header Access-Control-Allow-Headers "*"
+              header Access-Control-Max-Age "86400"
+              respond "" 204
+            }
+            # ? prefix = set only if not already present (avoids duplicate with FastAPI)
+            header ?Access-Control-Allow-Origin "*"
+            header ?Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            header ?Access-Control-Allow-Headers "*"
+
+            reverse_proxy localhost:${PORT}
+          }
+          # END api-pr-${PR_NUM}
+          CADDYEOF
+
+          systemctl reload caddy
+          echo "API Caddy route configured for PR #$PR_NUM"
+          SCRIPT
+
+          COMMANDS_JSON=$(jq -R -s 'split("\n") | map(select(length > 0))' < /tmp/caddy-api.sh)
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --timeout-seconds 120 \
+            --parameters "{\"commands\":$COMMANDS_JSON}" \
+            --query "Command.CommandId" --output text)
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+
+          RESULT=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query "Status" --output text)
+
+          echo "API Caddy config status: $RESULT"
+          if [ "$RESULT" != "Success" ]; then
+            echo "::error::API Caddy config failed"
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "StandardErrorContent" --output text
+            exit 1
+          fi
+
+  # ------------------------------------------------------------------
+  # Job 4b: Compute preview URLs (always runs)
+  # ------------------------------------------------------------------
+  compute-preview-urls:
+    name: Compute preview URLs
+    needs: [detect-changes, deploy-preview-api]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    outputs:
+      api_url: ${{ steps.urls.outputs.api_url }}
+      web_app_url: ${{ steps.urls.outputs.web_app_url }}
+      admin_url: ${{ steps.urls.outputs.admin_url }}
+      instance_id: ${{ steps.urls.outputs.instance_id }}
+    steps:
+      - name: Compute URLs
+        id: urls
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          DEPLOY_API="${{ needs.detect-changes.outputs.deploy_api }}"
+
+          if [ "$DEPLOY_API" = "true" ]; then
+            echo "api_url=https://api-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+            echo "instance_id=${{ needs.deploy-preview-api.outputs.instance_id }}" >> "$GITHUB_OUTPUT"
+          else
+            # No API changes — point frontends at production API
+            echo "api_url=${{ vars.PRODUCTION_API_URL }}" >> "$GITHUB_OUTPUT"
+            echo "instance_id=" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "web_app_url=https://pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+          echo "admin_url=https://admin-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+
   # ------------------------------------------------------------------
   # Job 5: Deploy per-PR static site infrastructure
   # ------------------------------------------------------------------
   deploy-static-infra:
     name: Deploy per-PR static site infrastructure
-    needs: build-api-image
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deploy_frontend == 'true'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -396,15 +563,15 @@ jobs:
   # ------------------------------------------------------------------
   deploy-static-sites:
     name: Deploy static sites
-    needs: [supabase-credentials, deploy-preview-api, deploy-static-infra]
+    needs: [detect-changes, supabase-credentials, compute-preview-urls, deploy-static-infra]
+    if: always() && !failure() && !cancelled() && needs.detect-changes.outputs.deploy_frontend == 'true'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
-      pull-requests: write
     environment: dev
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
+    outputs:
+      instance_id: ${{ steps.preview-infra.outputs.instance_id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -425,7 +592,7 @@ jobs:
       - name: Build web-app
         working-directory: web-app
         env:
-          VITE_API_URL: ${{ needs.deploy-preview-api.outputs.api_url }}
+          VITE_API_URL: ${{ needs.compute-preview-urls.outputs.api_url }}
         run: |
           npm ci
           npm run build
@@ -440,7 +607,7 @@ jobs:
       - name: Build admin-app
         working-directory: admin-app
         env:
-          VITE_API_URL: ${{ needs.deploy-preview-api.outputs.api_url }}
+          VITE_API_URL: ${{ needs.compute-preview-urls.outputs.api_url }}
         run: |
           npm ci
           npm run build
@@ -461,43 +628,36 @@ jobs:
             --distribution-id "${{ needs.deploy-static-infra.outputs.admin_dist_id }}" \
             --paths "/*"
 
-      # Configure Caddy to route all preview subdomains
-      - name: Configure Caddy routes via SSM
+      # Get instance ID for Caddy config (may not have been deployed via API job)
+      - name: Get preview EC2 instance ID
+        id: preview-infra
+        run: |
+          INSTANCE_ID=$(aws cloudformation describe-stacks \
+            --stack-name "arabic-voice-agent-preview" \
+            --query "Stacks[0].Outputs[?OutputKey=='PreviewInstanceId'].OutputValue" \
+            --output text)
+          echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
+
+      # Configure Caddy to route frontend preview subdomains
+      - name: Configure frontend Caddy routes via SSM
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
-          PORT=$((10000 + PR_NUM))
-          INSTANCE_ID="${{ needs.deploy-preview-api.outputs.instance_id }}"
+          INSTANCE_ID="${{ steps.preview-infra.outputs.instance_id }}"
           WEB_CF_DOMAIN="${{ needs.deploy-static-infra.outputs.web_app_cf_domain }}"
           ADMIN_CF_DOMAIN="${{ needs.deploy-static-infra.outputs.admin_cf_domain }}"
 
-          cat > /tmp/caddy-config.sh <<SCRIPT
+          cat > /tmp/caddy-frontend.sh <<SCRIPT
           #!/bin/bash
           set -euo pipefail
-          echo "=== Configuring Caddy for PR #$PR_NUM at \$(date) ==="
+          echo "=== Configuring frontend Caddy routes for PR #$PR_NUM at \$(date) ==="
 
-          # Remove old block if exists
-          sed -i '/^# BEGIN pr-${PR_NUM}\$/,/^# END pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
+          # Remove old frontend block if exists
+          sed -i '/^# BEGIN web-pr-${PR_NUM}\$/,/^# END web-pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
 
-          # Add new block with all three services
+          # Add frontend reverse proxy blocks
           cat >> /etc/caddy/Caddyfile <<'CADDYEOF'
 
-          # BEGIN pr-${PR_NUM}
-          api-pr-${PR_NUM}.preview.mishmish.ai {
-            @cors_preflight method OPTIONS
-            handle @cors_preflight {
-              header Access-Control-Allow-Origin "*"
-              header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-              header Access-Control-Allow-Headers "*"
-              header Access-Control-Max-Age "86400"
-              respond "" 204
-            }
-            # ? prefix = set only if not already present (avoids duplicate with FastAPI)
-            header ?Access-Control-Allow-Origin "*"
-            header ?Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-            header ?Access-Control-Allow-Headers "*"
-
-            reverse_proxy localhost:${PORT}
-          }
+          # BEGIN web-pr-${PR_NUM}
           pr-${PR_NUM}.preview.mishmish.ai {
             reverse_proxy https://${WEB_CF_DOMAIN} {
               header_up Host {upstream_hostport}
@@ -508,14 +668,14 @@ jobs:
               header_up Host {upstream_hostport}
             }
           }
-          # END pr-${PR_NUM}
+          # END web-pr-${PR_NUM}
           CADDYEOF
 
           systemctl reload caddy
-          echo "Caddy configured for PR #$PR_NUM"
+          echo "Frontend Caddy routes configured for PR #$PR_NUM"
           SCRIPT
 
-          COMMANDS_JSON=$(jq -R -s 'split("\n") | map(select(length > 0))' < /tmp/caddy-config.sh)
+          COMMANDS_JSON=$(jq -R -s 'split("\n") | map(select(length > 0))' < /tmp/caddy-frontend.sh)
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
@@ -533,9 +693,9 @@ jobs:
             --instance-id "$INSTANCE_ID" \
             --query "Status" --output text)
 
-          echo "Caddy config status: $RESULT"
+          echo "Frontend Caddy config status: $RESULT"
           if [ "$RESULT" != "Success" ]; then
-            echo "::error::Caddy config failed"
+            echo "::error::Frontend Caddy config failed"
             aws ssm get-command-invocation \
               --command-id "$COMMAND_ID" \
               --instance-id "$INSTANCE_ID" \
@@ -543,30 +703,71 @@ jobs:
             exit 1
           fi
 
-      # Set Supabase SITE_URL to the preview web-app URL
+      # Set Supabase SITE_URL to the preview web-app URL (only for preview branches)
       - name: Set Supabase SITE_URL
+        if: needs.supabase-credentials.outputs.is_preview_branch == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
         run: |
           BRANCH_REF="${{ needs.supabase-credentials.outputs.branch_ref }}"
-          SITE_URL="${{ needs.deploy-preview-api.outputs.web_app_url }}"
+          SITE_URL="${{ needs.compute-preview-urls.outputs.web_app_url }}"
           supabase secrets set --project-ref "$BRANCH_REF" SITE_URL="$SITE_URL"
           echo "Set SITE_URL=$SITE_URL on Supabase branch $BRANCH_REF"
 
-      # Post or update PR comment with preview URLs
+  # ------------------------------------------------------------------
+  # Job 7: Post PR comment with preview URLs (always runs)
+  # ------------------------------------------------------------------
+  post-comment:
+    name: Post preview URLs comment
+    needs: [detect-changes, compute-preview-urls, supabase-credentials, deploy-preview-api, deploy-static-sites]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
           script: |
-            const body = [
+            const deployApi = '${{ needs.detect-changes.outputs.deploy_api }}' === 'true';
+            const deployFrontend = '${{ needs.detect-changes.outputs.deploy_frontend }}' === 'true';
+            const deploySupabase = '${{ needs.detect-changes.outputs.deploy_supabase }}' === 'true';
+
+            const apiUrl = '${{ needs.compute-preview-urls.outputs.api_url }}';
+            const webAppUrl = '${{ needs.compute-preview-urls.outputs.web_app_url }}';
+            const adminUrl = '${{ needs.compute-preview-urls.outputs.admin_url }}';
+            const supabaseUrl = '${{ needs.supabase-credentials.outputs.url }}';
+
+            const rows = [];
+            if (deployFrontend) {
+              rows.push(`| Web App | ${webAppUrl} |`);
+              rows.push(`| Admin | ${adminUrl} |`);
+            }
+            rows.push(`| API | ${apiUrl} ${deployApi ? '' : '_(production — no API changes)_'} |`);
+
+            const skipped = [];
+            if (!deployApi) skipped.push('API build/deploy (no changes in `web-api/`)');
+            if (!deployFrontend) skipped.push('Frontend build/deploy (no changes in `web-app/` or `admin-app/`)');
+            if (!deploySupabase) skipped.push('Supabase preview branch (no migration changes)');
+
+            const lines = [
               '### Preview Environment Ready',
               '',
               '| Service | URL |',
               '|---------|-----|',
-              `| Web App | ${{ needs.deploy-preview-api.outputs.web_app_url }} |`,
-              `| Admin | ${{ needs.deploy-preview-api.outputs.admin_url }} |`,
-              `| API | ${{ needs.deploy-preview-api.outputs.api_url }} |`,
+              ...rows,
               '',
-              `_Supabase branch: ${{ needs.supabase-credentials.outputs.url }}_`,
-            ].join('\n');
+              deploySupabase
+                ? `_Supabase branch: ${supabaseUrl}_`
+                : '_Supabase: using main project (no migration changes)_',
+            ];
+
+            if (skipped.length > 0) {
+              lines.push('');
+              lines.push(`**Skipped:** ${skipped.join(', ')}`);
+            }
+
+            const body = lines.join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
