@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# WorktreeCreate hook — fully replaces Claude Code's default worktree creation.
+# WorktreeCreate hook — replaces Claude's default worktree creation.
 #
-# Receives JSON on stdin with { worktreeName: string }.
-# Creates the worktree, copies .env files, patches ports, installs deps.
-# Prints ONLY the absolute worktree path to stdout. Everything else goes to stderr.
+# Same as Claude's default (worktree at .claude/worktrees/<name>, branch
+# worktree-<name>, based on origin/HEAD) but fetches origin first to ensure
+# worktrees are always up to date with the remote.
 #
-# Port allocation (deterministic, based on worktree name hash, slot 1-20):
+# After creation: copies .env files, patches ports, copies dependencies.
+#
+# Receives JSON on stdin with { worktree_path, branch_name, base_commit }.
+# Prints ONLY the absolute worktree path to stdout.
+#
+# Port allocation (deterministic, based on worktree dir name hash, slot 1-20):
 #   web-api  : 8000 + slot*10   (8010-8200)  — also used for WEBHOOK_BASE_URL
 #   web-app  : 5200 + slot       (5201-5220)  — Vite dev server
 #   admin-app: 5220 + slot       (5221-5240)  — Vite dev server
@@ -13,7 +18,7 @@
 
 set -euo pipefail
 
-# Read stdin ONCE — only one chance to read it
+# Read stdin ONCE
 INPUT=$(cat)
 
 # Ensure common tool paths are available (uv, npm, etc.)
@@ -23,26 +28,32 @@ export PATH="$HOME/.local/bin:$HOME/.nvm/versions/node/$(ls "$HOME/.nvm/versions
 # Parse hook JSON
 # ---------------------------------------------------------------------------
 
-WORKTREE_NAME=$(echo "$INPUT" | python3 -c "
+read -r WORKTREE_PATH BRANCH BASE_COMMIT <<< "$(echo "$INPUT" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
-print(d.get('name', '') or d.get('worktreeName', ''))
-")
+print(d.get('worktree_path', ''), d.get('branch_name', ''), d.get('base_commit', ''))
+")"
 
-if [ -z "$WORKTREE_NAME" ]; then
-    echo "ERROR: worktreeName not found in input" >&2
+if [ -z "$WORKTREE_PATH" ]; then
+    echo "ERROR: worktree_path not found in hook input" >&2
     exit 1
 fi
 
+if [ -z "$BRANCH" ]; then
+    echo "ERROR: branch_name not found in hook input" >&2
+    exit 1
+fi
+
+WORKTREE_NAME=$(basename "$WORKTREE_PATH")
 REPO_PATH=$(git rev-parse --show-toplevel)
-WORKTREE_PATH="${REPO_PATH}/.claude/worktrees/${WORKTREE_NAME}"
-BRANCH="worktree-${WORKTREE_NAME}"
 LOG="/tmp/worktree-setup-${WORKTREE_NAME}.log"
 
-echo "[worktree-setup] Setting up worktree: $WORKTREE_NAME" >&2
+echo "[worktree-create] Creating worktree: $WORKTREE_NAME" >&2
+echo "[worktree-create]   path:   $WORKTREE_PATH" >&2
+echo "[worktree-create]   branch: $BRANCH" >&2
 
 # ---------------------------------------------------------------------------
-# Create the worktree — ALL git output to stderr/dev/null
+# Create the worktree — fetch first, then branch from origin/HEAD
 # ---------------------------------------------------------------------------
 
 mkdir -p "$(dirname "$WORKTREE_PATH")"
@@ -55,14 +66,26 @@ if git branch --list "$BRANCH" | grep -q .; then
     git branch -D "$BRANCH" >/dev/null 2>&1 || true
 fi
 
-# Fetch latest before creating worktree so it starts from up-to-date main
-echo "[worktree-setup] Fetching latest from origin..." >&2
+# Fetch origin to ensure we branch from the latest remote state
+echo "[worktree-create] Fetching origin..." >&2
 if git -C "$REPO_PATH" fetch origin >/dev/null 2>&1; then
-    BASE_REF="origin/main"
-    echo "[worktree-setup]   creating worktree from origin/main" >&2
+    echo "[worktree-create]   fetch complete" >&2
 else
-    BASE_REF="HEAD"
-    echo "[worktree-setup]   warning: fetch failed (offline?) — using local HEAD" >&2
+    echo "[worktree-create]   warning: fetch failed (offline?)" >&2
+fi
+
+# Determine base ref: use base_commit if provided, otherwise origin/HEAD
+if [ -n "$BASE_COMMIT" ]; then
+    BASE_REF="$BASE_COMMIT"
+    echo "[worktree-create]   base: $BASE_COMMIT (from hook input)" >&2
+else
+    BASE_REF=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null || echo "")
+    if [ -z "$BASE_REF" ]; then
+        BASE_REF="origin/main"
+        echo "[worktree-create]   base: origin/main (origin/HEAD not set)" >&2
+    else
+        echo "[worktree-create]   base: $BASE_REF" >&2
+    fi
 fi
 
 git worktree add -b "$BRANCH" "$WORKTREE_PATH" "$BASE_REF" >/dev/null 2>&1
@@ -83,9 +106,9 @@ WEB_PORT=$((5200 + SLOT))
 ADMIN_PORT=$((5220 + SLOT))
 DEBUGPY_PORT=$((5670 + SLOT))
 
-echo "[worktree-setup]   web-api  -> http://localhost:$API_PORT" >&2
-echo "[worktree-setup]   web-app  -> http://localhost:$WEB_PORT" >&2
-echo "[worktree-setup]   admin    -> http://localhost:$ADMIN_PORT" >&2
+echo "[worktree-create]   web-api  -> http://localhost:$API_PORT" >&2
+echo "[worktree-create]   web-app  -> http://localhost:$WEB_PORT" >&2
+echo "[worktree-create]   admin    -> http://localhost:$ADMIN_PORT" >&2
 
 # ---------------------------------------------------------------------------
 # Copy .env files from the main worktree
@@ -100,16 +123,16 @@ copy_env() {
 
     if [ -f "$src" ]; then
         cp "$src" "$dest"
-        echo "[worktree-setup]   copied $relative_path" >&2
+        echo "[worktree-create]   copied $relative_path" >&2
     elif [ -f "${src}.example" ]; then
         cp "${src}.example" "$dest"
-        echo "[worktree-setup]   copied $relative_path (from .example)" >&2
+        echo "[worktree-create]   copied $relative_path (from .example)" >&2
     else
-        echo "[worktree-setup]   skipped $relative_path (not found)" >&2
+        echo "[worktree-create]   skipped $relative_path (not found)" >&2
     fi
 }
 
-echo "[worktree-setup] Copying .env files..." >&2
+echo "[worktree-create] Copying .env files..." >&2
 copy_env ".env"
 copy_env "web-api/.env"
 copy_env "web-app/.env"
@@ -124,7 +147,7 @@ copy_env "supabase/.env.local"
 
 LAUNCH_JSON="$WORKTREE_PATH/.claude/launch.json"
 if [ -f "$LAUNCH_JSON" ]; then
-    echo "[worktree-setup] Patching .claude/launch.json..." >&2
+    echo "[worktree-create] Patching .claude/launch.json..." >&2
     python3 - "$LAUNCH_JSON" "$API_PORT" "$WEB_PORT" "$ADMIN_PORT" <<'PYEOF'
 import json, sys
 
@@ -164,7 +187,7 @@ patch_env() {
     done
 }
 
-echo "[worktree-setup] Patching ports..." >&2
+echo "[worktree-create] Patching ports..." >&2
 
 # web-api: PORT and WEBHOOK_BASE_URL
 patch_env "$WORKTREE_PATH/web-api/.env" \
@@ -194,36 +217,46 @@ patch_env "$WORKTREE_PATH/admin-app/.env" \
 # Copy dependencies from main repo (much faster than installing)
 # ---------------------------------------------------------------------------
 
-echo "[worktree-setup] Copying dependencies..." >&2
+echo "[worktree-create] Copying dependencies..." >&2
 
 if [ -d "$REPO_PATH/web-api/.venv" ]; then
     cp -R "$REPO_PATH/web-api/.venv" "$WORKTREE_PATH/web-api/.venv"
-    echo "[worktree-setup]   web-api .venv copied" >&2
+    echo "[worktree-create]   web-api .venv copied" >&2
 fi
 
 if [ -d "$REPO_PATH/web-app/node_modules" ]; then
     cp -R "$REPO_PATH/web-app/node_modules" "$WORKTREE_PATH/web-app/node_modules"
-    echo "[worktree-setup]   web-app node_modules copied" >&2
+    echo "[worktree-create]   web-app node_modules copied" >&2
 fi
 
 if [ -d "$REPO_PATH/admin-app/node_modules" ]; then
     cp -R "$REPO_PATH/admin-app/node_modules" "$WORKTREE_PATH/admin-app/node_modules"
-    echo "[worktree-setup]   admin-app node_modules copied" >&2
+    echo "[worktree-create]   admin-app node_modules copied" >&2
+fi
+
+# Activate correct Node version via nvm (reads .nvmrc from the worktree)
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    source "$HOME/.nvm/nvm.sh"
+    if [ -f "$WORKTREE_PATH/.nvmrc" ]; then
+        (cd "$WORKTREE_PATH" && nvm use) >&2 2>&1 \
+            && echo "[worktree-create]   nvm: using node $(node -v)" >&2 \
+            || echo "[worktree-create]   warning: nvm use failed" >&2
+    fi
 fi
 
 # Relink binaries — copied node_modules/.bin symlinks point to the old repo path.
 # A quick `npm install` fixes them (near-instant with node_modules already present).
-echo "[worktree-setup] Relinking node_modules binaries..." >&2
+echo "[worktree-create] Relinking node_modules binaries..." >&2
 
 for app in web-app admin-app; do
     if [ -d "$WORKTREE_PATH/$app/node_modules" ]; then
         (cd "$WORKTREE_PATH/$app" && npm install --prefer-offline --no-audit --no-fund) >>"$LOG" 2>&1 \
-            && echo "[worktree-setup]   $app binaries relinked" >&2 \
-            || echo "[worktree-setup]   warning: $app npm install failed (see $LOG)" >&2
+            && echo "[worktree-create]   $app binaries relinked" >&2 \
+            || echo "[worktree-create]   warning: $app npm install failed (see $LOG)" >&2
     fi
 done
 
-echo "[worktree-setup] Worktree $WORKTREE_NAME ready." >&2
+echo "[worktree-create] Worktree $WORKTREE_NAME ready." >&2
 
-# THIS IS THE ONLY LINE ON STDOUT
+# THIS IS THE ONLY LINE ON STDOUT — Claude Code expects the worktree path here
 echo "$WORKTREE_PATH"
