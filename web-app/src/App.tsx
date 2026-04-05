@@ -12,6 +12,7 @@ const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const WimmelbildPage = lazy(() => import('./pages/WimmelbildPage'));
 
 function App() {
   const { loading, user } = useAuth();
@@ -31,6 +32,7 @@ function App() {
         {/* Main app routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/wimmelbilder/:id" element={<WimmelbildPage />} />
 
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
