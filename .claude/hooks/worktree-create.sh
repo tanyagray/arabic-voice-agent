@@ -166,7 +166,12 @@ for conf in config.get('configurations', []):
     args = conf.get('runtimeArgs', [])
     for i, arg in enumerate(args):
         if arg == '--port' and i + 1 < len(args):
+            # --port as separate arg (direct executable style)
             args[i + 1] = str(port_map[name])
+        elif isinstance(arg, str) and '--port ' in arg:
+            # --port embedded in bash -c string
+            import re
+            args[i] = re.sub(r'--port \d+', f'--port {port_map[name]}', arg)
 
 with open(path, 'w') as f:
     json.dump(config, f, indent=2)

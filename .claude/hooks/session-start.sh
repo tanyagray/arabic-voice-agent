@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# SessionStart hook — sources nvm so node/npm are available in the session,
-# then pulls latest and installs any new deps across all packages.
+# SessionStart hook — ensures common tool paths (homebrew, nvm, uv, etc.)
+# are available in the session, then pulls latest and installs deps.
+
+# Ensure common tool paths are available (uv, gh, etc.)
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
 nvm use >/dev/null 2>&1  # reads .nvmrc
