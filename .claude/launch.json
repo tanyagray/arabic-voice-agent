@@ -3,15 +3,15 @@
   "configurations": [
     {
       "name": "web-app",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", ". ~/.nvm/nvm.sh 2>/dev/null; npm run dev"],
       "cwd": "web-app",
       "port": 5173
     },
     {
       "name": "admin-app",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", ". ~/.nvm/nvm.sh 2>/dev/null; npm run dev"],
       "cwd": "admin-app",
       "port": 5174
     },
