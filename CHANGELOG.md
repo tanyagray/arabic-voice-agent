@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.2.0](https://github.com/tanyagray/arabic-voice-agent/compare/v1.1.0...v1.2.0) (2026-04-05)
+
+
+### Features
+
+* add settings page with language and response mode preferences ([a57e320](https://github.com/tanyagray/arabic-voice-agent/commit/a57e32097f8d64182c05cdde36d616793d770af9))
+* add wimmelbilder interactive scene image feature ([#125](https://github.com/tanyagray/arabic-voice-agent/issues/125)) ([17c8725](https://github.com/tanyagray/arabic-voice-agent/commit/17c8725fd8de6680fbb45709d94f38c211f54674))
+* **admin-app, web-api:** restructure prompts UI with sidebar nav and editable scaffolding/transliteration prompts ([dcdf9ad](https://github.com/tanyagray/arabic-voice-agent/commit/dcdf9ad6c39f216411daacb0c51e59f05af39aa0))
+* **admin-app, web-api:** show system and phase2 prompts in debug inspector ([e5c66f3](https://github.com/tanyagray/arabic-voice-agent/commit/e5c66f3bd6c84db83f2ed208048526c74ebdc470))
+* **admin-app, web-api:** split Test Agent into Chat Debug and Voice Debug pages ([1748207](https://github.com/tanyagray/arabic-voice-agent/commit/1748207ce435452f4ad6bd1a9046da6120d93601))
+* **admin-app:** use pretty JSON viewer in debug pages ([43b2b31](https://github.com/tanyagray/arabic-voice-agent/commit/43b2b318cb32c8b50a9dd2a68be825b0227c0058))
+* **ci:** add selective deployment to PR preview workflow ([635f5a6](https://github.com/tanyagray/arabic-voice-agent/commit/635f5a630f8c3f0df81ddafdeaeed2d44994b88f))
+* **config:** add SessionStart nvm hook, .nvmrc, and fix WorktreeCreate hook ([910edbd](https://github.com/tanyagray/arabic-voice-agent/commit/910edbdb2daf25a614d8e20c08153ad45e7a76f4))
+* **config:** extend SessionStart hook to pull latest and install deps ([d77fc8b](https://github.com/tanyagray/arabic-voice-agent/commit/d77fc8b87cf5dcf9c130461045af9e00a45a8a35))
+* render highlighted Arabizi words with meaning popovers in chat bubbles ([2c3ea10](https://github.com/tanyagray/arabic-voice-agent/commit/2c3ea10817b6c3104a44f8fa2922203251e658c9))
+* **web-api, admin-app, web-app:** add response_mode setting for scaffolded vs transliterated display ([97f9e00](https://github.com/tanyagray/arabic-voice-agent/commit/97f9e00d1eae7ea58ee87591a9cbc344630c8701))
+* **web-api:** generate agent greeting on new session ([#122](https://github.com/tanyagray/arabic-voice-agent/issues/122)) ([8b8db52](https://github.com/tanyagray/arabic-voice-agent/commit/8b8db5265a08ebf5ae1112a9ed604ebf52550549))
+* **web-api:** keep common Arabic loanwords as Arabizi in scaffolding ([4a08f24](https://github.com/tanyagray/arabic-voice-agent/commit/4a08f24309e899adc58b6c7997ca8af119665253))
+* **web-api:** return structured highlights for Arabizi words in scaffolding response ([d28737e](https://github.com/tanyagray/arabic-voice-agent/commit/d28737e77d5aacf2ff17cdd67caf9812065b53b5))
+* **web-api:** send Arabic script to TTS while streaming Arabizi to client ([1f6188c](https://github.com/tanyagray/arabic-voice-agent/commit/1f6188c35ac64900196fd35a2e57a73eadffe75f))
+* **web-api:** share conversation context between chat and voice pipelines ([b64fbb4](https://github.com/tanyagray/arabic-voice-agent/commit/b64fbb48fce7cffc7d1a91a737d8d8f8def98404))
+* **web-api:** stream scaffolded text to TTS and client in voice chat ([f1c0da8](https://github.com/tanyagray/arabic-voice-agent/commit/f1c0da802ea1fe94185d13155660987812644864))
+
+
+### Bug Fixes
+
+* **admin-app:** fix auth session not persisting across page refresh ([5378a45](https://github.com/tanyagray/arabic-voice-agent/commit/5378a45f09c9a3735423cf981a34d90c05fb0cf7))
+* **admin-app:** preserve Supabase client across Vite HMR reloads ([cde9f9e](https://github.com/tanyagray/arabic-voice-agent/commit/cde9f9e3a09f649e12414aa1d8ddf9763b12385b))
+* **config:** add /opt/homebrew/bin to PATH for uv/gh in session and preview server ([6b49287](https://github.com/tanyagray/arabic-voice-agent/commit/6b49287116b668fc4b1e292281e208510cfb6663))
+* **config:** use bash wrapper in launch.json to source nvm for preview server ([6e0ef9e](https://github.com/tanyagray/arabic-voice-agent/commit/6e0ef9ee3706047fa30c999fe2ee6c3cffccda69))
+* improve scaffolding consistency and chat message alignment ([5db2e11](https://github.com/tanyagray/arabic-voice-agent/commit/5db2e1130e8c48c1b7f8d02179997f4f73a7026f))
+* **web-api:** add capitalization rules to transliteration prompt ([e788828](https://github.com/tanyagray/arabic-voice-agent/commit/e788828d5ba3eb5d9a4eaf732b0ecac36a21732a))
+* **web-api:** always show familiar words heading in scaffolding prompt ([173d5a1](https://github.com/tanyagray/arabic-voice-agent/commit/173d5a1d20b6400acf410ea24e999f1fd05dc6b3))
+* **web-api:** return 401 for expired tokens instead of 500 on session endpoints ([adb43df](https://github.com/tanyagray/arabic-voice-agent/commit/adb43dfc74e57c27277c464b4c6d0d156a521c7e))
+* **web-app:** detect browser auto-translation and warn user ([4060924](https://github.com/tanyagray/arabic-voice-agent/commit/4060924cb1efe77b3ce5ba5e9d8afff80ee73030))
+* **web-app:** reduce excessive horizontal padding on mobile ([355f182](https://github.com/tanyagray/arabic-voice-agent/commit/355f18271a7436a12c4176fc1b3422ff9385c71f))
+* **web-app:** unify loading spinner to use gradient background ([#123](https://github.com/tanyagray/arabic-voice-agent/issues/123)) ([511280b](https://github.com/tanyagray/arabic-voice-agent/commit/511280b2407f6c80b9880d10fce0d75c395aa499))
+* **web-app:** update Toaster to match Chakra UI v3.31 API ([efb3bc4](https://github.com/tanyagray/arabic-voice-agent/commit/efb3bc403ecbba9a494566e343b9773a2b33b76c))
+* **web-app:** upgrade to radial gradient background ([#124](https://github.com/tanyagray/arabic-voice-agent/issues/124)) ([b7380fc](https://github.com/tanyagray/arabic-voice-agent/commit/b7380fc58bc35ec29c5f83956493bf0145b8a375))
+
 ## [1.1.0](https://github.com/tanyagray/arabic-voice-agent/compare/v1.0.0...v1.1.0) (2026-03-28)
 
 
