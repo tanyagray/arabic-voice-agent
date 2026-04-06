@@ -5,7 +5,7 @@ from fastapi.websockets import WebSocketDisconnect
 from loguru import logger
 
 from services import session_service
-from services.pipecat_service import run_pipecat_agent
+from pipeline import run_pipecat_agent
 
 
 # Router
