@@ -10,12 +10,14 @@
         ]
       }
     ],
-    "WorktreeCreate": [
+    "PostToolUse": [
       {
+        "matcher": "EnterWorktree",
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/worktree-create.sh"
+            "command": "bash .claude/hooks/worktree-install-deps.sh",
+            "async": true
           }
         ]
       }
