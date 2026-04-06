@@ -20,8 +20,8 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Memoize filtered messages so Transcript doesn't re-render on every keystroke
-  const textMessages = useMemo(
-    () => messages.filter((m) => m.message_kind === 'text' || m.message_kind === 'flash_cards'),
+  const chatMessages = useMemo(
+    () => messages.filter((m) => m.message_kind === 'text' || m.message_kind === 'audio' || m.message_kind === 'flash_cards'),
     [messages]
   );
 
@@ -41,7 +41,7 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
     <Flex direction="column" flex={1} gap={6} minH={0} w="full">
       {/* Transcript - fills available space, full width so scrollbar is at viewport edge */}
       <Box flex={1} minH={0} w="full">
-        <Transcript messages={textMessages} />
+        <Transcript messages={chatMessages} />
       </Box>
 
       {/* Input controls - constrained width, centered */}

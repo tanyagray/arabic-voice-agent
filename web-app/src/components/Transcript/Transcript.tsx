@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { forwardRef, memo, useEffect, useRef, type HTMLAttributes } from 'react';
 import { Box, Flex, Text } from '@chakra-ui/react';
 import type { TranscriptMessage, ResponseMode } from '@/api/sessions/sessions.types';
+import { AudioBubble } from './AudioBubble';
 import { HighlightedText } from './HighlightedText';
 import { MarkdownContent } from './MarkdownContent';
 import { FlashcardDeck } from '@/components/FlashcardDeck';
@@ -89,7 +90,17 @@ function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptB
         roundedBottomLeft={roundedBottomLeft}
         dir={isTutor && responseMode === 'canonical' ? 'rtl' : undefined}
       >
-        {isUser ? (
+        {message.message_kind === 'audio' ? (
+          <AudioBubble
+            audioUrl={message.message_text}
+            label={
+              responseMode === 'canonical'
+                ? message.message_text_canonical ?? undefined
+                : message.message_text_transliterated ?? message.message_text_canonical ?? undefined
+            }
+            dir={responseMode === 'canonical' ? 'rtl' : undefined}
+          />
+        ) : isUser ? (
           <Text fontSize="lg" lineHeight="relaxed">
             {displayText}
           </Text>

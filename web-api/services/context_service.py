@@ -25,6 +25,7 @@ class AgentState(BaseModel):
     audio_enabled: bool = False
     response_mode: str = "scaffolded"  # "scaffolded", "transliterated", or "canonical"
     last_user_message: Optional[str] = None
+    audio_text: Optional[str] = None  # Text to pronounce via TTS (set by send_audio tool)
 
 
 class AppContext(BaseModel):
@@ -109,6 +110,26 @@ class AppContext(BaseModel):
             f"previous_state={previous_state}, "
             f"audio_enabled={self.agent.audio_enabled}"
         )
+
+    def set_audio_text(self, text: str) -> None:
+        """
+        Set the text to be pronounced via TTS audio.
+
+        Args:
+            text: The text to pronounce (in target language with diacritics)
+        """
+        self.agent.audio_text = text
+        self.updated_at = datetime.now()
+        print(
+            f"[AppContext Audio Text Set] "
+            f"session_id={self.session_id}, "
+            f"audio_text={text[:50]}..."
+        )
+
+    def clear_audio_text(self) -> None:
+        """Clear the audio text after it has been processed."""
+        self.agent.audio_text = None
+        self.updated_at = datetime.now()
 
     def set_response_mode(self, mode: str) -> None:
         """
