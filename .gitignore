@@ -3,15 +3,13 @@
 # Dependencies
 node_modules/
 
-# Environment variables
+# Environment variables — .env files are local-only, never committed.
+# .env.example files are committed as templates for each service.
 .env
 .env.local
 .env.*.local
-.env.*
-!.env.example
-# dotenvx: encrypted env files are safe to commit; keys file is not
-!.env.preview
-!.env.production
+
+# dotenvx: encrypted env files (supabase) are safe to commit; keys file is not.
 supabase/.env.keys
 
 # IDEs and editors
