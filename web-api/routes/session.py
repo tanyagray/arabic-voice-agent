@@ -226,6 +226,50 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
         # Log the error but continue - don't fail the request if DB insert fails
         print(f"[Session] Failed to save agent response to database: {e}")
 
+    # Check if the agent requested audio pronunciation via send_audio tool
+    if context and context.agent.audio_text:
+        try:
+            import asyncio
+            import uuid
+            from services.tts_service import get_tts_service
+            from services.supabase_client import get_supabase_admin_client
+
+            tts_service = get_tts_service()
+            audio_bytes = await tts_service.generate_audio(
+                context.agent.audio_text, context.agent.language
+            )
+
+            if audio_bytes:
+                # Upload to Supabase Storage (sync client, run in thread)
+                audio_filename = f"{session_id}/{uuid.uuid4()}.mp3"
+                supabase = get_supabase_admin_client()
+                await asyncio.to_thread(
+                    lambda: supabase.storage.from_("audio-messages").upload(
+                        path=audio_filename,
+                        file=audio_bytes,
+                        file_options={"content-type": "audio/mpeg"},
+                    )
+                )
+
+                # Get the public URL
+                audio_url = supabase.storage.from_("audio-messages").get_public_url(audio_filename)
+
+                # Create audio transcript message (appears as a separate bubble)
+                await transcript_service.create_transcript_message(
+                    session_id=session_id,
+                    message_source="tutor",
+                    message_kind="audio",
+                    message_text=audio_url,
+                    message_text_canonical=context.agent.audio_text,
+                )
+                logger.info(f"[Session] Sent audio pronunciation for session {session_id}")
+            else:
+                logger.warning(f"[Session] TTS returned no audio for session {session_id}")
+        except Exception as e:
+            logger.error(f"[Session] Failed to generate/upload audio: {e}")
+        finally:
+            context.clear_audio_text()
+
     return TextResponse(text=display_response, highlights=highlights)
 
 
