@@ -24,6 +24,7 @@ class AgentState(BaseModel):
     language: str = "ar-AR"
     audio_enabled: bool = False
     response_mode: str = "scaffolded"  # "scaffolded", "transliterated", or "canonical"
+    last_user_message: Optional[str] = None
 
 
 class AppContext(BaseModel):

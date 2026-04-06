@@ -198,7 +198,7 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
     context = context_service.get_context(session_id)
     response_mode = context.agent.response_mode if context else "scaffolded"
     # Always generate both display variants so the user can switch modes
-    scaffolded = await scaffolding_service.generate_scaffolded_text(canonical_response)
+    scaffolded = await scaffolding_service.generate_scaffolded_text(canonical_response, user_message=request.message)
     transliterated = await scaffolding_service.generate_transliterated_text(canonical_response)
     highlights = scaffolded.highlights
 
