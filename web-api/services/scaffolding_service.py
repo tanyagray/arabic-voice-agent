@@ -117,6 +117,10 @@ Learned words:
 LEARNED_WORDS_EMPTY = "No learned words yet. Translate the ENTIRE text to English, except for the one new \
 Arabizi word described above."
 
+USER_CONTEXT_WITH_MESSAGE = "The user's most recent message was: \"{message}\"\nUse this to determine their intent — are they asking to learn a specific phrase/sentence, or just having a general conversation?"
+
+USER_CONTEXT_EMPTY = "No conversation context available. Assume general conversation mode (translate most Arabic, keep only learned words + one new word as Arabizi)."
+
 
 class PhaseResult:
     """Result of a scaffolding/transliteration LLM call with metadata for debugging."""
@@ -146,6 +150,7 @@ class PhaseResult:
 async def generate_scaffolded_text(
     arabic_text: str,
     learned_words: list[str] | None = None,
+    user_message: str | None = None,
 ) -> ScaffoldedResult:
     """
     Generate scaffolded display text by translating Arabic into English.
@@ -154,12 +159,17 @@ async def generate_scaffolded_text(
     instead of being translated. Additionally, one new word is kept as
     Arabizi to gradually introduce new vocabulary.
 
+    When user_message is provided, the scaffolding is context-aware: if the
+    user asked to learn a phrase, the entire phrase is kept as Arabizi.
+
     Args:
         arabic_text: The full Arabic text with harakaat to translate.
         learned_words: Optional list of Arabic stem/base words the learner has
                        previously learned. These (and inflected variants) will
                        appear as Arabizi. Empty/None means only one new word
                        appears as Arabizi.
+        user_message: Optional user message for conversation context. Helps
+                      the scaffolding decide how much Arabic to keep.
 
     Returns:
         ScaffoldedResult with text and highlights array.
@@ -171,9 +181,16 @@ async def generate_scaffolded_text(
     else:
         learned_words_instruction = LEARNED_WORDS_EMPTY
 
+    # Build user context instruction
+    if user_message:
+        user_context_instruction = USER_CONTEXT_WITH_MESSAGE.format(message=user_message)
+    else:
+        user_context_instruction = USER_CONTEXT_EMPTY
+
     prompt = _load_scaffolding_prompt().format(
         arabic_text=arabic_text,
         learned_words_instruction=learned_words_instruction,
+        user_context_instruction=user_context_instruction,
     )
 
     try:
@@ -266,6 +283,7 @@ def _extract_phase_result(response, fallback_text: str, parse_json: bool = False
 async def generate_scaffolded_text_with_metadata(
     arabic_text: str,
     learned_words: list[str] | None = None,
+    user_message: str | None = None,
 ) -> PhaseResult:
     """Like generate_scaffolded_text but returns full PhaseResult with LLM metadata."""
     if learned_words:
@@ -274,9 +292,15 @@ async def generate_scaffolded_text_with_metadata(
     else:
         learned_words_instruction = LEARNED_WORDS_EMPTY
 
+    if user_message:
+        user_context_instruction = USER_CONTEXT_WITH_MESSAGE.format(message=user_message)
+    else:
+        user_context_instruction = USER_CONTEXT_EMPTY
+
     prompt = _load_scaffolding_prompt().format(
         arabic_text=arabic_text,
         learned_words_instruction=learned_words_instruction,
+        user_context_instruction=user_context_instruction,
     )
 
     try:

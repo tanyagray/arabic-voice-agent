@@ -212,6 +212,10 @@ async def run_pipecat_agent(
     @user_aggregator.event_handler("on_user_turn_stopped")
     async def on_user_turn_stopped(aggregator, strategy, message):
         logger.info(f"User turn stopped: {message.content}")
+        # Store last user message on context for scaffolding context-awareness
+        ctx = get_context(session_id)
+        if ctx:
+            ctx.agent.last_user_message = message.content
         try:
             await create_transcript_message(
                 session_id=session_id,

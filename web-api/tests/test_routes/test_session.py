@@ -111,7 +111,7 @@ class TestSendChatMessage:
         assert response.status_code == 200
         assert response.json() == {"text": "Hello! How can I help you?", "highlights": []}
         mock_generate_response.assert_called_once_with("session-123", "Hello", "test-token")
-        mock_scaffold.assert_called_once_with("مرحبا! كيف يمكنني مساعدتك؟")
+        mock_scaffold.assert_called_once_with("مرحبا! كيف يمكنني مساعدتك؟", user_message="Hello")
 
     @patch("routes.session.session_service.get_session")
     @patch("routes.session.get_current_user_token")

@@ -156,7 +156,9 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None, u
         text_response = await generate_agent_followup(session_id, user_access_token)
 
     # Generate scaffolded display text (arabizi) from the canonical Arabic response
-    scaffolded_response = await generate_scaffolded_text(text_response)
+    # Pass user_message for context-aware scaffolding (e.g., keep full phrases as Arabizi
+    # when the user asked to learn a specific phrase)
+    scaffolded_response = await generate_scaffolded_text(text_response, user_message=user_message)
 
     # Create and save the tutor message to the database
     try:

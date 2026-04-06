@@ -71,7 +71,9 @@ class DisplayTextGate(FrameProcessor):
                     await self.push_frame(buffered_frame, direction)
             else:
                 # Scaffolding: build TTS text (Arabic script) and display text (Arabizi)
-                scaffolded = await generate_scaffolded_text(canonical_text)
+                context = get_context(self._session_id)
+                last_user_message = context.agent.last_user_message if context else None
+                scaffolded = await generate_scaffolded_text(canonical_text, user_message=last_user_message)
                 display_text = scaffolded.text
                 tts_text = scaffolded.build_tts_text()
                 logger.info(f"DisplayTextGate: scaffolded='{display_text}' tts='{tts_text}'")
