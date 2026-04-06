@@ -47,11 +47,21 @@ jobs:
               - '.github/workflows/aws-preview-deploy.yml'
               - '.github/workflows/aws-preview-destroy.yml'
 
+      - name: Check for release-please label
+        id: labels
+        run: |
+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          if echo "$LABELS" | jq -e 'index("autorelease: pending")' > /dev/null 2>&1; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Decide what to deploy
         id: decide
         run: |
-          # If infra templates or workflow files changed, deploy everything
-          if [ "${{ steps.filter.outputs.infra }}" = "true" ] || [ "${{ steps.filter.outputs.workflows }}" = "true" ]; then
+          # If release-please PR, infra templates, or workflow files changed, deploy everything
+          if [ "${{ steps.labels.outputs.is_release }}" = "true" ] || [ "${{ steps.filter.outputs.infra }}" = "true" ] || [ "${{ steps.filter.outputs.workflows }}" = "true" ]; then
             echo "deploy_api=true" >> "$GITHUB_OUTPUT"
             echo "deploy_frontend=true" >> "$GITHUB_OUTPUT"
             echo "deploy_supabase=true" >> "$GITHUB_OUTPUT"
@@ -77,6 +87,7 @@ jobs:
           echo "### Change Detection Results" >> "$GITHUB_STEP_SUMMARY"
           echo "| Component | Changed |" >> "$GITHUB_STEP_SUMMARY"
           echo "|-----------|---------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release-please PR | ${{ steps.labels.outputs.is_release }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| API (web-api/) | ${{ steps.filter.outputs.api }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Frontend (web-app/, admin-app/) | ${{ steps.filter.outputs.frontend }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Supabase (migrations/) | ${{ steps.filter.outputs.supabase }} |" >> "$GITHUB_STEP_SUMMARY"
