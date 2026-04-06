@@ -40,15 +40,41 @@ export function HighlightedText({ text, highlights }: HighlightedTextProps) {
     }
   }, [popover]);
 
-  const handleWordClick = useCallback(
-    (meaning: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      const rect = (e.target as HTMLElement).getBoundingClientRect();
+  const showPopover = useCallback(
+    (meaning: string, target: HTMLElement) => {
+      const rect = target.getBoundingClientRect();
       setPopover({
         meaning,
         top: rect.top - 4,
         left: rect.left + rect.width / 2,
       });
+    },
+    [],
+  );
+
+  const handleWordClick = useCallback(
+    (meaning: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      showPopover(meaning, e.currentTarget as HTMLElement);
+    },
+    [showPopover],
+  );
+
+  // Show on hover for mouse pointers only (not touch)
+  const handlePointerEnter = useCallback(
+    (meaning: string, e: React.PointerEvent) => {
+      if (e.pointerType === 'mouse') {
+        showPopover(meaning, e.currentTarget as HTMLElement);
+      }
+    },
+    [showPopover],
+  );
+
+  const handlePointerLeave = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.pointerType === 'mouse') {
+        setPopover(null);
+      }
     },
     [],
   );
@@ -81,6 +107,8 @@ export function HighlightedText({ text, highlights }: HighlightedTextProps) {
               fontWeight="medium"
               _hover={{ textDecoration: 'underline' }}
               onClick={(e) => handleWordClick(seg.highlight!.meaning, e)}
+              onPointerEnter={(e) => handlePointerEnter(seg.highlight!.meaning, e)}
+              onPointerLeave={handlePointerLeave}
             >
               {seg.text}
             </Text>
