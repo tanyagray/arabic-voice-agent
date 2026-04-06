@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { Box, Flex, Text, IconButton, Spinner } from '@chakra-ui/react';
+import { Box, Flex, Text, IconButton, Spinner, Image } from '@chakra-ui/react';
 import { BsVolumeUp } from 'react-icons/bs';
 import type { Flashcard } from '@/api/flashcards/flashcards.types';
 import type { ResponseMode } from '@/api/sessions/sessions.types';
@@ -50,8 +50,7 @@ export function FlashcardCard({ card, responseMode }: FlashcardCardProps) {
       {/* Image area */}
       <Box w="full" aspectRatio="1" bg="white/5" position="relative">
         {card.image_url ? (
-          <Box
-            as="img"
+          <Image
             src={card.image_url}
             alt={card.english}
             w="full"
