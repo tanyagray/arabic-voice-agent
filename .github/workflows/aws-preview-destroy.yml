@@ -82,31 +82,49 @@ jobs:
 
           echo "Container cleanup status: $RESULT"
 
-      # Check if per-PR static site stack exists
-      - name: Check if stack exists
-        id: check
-        run: |
-          STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
-          if aws cloudformation describe-stacks --stack-name "$STACK_NAME" 2>/dev/null; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Stack $STACK_NAME does not exist, skipping cleanup."
-          fi
-
-      - name: Empty S3 buckets
-        if: steps.check.outputs.exists == 'true'
+      # Delete this PR's files from the shared preview bucket
+      - name: Delete preview static files
         run: |
           PR="${{ github.event.pull_request.number }}"
-          for BUCKET in "preview-web-app-pr-$PR" "preview-admin-pr-$PR"; do
-            echo "Emptying bucket: $BUCKET"
-            aws s3 rm "s3://$BUCKET" --recursive 2>/dev/null || true
-          done
 
-      - name: Disable CloudFront distributions
-        if: steps.check.outputs.exists == 'true'
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "arabic-voice-agent-preview" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+
+          BUCKET=$(get_output PreviewStaticBucketName)
+          DIST_ID=$(get_output PreviewStaticDistributionId)
+
+          if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
+            echo "Deleting s3://$BUCKET/pr-${PR}/..."
+            aws s3 rm "s3://$BUCKET/pr-${PR}/" --recursive 2>/dev/null || true
+
+            # Invalidate CloudFront cache for deleted PR
+            if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+              aws cloudfront create-invalidation \
+                --distribution-id "$DIST_ID" \
+                --paths "/pr-${PR}/*" 2>/dev/null || true
+            fi
+          fi
+
+      # Transitional: clean up legacy per-PR CloudFormation stacks (safe to remove
+      # once all preview-pr-* stacks are gone)
+      - name: Clean up legacy per-PR stack (if exists)
         run: |
           STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
+          if ! aws cloudformation describe-stacks --stack-name "$STACK_NAME" 2>/dev/null; then
+            echo "No legacy stack $STACK_NAME found, skipping."
+            exit 0
+          fi
+
+          PR="${{ github.event.pull_request.number }}"
+
+          # Empty old per-PR buckets
+          for BUCKET in "preview-web-app-pr-$PR" "preview-admin-pr-$PR"; do
+            aws s3 rm "s3://$BUCKET" --recursive 2>/dev/null || true
+          done
 
           get_output() {
             aws cloudformation describe-stacks \
@@ -115,23 +133,20 @@ jobs:
               --output text
           }
 
-          # CloudFront distributions must be disabled before deletion
+          # Disable CloudFront distributions before deletion
           for DIST_KEY in WebAppDistributionId AdminDistributionId; do
             DIST_ID=$(get_output "$DIST_KEY")
             if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
-              echo "Disabling CloudFront distribution: $DIST_ID"
               ETAG=$(aws cloudfront get-distribution-config --id "$DIST_ID" --query "ETag" --output text)
               CONFIG=$(aws cloudfront get-distribution-config --id "$DIST_ID" --query "DistributionConfig" --output json)
               UPDATED=$(echo "$CONFIG" | jq '.Enabled = false')
               aws cloudfront update-distribution \
-                --id "$DIST_ID" \
-                --if-match "$ETAG" \
+                --id "$DIST_ID" --if-match "$ETAG" \
                 --distribution-config "$UPDATED" || true
             fi
           done
 
-          # Wait for distributions to deploy the disabled state
-          echo "Waiting for CloudFront distributions to disable..."
+          # Wait for distributions to disable
           for DIST_KEY in WebAppDistributionId AdminDistributionId; do
             DIST_ID=$(get_output "$DIST_KEY")
             if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
@@ -139,15 +154,10 @@ jobs:
             fi
           done
 
-      - name: Delete CloudFormation stack
-        if: steps.check.outputs.exists == 'true'
-        run: |
-          STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
-          echo "Deleting stack: $STACK_NAME"
+          # Delete the stack
           aws cloudformation delete-stack --stack-name "$STACK_NAME"
-          echo "Waiting for stack deletion..."
           aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
-          echo "Stack $STACK_NAME deleted."
+          echo "Legacy stack $STACK_NAME deleted."
 
       - name: Delete ECR image
         run: |
