@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/tanyagray/arabic-voice-agent/compare/v1.2.0...v1.2.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* **web-app:** align header max-width with chat view ([#130](https://github.com/tanyagray/arabic-voice-agent/issues/130)) ([084a6c6](https://github.com/tanyagray/arabic-voice-agent/commit/084a6c65d508575e3633194d2e56597e33a2274e))
+
 ## [1.2.0](https://github.com/tanyagray/arabic-voice-agent/compare/v1.1.0...v1.2.0) (2026-04-06)
 
 
