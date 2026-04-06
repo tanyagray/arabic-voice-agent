@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useRTVIClientEvent } from '@pipecat-ai/client-react';
 import { RTVIEvent } from '@pipecat-ai/client-js';
 import type { TranscriptData, BotTTSTextData } from '@pipecat-ai/client-js';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
+import { useSupabase } from '@/context/SupabaseContext';
 
 interface LiveMessage {
   id: string;
@@ -34,10 +35,40 @@ function createTranscriptMessage(
  * Each TTS sentence becomes a separate message, matching the database structure.
  */
 export function useLiveTranscript(sessionId: string | null) {
+  const supabase = useSupabase();
   const [liveMessages, setLiveMessages] = useState<LiveMessage[]>([]);
+  const [dbMessages, setDbMessages] = useState<TranscriptMessage[]>([]);
   const currentUserMessageId = useRef<string | null>(null);
   const currentBotMessageId = useRef<string | null>(null);
   const botTextBuffer = useRef<string>('');
+
+  // Subscribe to flash_cards messages from Supabase Realtime
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const channel = supabase
+      .channel(`flash_cards:${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transcript_messages',
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const msg = payload.new as TranscriptMessage;
+          if (msg.message_kind === 'flash_cards') {
+            setDbMessages((prev) => [...prev, msg]);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, sessionId]);
 
   // Handle user transcript events (interim and final STT results)
   useRTVIClientEvent(
@@ -193,18 +224,25 @@ export function useLiveTranscript(sessionId: string | null) {
     }, [])
   );
 
-  // Convert live messages to TranscriptMessage format (memoized to prevent unnecessary re-renders)
-  const messages: TranscriptMessage[] = useMemo(
-    () =>
-      liveMessages
-        .filter((msg) => msg.content.trim() !== '')
-        .map((msg) => createTranscriptMessage(msg, sessionId || '')),
-    [liveMessages, sessionId]
-  );
+  // Convert live messages to TranscriptMessage format and merge with DB messages
+  const messages: TranscriptMessage[] = useMemo(() => {
+    const live = liveMessages
+      .filter((msg) => msg.content.trim() !== '')
+      .map((msg) => createTranscriptMessage(msg, sessionId || ''));
+
+    // Merge live transcript messages with flash_cards messages from DB, sorted by time
+    const all = [...live, ...dbMessages];
+    all.sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+    return all;
+  }, [liveMessages, dbMessages, sessionId]);
 
   // Clear all messages (useful when ending a call)
   const clearMessages = useCallback(() => {
     setLiveMessages([]);
+    setDbMessages([]);
     currentUserMessageId.current = null;
     currentBotMessageId.current = null;
     botTextBuffer.current = '';

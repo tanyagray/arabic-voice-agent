@@ -21,7 +21,7 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
 
   // Memoize filtered messages so Transcript doesn't re-render on every keystroke
   const chatMessages = useMemo(
-    () => messages.filter((m) => m.message_kind === 'text' || m.message_kind === 'audio'),
+    () => messages.filter((m) => m.message_kind === 'text' || m.message_kind === 'audio' || m.message_kind === 'flash_cards'),
     [messages]
   );
 
