@@ -42,7 +42,9 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: preview-api
+          Value: api-preview.mishmish.ai
+        - Key: Project
+          Value: arabic-voice-agent
         - Key: Environment
           Value: preview
 
@@ -52,14 +54,16 @@ Resources:
       Domain: vpc
       Tags:
         - Key: Name
-          Value: preview-api
+          Value: api-preview.mishmish.ai
+        - Key: Project
+          Value: arabic-voice-agent
         - Key: Environment
           Value: preview
 
   PreviewInstance:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: t3.small
+      InstanceType: t3.micro
       # Note: instance was launched as spot via InstanceMarketOptions, but that
       # property isn't supported on AWS::EC2::Instance — removed to unblock
       # stack updates. The existing spot instance is unaffected.
@@ -136,7 +140,9 @@ Resources:
           echo "=== Cloud-init complete at $(date) ==="
       Tags:
         - Key: Name
-          Value: preview-api
+          Value: api-preview.mishmish.ai
+        - Key: Project
+          Value: arabic-voice-agent
         - Key: Environment
           Value: preview
 
