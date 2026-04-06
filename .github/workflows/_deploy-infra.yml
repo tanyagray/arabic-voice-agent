@@ -18,10 +18,8 @@ on:
       api_instance_id:
         description: EC2 instance ID for SSM commands
         value: ${{ jobs.deploy.outputs.api_instance_id }}
-      web_app_bucket:
-        value: ${{ jobs.deploy.outputs.web_app_bucket }}
-      admin_bucket:
-        value: ${{ jobs.deploy.outputs.admin_bucket }}
+      static_bucket:
+        value: ${{ jobs.deploy.outputs.static_bucket }}
       web_app_dist_id:
         value: ${{ jobs.deploy.outputs.web_app_dist_id }}
       admin_dist_id:
@@ -45,8 +43,7 @@ jobs:
     outputs:
       api_url: ${{ steps.outputs.outputs.api_url }}
       api_instance_id: ${{ steps.outputs.outputs.api_instance_id }}
-      web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
-      admin_bucket: ${{ steps.outputs.outputs.admin_bucket }}
+      static_bucket: ${{ steps.outputs.outputs.static_bucket }}
       web_app_dist_id: ${{ steps.outputs.outputs.web_app_dist_id }}
       admin_dist_id: ${{ steps.outputs.outputs.admin_dist_id }}
       web_app_cf_domain: ${{ steps.outputs.outputs.web_app_cf_domain }}
@@ -123,8 +120,7 @@ jobs:
 
           echo "api_url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
           echo "api_instance_id=$(get_output ApiInstanceId)" >> "$GITHUB_OUTPUT"
-          echo "web_app_bucket=$(get_output WebAppBucketName)" >> "$GITHUB_OUTPUT"
-          echo "admin_bucket=$(get_output AdminBucketName)" >> "$GITHUB_OUTPUT"
+          echo "static_bucket=$(get_output StaticBucketName)" >> "$GITHUB_OUTPUT"
           echo "web_app_dist_id=$(get_output WebAppDistributionId)" >> "$GITHUB_OUTPUT"
           echo "admin_dist_id=$(get_output AdminDistributionId)" >> "$GITHUB_OUTPUT"
           echo "web_app_cf_domain=$(get_output WebAppCloudFrontDomain)" >> "$GITHUB_OUTPUT"

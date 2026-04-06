@@ -216,14 +216,16 @@ Resources:
       InstanceId: !Ref ApiInstance
 
   # ============================================================
-  # Web App (S3 + CloudFront)
+  # Shared Static Sites Bucket (S3)
   # ============================================================
+  # Both web-app and admin-app are stored in a single bucket
+  # under web-app/ and admin-app/ prefixes.
 
-  WebAppBucket:
+  StaticBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
-      BucketName: arabic-voice-agent-prod-web-app
+      BucketName: mishmish.ai
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerEnforced
@@ -233,13 +235,15 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
       Tags:
+        - Key: Project
+          Value: arabic-voice-agent
         - Key: Environment
           Value: production
 
-  WebAppBucketPolicy:
+  StaticBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: !Ref WebAppBucket
+      Bucket: !Ref StaticBucket
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -248,19 +252,25 @@ Resources:
             Principal:
               Service: cloudfront.amazonaws.com
             Action: s3:GetObject
-            Resource: !Sub "${WebAppBucket.Arn}/*"
+            Resource: !Sub "${StaticBucket.Arn}/*"
             Condition:
               StringEquals:
-                "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${WebAppDistribution}"
+                "AWS:SourceArn":
+                  - !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${WebAppDistribution}"
+                  - !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AdminDistribution}"
 
-  WebAppOac:
+  StaticOac:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
-        Name: prod-web-app
+        Name: mishmish.ai
         OriginAccessControlOriginType: s3
         SigningBehavior: always
         SigningProtocol: sigv4
+
+  # ============================================================
+  # Web App (CloudFront)
+  # ============================================================
 
   WebAppDistribution:
     Type: AWS::CloudFront::Distribution
@@ -282,8 +292,9 @@ Resources:
           - CloudFrontDefaultCertificate: true
         Origins:
           - Id: S3Origin
-            DomainName: !GetAtt WebAppBucket.RegionalDomainName
-            OriginAccessControlId: !GetAtt WebAppOac.Id
+            DomainName: !GetAtt StaticBucket.RegionalDomainName
+            OriginPath: /web-app
+            OriginAccessControlId: !GetAtt StaticOac.Id
             S3OriginConfig:
               OriginAccessIdentity: ""
         DefaultCacheBehavior:
@@ -301,55 +312,14 @@ Resources:
             ResponsePagePath: /index.html
             ErrorCachingMinTTL: 0
       Tags:
+        - Key: Project
+          Value: arabic-voice-agent
         - Key: Environment
           Value: production
 
   # ============================================================
-  # Admin App (S3 + CloudFront)
+  # Admin App (CloudFront)
   # ============================================================
-
-  AdminBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    Properties:
-      BucketName: arabic-voice-agent-prod-admin
-      OwnershipControls:
-        Rules:
-          - ObjectOwnership: BucketOwnerEnforced
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      Tags:
-        - Key: Environment
-          Value: production
-
-  AdminBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref AdminBucket
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Sid: AllowCloudFrontOAC
-            Effect: Allow
-            Principal:
-              Service: cloudfront.amazonaws.com
-            Action: s3:GetObject
-            Resource: !Sub "${AdminBucket.Arn}/*"
-            Condition:
-              StringEquals:
-                "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AdminDistribution}"
-
-  AdminOac:
-    Type: AWS::CloudFront::OriginAccessControl
-    Properties:
-      OriginAccessControlConfig:
-        Name: prod-admin
-        OriginAccessControlOriginType: s3
-        SigningBehavior: always
-        SigningProtocol: sigv4
 
   AdminDistribution:
     Type: AWS::CloudFront::Distribution
@@ -371,8 +341,9 @@ Resources:
           - CloudFrontDefaultCertificate: true
         Origins:
           - Id: S3Origin
-            DomainName: !GetAtt AdminBucket.RegionalDomainName
-            OriginAccessControlId: !GetAtt AdminOac.Id
+            DomainName: !GetAtt StaticBucket.RegionalDomainName
+            OriginPath: /admin-app
+            OriginAccessControlId: !GetAtt StaticOac.Id
             S3OriginConfig:
               OriginAccessIdentity: ""
         DefaultCacheBehavior:
@@ -390,6 +361,8 @@ Resources:
             ResponsePagePath: /index.html
             ErrorCachingMinTTL: 0
       Tags:
+        - Key: Project
+          Value: arabic-voice-agent
         - Key: Environment
           Value: production
 
@@ -423,13 +396,9 @@ Outputs:
     Description: Admin CloudFront distribution ID (for cache invalidation)
     Value: !Ref AdminDistribution
 
-  WebAppBucketName:
-    Description: Web app S3 bucket name
-    Value: !Ref WebAppBucket
-
-  AdminBucketName:
-    Description: Admin S3 bucket name
-    Value: !Ref AdminBucket
+  StaticBucketName:
+    Description: Shared S3 bucket for all production static sites
+    Value: !Ref StaticBucket
 
   WebAppCloudFrontDomain:
     Description: >

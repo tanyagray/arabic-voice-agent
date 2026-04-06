@@ -98,8 +98,7 @@ jobs:
     uses: ./.github/workflows/_deploy-static-sites.yml
     with:
       api_url: ${{ needs.deploy-infra.outputs.api_url }}
-      web_app_bucket: ${{ needs.deploy-infra.outputs.web_app_bucket }}
-      admin_bucket: ${{ needs.deploy-infra.outputs.admin_bucket }}
+      static_bucket: ${{ needs.deploy-infra.outputs.static_bucket }}
       web_app_dist_id: ${{ needs.deploy-infra.outputs.web_app_dist_id }}
       admin_dist_id: ${{ needs.deploy-infra.outputs.admin_dist_id }}
       web_app_cf_domain: ${{ needs.deploy-infra.outputs.web_app_cf_domain }}

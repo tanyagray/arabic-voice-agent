@@ -6,10 +6,7 @@ on:
       api_url:
         required: true
         type: string
-      web_app_bucket:
-        required: true
-        type: string
-      admin_bucket:
+      static_bucket:
         required: true
         type: string
       web_app_dist_id:
@@ -57,13 +54,13 @@ jobs:
       - name: Upload web-app to S3
         run: |
           aws s3 sync web-app/dist/ \
-            "s3://${{ inputs.web_app_bucket }}/" \
+            "s3://${{ inputs.static_bucket }}/web-app/" \
             --delete
 
       - name: Upload admin-app to S3
         run: |
           aws s3 sync admin-app/dist/ \
-            "s3://${{ inputs.admin_bucket }}/" \
+            "s3://${{ inputs.static_bucket }}/admin-app/" \
             --delete
 
       - name: Invalidate CloudFront caches
