@@ -456,8 +456,8 @@ jobs:
             echo "api_url=https://api-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
             echo "instance_id=${{ needs.deploy-preview-api.outputs.instance_id }}" >> "$GITHUB_OUTPUT"
           else
-            # No API changes — point frontends at staging API
-            echo "api_url=${{ vars.STAGING_API_URL }}" >> "$GITHUB_OUTPUT"
+            # No API changes — point frontends at production API
+            echo "api_url=${{ vars.PRODUCTION_API_URL }}" >> "$GITHUB_OUTPUT"
             echo "instance_id=" >> "$GITHUB_OUTPUT"
           fi
 
@@ -757,7 +757,7 @@ jobs:
               rows.push(`| Web App | ${webAppUrl} |`);
               rows.push(`| Admin | ${adminUrl} |`);
             }
-            rows.push(`| API | ${apiUrl} ${deployApi ? '' : '_(staging — no API changes)_'} |`);
+            rows.push(`| API | ${apiUrl} ${deployApi ? '' : '_(production — no API changes)_'} |`);
 
             const skipped = [];
             if (!deployApi) skipped.push('API build/deploy (no changes in `web-api/`)');
