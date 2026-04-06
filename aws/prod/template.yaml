@@ -231,7 +231,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
-      BucketName: mishmish.ai
+      BucketName: mishmish-prod
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerEnforced

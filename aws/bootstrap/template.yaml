@@ -273,10 +273,10 @@ Resources:
                   - s3:PutBucketTagging
                   - s3:GetBucketTagging
                 Resource:
-                  - "arn:aws:s3:::preview.mishmish.ai"
-                  - "arn:aws:s3:::preview.mishmish.ai/*"
-                  - "arn:aws:s3:::mishmish.ai"
-                  - "arn:aws:s3:::mishmish.ai/*"
+                  - "arn:aws:s3:::mishmish-preview"
+                  - "arn:aws:s3:::mishmish-preview/*"
+                  - "arn:aws:s3:::mishmish-prod"
+                  - "arn:aws:s3:::mishmish-prod/*"
 
               # CloudFront - manage distributions
               - Sid: CloudFront
