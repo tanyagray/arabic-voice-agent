@@ -7,6 +7,7 @@ from agents import RunContextWrapper, function_tool
 from services.context_service import AppContext
 from services.flashcard_service import create_flashcard_set
 from services.transcript_service import create_transcript_message
+from services.supabase_client import get_supabase_admin_client
 
 
 class FlashcardInput(BaseModel):
@@ -45,8 +46,18 @@ async def generate_flashcards(
         str: Confirmation message
     """
     app_context = context.context
-    user_id = app_context.user.user_id
     language = app_context.agent.language
+    session_id = app_context.session_id
+
+    # Get user_id from the session (context.user.user_id may be None)
+    user_id = app_context.user.user_id
+    if not user_id:
+        supabase = get_supabase_admin_client()
+        session_response = supabase.table("agent_sessions").select("user_id").eq("session_id", session_id).execute()
+        if session_response.data:
+            user_id = session_response.data[0]["user_id"]
+    if not user_id:
+        return "Sorry, I couldn't create flashcards — unable to identify the user."
 
     # Convert Pydantic models to dicts for the service
     card_dicts = [card.model_dump() for card in cards]
@@ -60,7 +71,6 @@ async def generate_flashcards(
     )
 
     # Create a transcript message so the frontend can render the flashcard deck
-    session_id = app_context.session_id
     await create_transcript_message(
         session_id=session_id,
         message_source="tutor",

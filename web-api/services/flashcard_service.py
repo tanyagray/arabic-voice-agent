@@ -27,6 +27,35 @@ def _update_card_status(card_id: str, status: str, **extra_fields):
     supabase.table("flashcards").update(data).eq("id", card_id).execute()
 
 
+def _generate_cover_image(client: genai.Client, title: str) -> tuple[bytes, str]:
+    """Generate a 500x500 cover image for a flashcard set. Returns (image_bytes, mime_type)."""
+    prompt = (
+        f"Create a beautiful, colorful illustration representing the theme: '{title}'. "
+        "This is a cover image for a collection of language learning flashcards. "
+        "Show a creative composition that captures the overall theme using "
+        "multiple related items arranged artistically. "
+        "Use a vibrant, modern illustration style with a cohesive color palette. "
+        "The image must be exactly 500x500 pixels, square format. "
+        "IMPORTANT: Do NOT include any text, words, letters, numbers, "
+        "labels, or captions anywhere in the image. The image must be "
+        "purely visual with no written language of any kind."
+    )
+
+    response = client.models.generate_content(
+        model="gemini-3.1-flash-image-preview",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_modalities=["IMAGE"],
+        ),
+    )
+
+    for part in response.candidates[0].content.parts:
+        if part.inline_data and part.inline_data.mime_type.startswith("image/"):
+            return part.inline_data.data, part.inline_data.mime_type
+
+    raise ValueError("No cover image generated in Gemini response")
+
+
 def _generate_card_image(client: genai.Client, english: str) -> tuple[bytes, str]:
     """Generate a 500x500 flashcard image using Gemini. Returns (image_bytes, mime_type)."""
     prompt = (
@@ -34,7 +63,10 @@ def _generate_card_image(client: genai.Client, english: str) -> tuple[bytes, str
         "The image should depict a single object or concept on a clean, "
         "minimal background. Use a friendly, modern illustration style "
         "suitable for a language learning flashcard. "
-        "The image must be exactly 500x500 pixels, square format."
+        "The image must be exactly 500x500 pixels, square format. "
+        "IMPORTANT: Do NOT include any text, words, letters, numbers, "
+        "labels, or captions anywhere in the image. The image must be "
+        "purely visual with no written language of any kind."
     )
 
     response = client.models.generate_content(
@@ -126,7 +158,33 @@ async def _process_card(
             )
 
 
-async def _process_flashcard_set(set_id: str, cards: list[dict], language: str) -> None:
+async def _generate_and_upload_cover(client: genai.Client, set_id: str, title: str) -> None:
+    """Generate and upload a cover image for the flashcard set."""
+    try:
+        raw_bytes, _mime = await asyncio.to_thread(_generate_cover_image, client, title)
+        png_bytes = await asyncio.to_thread(_to_png_500, raw_bytes)
+
+        cover_path = f"{set_id}_cover.png"
+        supabase = get_supabase_admin_client()
+        await asyncio.to_thread(
+            lambda: supabase.storage.from_("flashcards").upload(
+                path=cover_path,
+                file=png_bytes,
+                file_options={"content-type": "image/png"},
+            )
+        )
+        await asyncio.to_thread(
+            lambda: supabase.table("flashcard_sets")
+            .update({"cover_image_path": cover_path})
+            .eq("id", set_id)
+            .execute()
+        )
+    except Exception:
+        traceback.print_exc()
+        # Non-fatal — the deck still works without a cover
+
+
+async def _process_flashcard_set(set_id: str, title: str, cards: list[dict], language: str) -> None:
     """Background task: generate images and audio for all cards in a set."""
     try:
         client = _get_genai_client()
@@ -134,7 +192,8 @@ async def _process_flashcard_set(set_id: str, cards: list[dict], language: str) 
 
         semaphore = asyncio.Semaphore(3)
         await asyncio.gather(
-            *[_process_card(client, card, language, semaphore) for card in cards]
+            _generate_and_upload_cover(client, set_id, title),
+            *[_process_card(client, card, language, semaphore) for card in cards],
         )
 
         # Check if any cards failed
@@ -216,7 +275,7 @@ async def create_flashcard_set(
         })
 
     # Fire and forget
-    asyncio.create_task(_process_flashcard_set(set_id, cards_with_ids, language))
+    asyncio.create_task(_process_flashcard_set(set_id, title, cards_with_ids, language))
 
     return set_id
 
@@ -246,6 +305,15 @@ async def get_flashcard_set(set_id: str) -> dict | None:
 
     data = set_result.data
     data["cards"] = cards_result.data or []
+
+    # Generate signed URL for cover image
+    if data.get("cover_image_path"):
+        signed = supabase.storage.from_("flashcards").create_signed_url(
+            data["cover_image_path"], 3600
+        )
+        data["cover_image_url"] = signed.get("signedURL") or signed.get("signedUrl")
+    else:
+        data["cover_image_url"] = None
 
     # Generate signed URLs for completed cards
     for card in data["cards"]:

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, type PanInfo } from 'motion/react';
-import { Box, Flex, Text, IconButton, Spinner } from '@chakra-ui/react';
+import { Box, Flex, Text, IconButton, Spinner, Image } from '@chakra-ui/react';
 import { BsChevronLeft, BsChevronRight } from 'react-icons/bs';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 import { useFlashcardSet } from '@/hooks/useFlashcardSet';
@@ -34,10 +34,13 @@ export function FlashcardDeck({ message }: FlashcardDeckProps) {
 
   const completedCards = set?.cards.filter((c) => c.status === 'complete') ?? [];
   const totalCards = set?.cards.length ?? 0;
+  const hasCover = !!set?.cover_image_url;
+  // Total slides = cover (if present) + completed cards
+  const totalSlides = (hasCover ? 1 : 0) + completedCards.length;
 
   const goNext = useCallback(() => {
-    setCurrentIndex((i) => Math.min(i + 1, completedCards.length - 1));
-  }, [completedCards.length]);
+    setCurrentIndex((i) => Math.min(i + 1, totalSlides - 1));
+  }, [totalSlides]);
 
   const goPrev = useCallback(() => {
     setCurrentIndex((i) => Math.max(i - 1, 0));
@@ -95,7 +98,7 @@ export function FlashcardDeck({ message }: FlashcardDeckProps) {
     );
   }
 
-  if (completedCards.length === 0) {
+  if (completedCards.length === 0 && !hasCover) {
     return (
       <Text color="white/40" fontSize="sm" py={2} px={4}>
         No flashcards were generated.
@@ -104,15 +107,14 @@ export function FlashcardDeck({ message }: FlashcardDeckProps) {
   }
 
   // Clamp index
-  const safeIndex = Math.min(currentIndex, completedCards.length - 1);
+  const safeIndex = Math.min(currentIndex, totalSlides - 1);
+  // Whether we're showing the cover card
+  const showingCover = hasCover && safeIndex === 0;
+  // Index into completedCards (offset by 1 when cover exists)
+  const cardIndex = hasCover ? safeIndex - 1 : safeIndex;
 
   return (
     <Flex direction="column" align="center" gap={3} py={2} w="full">
-      {/* Title */}
-      <Text color="white" fontSize="md" fontWeight="medium">
-        {title}
-      </Text>
-
       {/* Card carousel */}
       <MotionBox
         drag="x"
@@ -123,10 +125,55 @@ export function FlashcardDeck({ message }: FlashcardDeckProps) {
         cursor="grab"
         _active={{ cursor: 'grabbing' }}
       >
-        <FlashcardCard
-          card={completedCards[safeIndex]}
-          responseMode={responseMode}
-        />
+        {showingCover ? (
+          /* Cover card */
+          <Flex
+            direction="column"
+            align="center"
+            bg="white/10"
+            rounded="xl"
+            overflow="hidden"
+            w="full"
+            maxW="320px"
+            mx="auto"
+            flexShrink={0}
+          >
+            <Box w="full" aspectRatio="1" bg="white/5" position="relative">
+              <Image
+                src={set!.cover_image_url!}
+                alt={title}
+                w="full"
+                h="full"
+                objectFit="cover"
+              />
+            </Box>
+            <Flex
+              direction="column"
+              align="center"
+              gap={1}
+              px={4}
+              py={4}
+              w="full"
+            >
+              <Text
+                fontSize="xl"
+                fontWeight="bold"
+                color="white"
+                textAlign="center"
+              >
+                {title}
+              </Text>
+              <Text color="white/50" fontSize="sm">
+                {completedCards.length} cards
+              </Text>
+            </Flex>
+          </Flex>
+        ) : (
+          <FlashcardCard
+            card={completedCards[cardIndex]}
+            responseMode={responseMode}
+          />
+        )}
       </MotionBox>
 
       {/* Navigation */}
@@ -147,9 +194,9 @@ export function FlashcardDeck({ message }: FlashcardDeckProps) {
 
         {/* Dot indicators */}
         <Flex gap={1} align="center">
-          {completedCards.map((card, i) => (
+          {Array.from({ length: totalSlides }).map((_, i) => (
             <Box
-              key={card.id}
+              key={i}
               w={i === safeIndex ? '8px' : '6px'}
               h={i === safeIndex ? '8px' : '6px'}
               rounded="full"
@@ -162,7 +209,7 @@ export function FlashcardDeck({ message }: FlashcardDeckProps) {
         <IconButton
           aria-label="Next card"
           onClick={goNext}
-          disabled={safeIndex === completedCards.length - 1}
+          disabled={safeIndex === totalSlides - 1}
           variant="ghost"
           color="white/60"
           _hover={{ color: 'white' }}
@@ -176,7 +223,7 @@ export function FlashcardDeck({ message }: FlashcardDeckProps) {
 
       {/* Card counter */}
       <Text color="white/40" fontSize="xs">
-        {safeIndex + 1} / {completedCards.length}
+        {showingCover ? 'Cover' : `${cardIndex + 1} / ${completedCards.length}`}
       </Text>
     </Flex>
   );

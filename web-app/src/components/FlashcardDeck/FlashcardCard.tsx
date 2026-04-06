@@ -12,12 +12,9 @@ interface FlashcardCardProps {
 export function FlashcardCard({ card, responseMode }: FlashcardCardProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const displayText =
-    responseMode === 'transliterated'
-      ? card.transliteration
-      : card.arabic_text;
-
-  const isRtl = responseMode !== 'transliterated';
+  const useCanonical = responseMode === 'canonical';
+  const displayText = useCanonical ? card.arabic_text : card.transliteration;
+  const isRtl = useCanonical;
 
   const handlePlayAudio = useCallback(() => {
     if (!card.audio_url) return;

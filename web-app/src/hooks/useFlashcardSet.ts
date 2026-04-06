@@ -83,8 +83,17 @@ export function useFlashcardSet(setId: string | undefined): UseFlashcardSetResul
         return;
       }
 
+      // Generate signed URL for cover image
+      let coverImageUrl: string | null = null;
+      if (setRow.cover_image_path) {
+        const { data } = await supabase.storage
+          .from('flashcards')
+          .createSignedUrl(setRow.cover_image_path, 3600);
+        coverImageUrl = data?.signedUrl ?? null;
+      }
+
       const cards = await generateSignedUrls(cardRows as Flashcard[]);
-      setSet({ ...setRow, cards } as FlashcardSet);
+      setSet({ ...setRow, cover_image_url: coverImageUrl, cards } as FlashcardSet);
       setLoading(false);
     };
 
@@ -101,9 +110,27 @@ export function useFlashcardSet(setId: string | undefined): UseFlashcardSetResul
           table: 'flashcard_sets',
           filter: `id=eq.${setId}`,
         },
-        (payload) => {
+        async (payload) => {
+          const updated = payload.new as any;
+
+          // Generate signed URL for cover image if it just arrived
+          let coverImageUrl: string | null = null;
+          if (updated.cover_image_path) {
+            const { data } = await supabase.storage
+              .from('flashcards')
+              .createSignedUrl(updated.cover_image_path, 3600);
+            coverImageUrl = data?.signedUrl ?? null;
+          }
+
           setSet((prev) =>
-            prev ? { ...prev, ...payload.new, cards: prev.cards } : null,
+            prev
+              ? {
+                  ...prev,
+                  ...updated,
+                  cover_image_url: coverImageUrl ?? prev.cover_image_url,
+                  cards: prev.cards,
+                }
+              : null,
           );
         },
       )

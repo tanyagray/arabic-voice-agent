@@ -19,6 +19,7 @@ export interface FlashcardSet {
   language: string;
   status: string;
   is_public: boolean;
+  cover_image_url: string | null;
   error: string | null;
   cards: Flashcard[];
   created_by: string;
