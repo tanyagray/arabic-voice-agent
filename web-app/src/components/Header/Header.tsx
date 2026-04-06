@@ -18,7 +18,7 @@ export function Header() {
       px={{ base: 4, md: 6 }}
       py={4}
     >
-      <Container maxW="7xl" px={0}>
+      <Container maxW="680px" px={0}>
         <Flex justify="space-between" align="center">
           <Heading as="h1" size="md" fontWeight="bold" color="white">
             <Flex align="center" gap={2}>
