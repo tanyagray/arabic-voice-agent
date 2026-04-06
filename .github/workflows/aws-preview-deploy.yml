@@ -476,119 +476,11 @@ jobs:
           echo "admin_url=https://admin-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
 
   # ------------------------------------------------------------------
-  # Job 5: Deploy per-PR static site infrastructure
-  # ------------------------------------------------------------------
-  deploy-static-infra:
-    name: Deploy per-PR static site infrastructure
-    needs: detect-changes
-    if: needs.detect-changes.outputs.deploy_frontend == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    environment: dev
-    outputs:
-      web_app_cf_domain: ${{ steps.outputs.outputs.web_app_cf_domain }}
-      admin_cf_domain: ${{ steps.outputs.outputs.admin_cf_domain }}
-      web_app_bucket: ${{ steps.outputs.outputs.web_app_bucket }}
-      admin_bucket: ${{ steps.outputs.outputs.admin_bucket }}
-      web_app_dist_id: ${{ steps.outputs.outputs.web_app_dist_id }}
-      admin_dist_id: ${{ steps.outputs.outputs.admin_dist_id }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Clean up failed stack if needed
-        run: |
-          STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
-          STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
-            --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
-          echo "Current stack status: $STATUS"
-
-          # Wait for any in-progress operations to finish first
-          case "$STATUS" in
-            CREATE_IN_PROGRESS)
-              echo "Stack is being created, waiting..."
-              aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME" 2>/dev/null || true
-              STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
-                --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
-              ;;
-            UPDATE_IN_PROGRESS|UPDATE_COMPLETE_CLEANUP_IN_PROGRESS)
-              echo "Stack is being updated, waiting..."
-              aws cloudformation wait stack-update-complete --stack-name "$STACK_NAME" 2>/dev/null || true
-              STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
-                --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
-              ;;
-            DELETE_IN_PROGRESS)
-              echo "Stack is being deleted, waiting..."
-              aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" 2>/dev/null || true
-              STATUS="DOES_NOT_EXIST"
-              ;;
-            UPDATE_ROLLBACK_IN_PROGRESS|UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS)
-              echo "Stack is rolling back an update, waiting..."
-              aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME" 2>/dev/null || true
-              STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
-                --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
-              ;;
-          esac
-
-          # Handle failure/rollback states
-          if [ "$STATUS" = "ROLLBACK_IN_PROGRESS" ]; then
-            echo "Stack is rolling back, waiting..."
-            aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME"
-            STATUS="ROLLBACK_COMPLETE"
-          fi
-          if [ "$STATUS" = "UPDATE_ROLLBACK_FAILED" ]; then
-            echo "Stack stuck in UPDATE_ROLLBACK_FAILED, attempting continue-update-rollback..."
-            aws cloudformation continue-update-rollback --stack-name "$STACK_NAME"
-            aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME"
-            STATUS="UPDATE_ROLLBACK_COMPLETE"
-          fi
-          if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "DELETE_FAILED" ]; then
-            echo "Stack in $STATUS state, deleting before redeploy..."
-            aws cloudformation delete-stack --stack-name "$STACK_NAME"
-            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
-          fi
-
-      - name: Deploy per-PR CloudFormation stack
-        run: |
-          aws cloudformation deploy \
-            --stack-name "preview-pr-${{ github.event.pull_request.number }}" \
-            --template-file infra/preview/per-pr-template.yaml \
-            --no-fail-on-empty-changeset \
-            --parameter-overrides \
-              PrNumber="${{ github.event.pull_request.number }}"
-
-      - name: Get stack outputs
-        id: outputs
-        run: |
-          get_output() {
-            aws cloudformation describe-stacks \
-              --stack-name "preview-pr-${{ github.event.pull_request.number }}" \
-              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
-              --output text
-          }
-
-          # Extract raw CloudFront domain (strip https:// prefix)
-          WEB_APP_URL=$(get_output WebAppUrl)
-          ADMIN_URL=$(get_output AdminUrl)
-          echo "web_app_cf_domain=${WEB_APP_URL#https://}" >> "$GITHUB_OUTPUT"
-          echo "admin_cf_domain=${ADMIN_URL#https://}" >> "$GITHUB_OUTPUT"
-          echo "web_app_bucket=$(get_output WebAppBucketName)" >> "$GITHUB_OUTPUT"
-          echo "admin_bucket=$(get_output AdminBucketName)" >> "$GITHUB_OUTPUT"
-          echo "web_app_dist_id=$(get_output WebAppDistributionId)" >> "$GITHUB_OUTPUT"
-          echo "admin_dist_id=$(get_output AdminDistributionId)" >> "$GITHUB_OUTPUT"
-
-  # ------------------------------------------------------------------
-  # Job 6: Build static sites and upload to S3
+  # Job 5: Build static sites and upload to shared S3 bucket
   # ------------------------------------------------------------------
   deploy-static-sites:
     name: Deploy static sites
-    needs: [detect-changes, supabase-credentials, compute-preview-urls, deploy-static-infra]
+    needs: [detect-changes, supabase-credentials, compute-preview-urls]
     if: always() && !failure() && !cancelled() && needs.detect-changes.outputs.deploy_frontend == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -613,6 +505,21 @@ jobs:
         with:
           version: latest
 
+      # Fetch shared preview infra outputs (bucket, CloudFront)
+      - name: Get shared preview infra outputs
+        id: preview-infra
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "arabic-voice-agent-preview" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+          echo "instance_id=$(get_output PreviewInstanceId)" >> "$GITHUB_OUTPUT"
+          echo "bucket=$(get_output PreviewStaticBucketName)" >> "$GITHUB_OUTPUT"
+          echo "dist_id=$(get_output PreviewStaticDistributionId)" >> "$GITHUB_OUTPUT"
+          echo "cf_domain=$(get_output PreviewStaticDistributionDomain)" >> "$GITHUB_OUTPUT"
+
       # Build and deploy web-app
       - name: Build web-app
         working-directory: web-app
@@ -624,8 +531,9 @@ jobs:
 
       - name: Upload web-app to S3
         run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
           aws s3 sync web-app/dist/ \
-            "s3://${{ needs.deploy-static-infra.outputs.web_app_bucket }}/" \
+            "s3://${{ steps.preview-infra.outputs.bucket }}/pr-${PR_NUM}/web-app/" \
             --delete
 
       # Build and deploy admin-app
@@ -639,37 +547,25 @@ jobs:
 
       - name: Upload admin-app to S3
         run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
           aws s3 sync admin-app/dist/ \
-            "s3://${{ needs.deploy-static-infra.outputs.admin_bucket }}/" \
+            "s3://${{ steps.preview-infra.outputs.bucket }}/pr-${PR_NUM}/admin-app/" \
             --delete
 
-      # Invalidate CloudFront caches
-      - name: Invalidate CloudFront caches
+      # Invalidate CloudFront cache (scoped to this PR's paths)
+      - name: Invalidate CloudFront cache
         run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
           aws cloudfront create-invalidation \
-            --distribution-id "${{ needs.deploy-static-infra.outputs.web_app_dist_id }}" \
-            --paths "/*"
-          aws cloudfront create-invalidation \
-            --distribution-id "${{ needs.deploy-static-infra.outputs.admin_dist_id }}" \
-            --paths "/*"
+            --distribution-id "${{ steps.preview-infra.outputs.dist_id }}" \
+            --paths "/pr-${PR_NUM}/*"
 
-      # Get instance ID for Caddy config (may not have been deployed via API job)
-      - name: Get preview EC2 instance ID
-        id: preview-infra
-        run: |
-          INSTANCE_ID=$(aws cloudformation describe-stacks \
-            --stack-name "arabic-voice-agent-preview" \
-            --query "Stacks[0].Outputs[?OutputKey=='PreviewInstanceId'].OutputValue" \
-            --output text)
-          echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
-
-      # Configure Caddy to route frontend preview subdomains
+      # Configure Caddy to route frontend preview subdomains via shared CloudFront
       - name: Configure frontend Caddy routes via SSM
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
           INSTANCE_ID="${{ steps.preview-infra.outputs.instance_id }}"
-          WEB_CF_DOMAIN="${{ needs.deploy-static-infra.outputs.web_app_cf_domain }}"
-          ADMIN_CF_DOMAIN="${{ needs.deploy-static-infra.outputs.admin_cf_domain }}"
+          CF_DOMAIN="${{ steps.preview-infra.outputs.cf_domain }}"
 
           cat > /tmp/caddy-frontend.sh <<SCRIPT
           #!/bin/bash
@@ -679,17 +575,19 @@ jobs:
           # Remove old frontend block if exists
           sed -i '/^# BEGIN web-pr-${PR_NUM}\$/,/^# END web-pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
 
-          # Add frontend reverse proxy blocks
+          # Add frontend reverse proxy blocks with path rewriting
           cat >> /etc/caddy/Caddyfile <<'CADDYEOF'
 
           # BEGIN web-pr-${PR_NUM}
           pr-${PR_NUM}.preview.mishmish.ai {
-            reverse_proxy https://${WEB_CF_DOMAIN} {
+            rewrite * /pr-${PR_NUM}/web-app{uri}
+            reverse_proxy https://${CF_DOMAIN} {
               header_up Host {upstream_hostport}
             }
           }
           admin-pr-${PR_NUM}.preview.mishmish.ai {
-            reverse_proxy https://${ADMIN_CF_DOMAIN} {
+            rewrite * /pr-${PR_NUM}/admin-app{uri}
+            reverse_proxy https://${CF_DOMAIN} {
               header_up Host {upstream_hostport}
             }
           }

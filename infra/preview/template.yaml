@@ -60,11 +60,9 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.small
-      InstanceMarketOptions:
-        MarketType: spot
-        SpotOptions:
-          SpotInstanceType: persistent
-          InstanceInterruptionBehavior: stop
+      # Note: instance was launched as spot via InstanceMarketOptions, but that
+      # property isn't supported on AWS::EC2::Instance — removed to unblock
+      # stack updates. The existing spot instance is unaffected.
       ImageId: !Sub "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
       SubnetId: !Ref SubnetId
       SecurityGroupIds:
@@ -148,6 +146,105 @@ Resources:
       AllocationId: !GetAtt PreviewElasticIp.AllocationId
       InstanceId: !Ref PreviewInstance
 
+  # ============================================================
+  # Preview Static Sites — Shared S3 + CloudFront
+  # ============================================================
+  # All PR preview builds are stored in a single bucket under
+  # pr-{N}/web-app/ and pr-{N}/admin-app/ prefixes.
+
+  PreviewStaticBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: mishmish-preview-static
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: preview
+
+  PreviewStaticBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PreviewStaticBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${PreviewStaticBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${PreviewStaticDistribution}"
+
+  PreviewStaticOac:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: mishmish-preview-static
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  PreviewSpaRoutingFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: preview-spa-routing
+      AutoPublish: true
+      FunctionConfig:
+        Comment: SPA routing for shared preview bucket — rewrites non-asset paths to index.html
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+          // Static assets (have file extension) — serve as-is
+          if (uri.match(/\.[a-zA-Z0-9]+$/)) {
+            return request;
+          }
+          // SPA route — rewrite to the PR + app's index.html
+          // Path format: /pr-{N}/web-app/... or /pr-{N}/admin-app/...
+          var match = uri.match(/^\/pr-\d+\/[^\/]+/);
+          if (match) {
+            request.uri = match[0] + '/index.html';
+          }
+          return request;
+        }
+
+  PreviewStaticDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Shared preview static sites (all PRs)
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt PreviewStaticBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt PreviewStaticOac.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          Compress: true
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt PreviewSpaRoutingFunction.FunctionARN
+      Tags:
+        - Key: Environment
+          Value: preview
+
 Outputs:
   PreviewInstanceId:
     Description: EC2 instance ID for the shared preview server
@@ -157,3 +254,15 @@ Outputs:
     Description: >
       Elastic IP for the preview server — point *.preview.mishmish.ai A record here
     Value: !Ref PreviewElasticIp
+
+  PreviewStaticBucketName:
+    Description: Shared S3 bucket for all PR preview static sites
+    Value: !Ref PreviewStaticBucket
+
+  PreviewStaticDistributionId:
+    Description: Shared CloudFront distribution ID (for cache invalidation)
+    Value: !Ref PreviewStaticDistribution
+
+  PreviewStaticDistributionDomain:
+    Description: Shared CloudFront distribution domain (for Caddy reverse proxy)
+    Value: !GetAtt PreviewStaticDistribution.DomainName

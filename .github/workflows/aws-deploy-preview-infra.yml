@@ -56,6 +56,9 @@ jobs:
 
           INSTANCE_ID=$(get_output PreviewInstanceId)
           ELASTIC_IP=$(get_output PreviewElasticIp)
+          BUCKET=$(get_output PreviewStaticBucketName)
+          CF_DOMAIN=$(get_output PreviewStaticDistributionDomain)
+          CF_DIST_ID=$(get_output PreviewStaticDistributionId)
 
           echo "### Preview Infrastructure Deployed" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -63,5 +66,8 @@ jobs:
           echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Instance ID | $INSTANCE_ID |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Elastic IP | $ELASTIC_IP |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Static Bucket | $BUCKET |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| CloudFront Domain | $CF_DOMAIN |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| CloudFront Dist ID | $CF_DIST_ID |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**DNS record required**: Point \`*.preview.mishmish.ai\` A record to \`$ELASTIC_IP\`" >> "$GITHUB_STEP_SUMMARY"
