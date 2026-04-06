@@ -156,7 +156,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
-      BucketName: mishmish-preview-static
+      BucketName: preview.mishmish.ai
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerEnforced
@@ -166,6 +166,8 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
       Tags:
+        - Key: Project
+          Value: arabic-voice-agent
         - Key: Environment
           Value: preview
 
@@ -190,7 +192,7 @@ Resources:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
-        Name: mishmish-preview-static
+        Name: preview.mishmish.ai
         OriginAccessControlOriginType: s3
         SigningBehavior: always
         SigningProtocol: sigv4

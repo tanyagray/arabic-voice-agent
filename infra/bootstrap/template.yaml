@@ -269,6 +269,8 @@ Resources:
                 Resource:
                   - "arn:aws:s3:::preview-*"
                   - "arn:aws:s3:::preview-*/*"
+                  - "arn:aws:s3:::preview.*"
+                  - "arn:aws:s3:::preview.*/*"
                   - "arn:aws:s3:::arabic-voice-agent-prod-*"
                   - "arn:aws:s3:::arabic-voice-agent-prod-*/*"
 
