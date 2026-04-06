@@ -4,11 +4,13 @@ import { BsPlayFill, BsPauseFill } from 'react-icons/bs';
 
 interface AudioBubbleProps {
   audioUrl: string;
-  /** The canonical text that was pronounced (shown as a label). */
+  /** The text label shown alongside the play button. */
   label?: string;
+  /** Text direction for the label ('rtl' for Arabic script). */
+  dir?: 'rtl' | 'ltr';
 }
 
-export function AudioBubble({ audioUrl, label }: AudioBubbleProps) {
+export function AudioBubble({ audioUrl, label, dir }: AudioBubbleProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -43,7 +45,7 @@ export function AudioBubble({ audioUrl, label }: AudioBubbleProps) {
         {isPlaying ? <BsPauseFill /> : <BsPlayFill />}
       </IconButton>
       {label && (
-        <Text fontSize="sm" color="white/70" dir="rtl">
+        <Text fontSize="sm" color="white/70" dir={dir}>
           {label}
         </Text>
       )}

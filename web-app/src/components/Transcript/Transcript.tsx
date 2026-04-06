@@ -77,7 +77,12 @@ function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptB
         {message.message_kind === 'audio' ? (
           <AudioBubble
             audioUrl={message.message_text}
-            label={message.message_text_canonical ?? undefined}
+            label={
+              responseMode === 'canonical'
+                ? message.message_text_canonical ?? undefined
+                : message.message_text_transliterated ?? message.message_text_canonical ?? undefined
+            }
+            dir={responseMode === 'canonical' ? 'rtl' : undefined}
           />
         ) : isUser ? (
           <Text fontSize="lg" lineHeight="relaxed">

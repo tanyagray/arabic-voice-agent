@@ -254,13 +254,18 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
                 # Get the public URL
                 audio_url = supabase.storage.from_("audio-messages").get_public_url(audio_filename)
 
+                # Generate display variants for the audio label
+                audio_canonical = context.agent.audio_text
+                audio_transliterated = await scaffolding_service.generate_transliterated_text(audio_canonical)
+
                 # Create audio transcript message (appears as a separate bubble)
                 await transcript_service.create_transcript_message(
                     session_id=session_id,
                     message_source="tutor",
                     message_kind="audio",
                     message_text=audio_url,
-                    message_text_canonical=context.agent.audio_text,
+                    message_text_canonical=audio_canonical,
+                    message_text_transliterated=audio_transliterated,
                 )
                 logger.info(f"[Session] Sent audio pronunciation for session {session_id}")
             else:
