@@ -60,11 +60,9 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.small
-      InstanceMarketOptions:
-        MarketType: spot
-        SpotOptions:
-          SpotInstanceType: persistent
-          InstanceInterruptionBehavior: stop
+      # Note: instance was launched as spot via InstanceMarketOptions, but that
+      # property isn't supported on AWS::EC2::Instance — removed to unblock
+      # stack updates. The existing spot instance is unaffected.
       ImageId: !Sub "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
       SubnetId: !Ref SubnetId
       SecurityGroupIds:
