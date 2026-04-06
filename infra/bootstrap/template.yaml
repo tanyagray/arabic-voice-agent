@@ -31,6 +31,8 @@ Resources:
       Tags:
         - Key: Name
           Value: arabic-voice-agent
+        - Key: Project
+          Value: arabic-voice-agent
 
   SubnetA:
     Type: AWS::EC2::Subnet
@@ -42,20 +44,15 @@ Resources:
       Tags:
         - Key: Name
           Value: arabic-voice-agent-public-a
-
-  SubnetB:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref Vpc
-      CidrBlock: 10.0.2.0/24
-      AvailabilityZone: !Select [1, !GetAZs ""]
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: arabic-voice-agent-public-b
+        - Key: Project
+          Value: arabic-voice-agent
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Project
+          Value: arabic-voice-agent
 
   VpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -67,6 +64,9 @@ Resources:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref Vpc
+      Tags:
+        - Key: Project
+          Value: arabic-voice-agent
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -82,18 +82,15 @@ Resources:
       SubnetId: !Ref SubnetA
       RouteTableId: !Ref RouteTable
 
-  SubnetBRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref SubnetB
-      RouteTableId: !Ref RouteTable
-
   # --- EC2 Instance Role (shared by prod and preview EC2 instances) ---
 
   Ec2InstanceRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: mishmish-ec2-instance
+      Tags:
+        - Key: Project
+          Value: arabic-voice-agent
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -154,6 +151,9 @@ Resources:
     Properties:
       RepositoryName: arabic-voice-agent-api
       ImageTagMutability: MUTABLE
+      Tags:
+        - Key: Project
+          Value: arabic-voice-agent
       LifecyclePolicy:
         LifecyclePolicyText: |
           {
@@ -179,6 +179,9 @@ Resources:
     Properties:
       RepositoryName: arabic-voice-agent-claude-agent
       ImageTagMutability: MUTABLE
+      Tags:
+        - Key: Project
+          Value: arabic-voice-agent
       LifecyclePolicy:
         LifecyclePolicyText: |
           {
@@ -205,6 +208,9 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       RoleName: github-actions-preview-deploy
+      Tags:
+        - Key: Project
+          Value: arabic-voice-agent
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -267,14 +273,10 @@ Resources:
                   - s3:PutBucketTagging
                   - s3:GetBucketTagging
                 Resource:
-                  - "arn:aws:s3:::preview-*"
-                  - "arn:aws:s3:::preview-*/*"
-                  - "arn:aws:s3:::preview.*"
-                  - "arn:aws:s3:::preview.*/*"
+                  - "arn:aws:s3:::preview.mishmish.ai"
+                  - "arn:aws:s3:::preview.mishmish.ai/*"
                   - "arn:aws:s3:::mishmish.ai"
                   - "arn:aws:s3:::mishmish.ai/*"
-                  - "arn:aws:s3:::arabic-voice-agent-prod-*"
-                  - "arn:aws:s3:::arabic-voice-agent-prod-*/*"
 
               # CloudFront - manage distributions
               - Sid: CloudFront
@@ -316,10 +318,10 @@ Resources:
                   - cloudformation:DeleteChangeSet
                   - cloudformation:ContinueUpdateRollback
                 Resource:
-                  - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/preview-pr-*/*"
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-prod/*"
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-preview/*"
                   - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-bootstrap/*"
+                  - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/arabic-voice-agent-claude-agent/*"
 
               # IAM - list OIDC providers (needed by bootstrap deploy)
               - Sid: OidcProviders
@@ -463,6 +465,9 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       RoleName: apprunner-ecr-access
+      Tags:
+        - Key: Project
+          Value: arabic-voice-agent
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -493,10 +498,6 @@ Outputs:
     Description: VPC ID (read dynamically by deploy workflows)
     Value: !Ref Vpc
 
-  SubnetIds:
-    Description: Comma-separated public subnet IDs (read dynamically by deploy workflows)
-    Value: !Join [",", [!Ref SubnetA, !Ref SubnetB]]
-
   SubnetAId:
     Description: Public subnet A ID (for EC2 instances)
     Value: !Ref SubnetA
@@ -504,10 +505,6 @@ Outputs:
   Ec2InstanceProfileName:
     Description: EC2 instance profile name (used by prod and preview stacks)
     Value: !Ref Ec2InstanceProfile
-
-  Ec2InstanceProfileArn:
-    Description: EC2 instance profile ARN
-    Value: !GetAtt Ec2InstanceProfile.Arn
 
   EcrRepositoryUri:
     Description: ECR repository URI (set as GitHub secret ECR_REGISTRY)

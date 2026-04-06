@@ -1,20 +1,22 @@
 # Bootstrap Infrastructure
 
-One-time setup for AWS preview deployments. Creates shared resources that all preview environments depend on.
+One-time setup for AWS deployments (preview + production). Creates shared resources that all environments depend on.
 
 ## What it creates
 
 | Resource | Name | Purpose |
 |----------|------|---------|
-| ECR Repository | `arabic-voice-agent-api` | Stores Docker images for preview API services |
-| OIDC Provider | `token.actions.githubusercontent.com` | Allows GitHub Actions to authenticate without long-lived AWS keys |
-| IAM Role | `github-actions-preview-deploy` | Assumed by GitHub Actions via OIDC to manage preview resources |
-| IAM Role | `apprunner-ecr-access` | Allows App Runner to pull images from ECR |
+| VPC + Subnet | `arabic-voice-agent` | Shared networking for EC2 instances |
+| EC2 Instance Profile | `mishmish-ec2-instance` | IAM role for prod/preview EC2 (ECR pull, Secrets Manager, CloudWatch) |
+| ECR Repository | `arabic-voice-agent-api` | Docker images for API services |
+| ECR Repository | `arabic-voice-agent-claude-agent` | Docker images for Claude Agent service |
+| IAM Role | `github-actions-preview-deploy` | Assumed by GitHub Actions via OIDC |
+| IAM Role | `apprunner-ecr-access` | Allows App Runner to pull images from ECR (Claude Agent) |
 
 ## Prerequisites
 
 - AWS CLI configured with admin credentials
-- The GitHub OIDC provider must not already exist in your account (check IAM > Identity providers)
+- A GitHub OIDC provider must exist in your account (check IAM > Identity providers)
 
 ## Deploy
 
@@ -24,12 +26,14 @@ aws cloudformation deploy \
   --template-file infra/bootstrap/template.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --region us-west-2 \
+  --tags Project=arabic-voice-agent \
   --parameter-overrides \
     GitHubOrg=tanyagray \
-    GitHubRepo=arabic-voice-agent
+    GitHubRepo=arabic-voice-agent \
+    GitHubOidcProviderArn=<your-oidc-provider-arn>
 ```
 
-If the OIDC provider already exists (e.g. from another project), remove the `GitHubOidcProvider` resource from the template and update the `GitHubActionsRole` trust policy to reference the existing provider ARN.
+If the OIDC provider already exists (e.g. from another project), pass its ARN via the `GitHubOidcProviderArn` parameter.
 
 ## After deployment
 
@@ -52,40 +56,6 @@ Set these as GitHub repository secrets:
 | `AWS_ECR_REGISTRY` | `EcrRepositoryUri` (just the registry part: `{account}.dkr.ecr.us-west-2.amazonaws.com`) |
 | `AWS_APP_RUNNER_ECR_ROLE_ARN` | `AppRunnerEcrAccessRoleArn` |
 
-Also ensure these secrets already exist (carried over from the Render setup):
-
-| GitHub Secret | Purpose |
-|---------------|---------|
-| `SUPABASE_PERSONAL_ACCESS_TOKEN` | Supabase Management API access |
-| `OPENAI_API_KEY` | OpenAI GPT-4o for voice pipeline |
-| `SONIOX_API_KEY` | Soniox STT |
-| `ELEVEN_API_KEY` | ElevenLabs TTS |
-
-And this variable:
-
-| GitHub Variable | Purpose |
-|-----------------|---------|
-| `SUPABASE_PROJECT_REF` | Supabase project identifier |
-
-## IAM permissions summary
-
-### `github-actions-preview-deploy` role
-
-This role is assumed by GitHub Actions via OIDC. It can:
-
-- **ECR**: Push, pull, and delete images in the `arabic-voice-agent-api` repository
-- **App Runner**: Create, update, and delete preview services
-- **S3**: Create and delete buckets prefixed with `preview-*`, upload/delete objects
-- **CloudFront**: Create, update, and delete distributions and origin access controls
-- **CloudFormation**: Create, update, and delete stacks prefixed with `preview-pr-*`
-- **IAM**: Pass the `apprunner-ecr-access` role to App Runner services
-
-The trust policy restricts this role to the `tanyagray/arabic-voice-agent` repository only.
-
-### `apprunner-ecr-access` role
-
-This role is assumed by App Runner's build service. It can only pull images from the `arabic-voice-agent-api` ECR repository.
-
 ## Teardown
 
 To remove all bootstrap resources:
@@ -96,7 +66,7 @@ aws cloudformation delete-stack \
   --region us-west-2
 ```
 
-Note: The ECR repository must be empty before deletion. Delete all images first:
+Note: The ECR repositories must be empty before deletion. Delete all images first:
 
 ```bash
 aws ecr batch-delete-image \
