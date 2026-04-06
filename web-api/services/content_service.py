@@ -36,9 +36,9 @@ def generate_video(
     output_filename = f"{output_name}.mp4"
 
     # Get API key from environment
-    api_key = os.getenv("GOOGLE_GENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise ValueError("GOOGLE_GENAI_API_KEY environment variable is not set")
+        raise ValueError("GEMINI_API_KEY environment variable is not set")
 
     # Initialize the Google GenAI client
     client = genai.Client(api_key=api_key)

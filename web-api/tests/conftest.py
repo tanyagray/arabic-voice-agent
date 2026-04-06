@@ -19,7 +19,6 @@ def test_env():
         "SUPABASE_PUBLISHABLE_KEY": "test-publishable-key",
         "OPENAI_API_KEY": "test-openai-key",
         "ELEVENLABS_API_KEY": "test-elevenlabs-key",
-        "DEEPGRAM_API_KEY": "test-deepgram-key",
     }
 
     os.environ.update(test_vars)
