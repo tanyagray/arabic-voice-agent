@@ -48,6 +48,6 @@ jobs:
           IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           IMAGE_URI="$ECR_REGISTRY/arabic-voice-agent-api:$IMAGE_TAG"
-          docker build -f infra/Dockerfile -t "$IMAGE_URI" .
+          docker build -f aws/Dockerfile -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"

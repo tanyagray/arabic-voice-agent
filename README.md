@@ -47,7 +47,7 @@ mishmish.ai/
 ├── flutter-app/    # Mobile app (iOS + Android)
 ├── admin-app/      # Internal admin dashboard
 ├── supabase/       # DB migrations and config
-├── infra/          # AWS App Runner + CDK infra
+├── aws/            # AWS infrastructure (CloudFormation)
 └── docs/           # Architecture, setup, deployment guides
 ```
 

@@ -49,7 +49,7 @@ jobs:
           filters: |
             api:
               - 'web-api/**'
-              - 'infra/Dockerfile'
+              - 'aws/Dockerfile'
             frontend:
               - 'web-app/**'
               - 'admin-app/**'
@@ -58,7 +58,7 @@ jobs:
               - 'supabase/config.toml'
               - 'supabase/seed/**'
             infra:
-              - 'infra/preview/**'
+              - 'aws/preview/**'
             workflows:
               - '.github/workflows/deploy-preview.yml'
               - '.github/workflows/destroy-preview.yml'
@@ -123,10 +123,10 @@ jobs:
           echo "| API (web-api/) | ${{ steps.filter.outputs.api }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Frontend (web-app/, admin-app/) | ${{ steps.filter.outputs.frontend }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Supabase (migrations/) | ${{ steps.filter.outputs.supabase }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Infra (infra/preview/) | ${{ steps.filter.outputs.infra }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Infra (aws/preview/) | ${{ steps.filter.outputs.infra }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Workflows | ${{ steps.filter.outputs.workflows }} |" >> "$GITHUB_STEP_SUMMARY"
 
-  # ── Deploy preview infra (only when infra/preview/** changed) ───────────
+  # ── Deploy preview infra (only when aws/preview/** changed) ───────────
   deploy-infra:
     name: Deploy preview infrastructure
     needs: detect-changes
@@ -160,7 +160,7 @@ jobs:
         run: |
           aws cloudformation deploy \
             --stack-name "arabic-voice-agent-preview" \
-            --template-file infra/preview/template.yaml \
+            --template-file aws/preview/template.yaml \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               VpcId="${{ steps.bootstrap.outputs.vpc_id }}" \

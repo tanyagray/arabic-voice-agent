@@ -5,7 +5,7 @@
 Must be deployed **from local** — it provisions foundational resources (e.g., IAM roles, S3 buckets, OIDC providers) that the CI/CD pipeline itself depends on.
 
 ```bash
-cd infra/bootstrap
+cd aws/bootstrap
 # Follow the README for deploy commands
 ```
 

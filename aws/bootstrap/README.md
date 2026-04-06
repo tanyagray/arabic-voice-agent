@@ -23,7 +23,7 @@ One-time setup for AWS deployments (preview + production). Creates shared resour
 ```bash
 aws cloudformation deploy \
   --stack-name arabic-voice-agent-bootstrap \
-  --template-file infra/bootstrap/template.yaml \
+  --template-file aws/bootstrap/template.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --region us-west-2 \
   --tags Project=arabic-voice-agent \

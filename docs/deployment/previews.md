@@ -10,7 +10,7 @@ Preview deployments are triggered on pull requests and scoped based on what chan
 | API (`web-api`) | Preview UI + Preview API | Preview API | Production Supabase |
 | Supabase (`supabase/migrations`) | Full stack (UI + API + DB) | Preview API | Preview Supabase |
 
-Infrastructure or workflow file changes (`infra/preview/**`, `.github/workflows/aws-preview-*`) trigger a full stack deploy.
+Infrastructure or workflow file changes (`aws/preview/**`, `.github/workflows/deploy-preview.yml`) trigger a full stack deploy.
 
 ## Cascade rules
 
