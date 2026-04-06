@@ -25,12 +25,12 @@ fi
 
 # web-app (Node/npm)
 if [ -f "$REPO_ROOT/web-app/package.json" ]; then
-  (cd "$REPO_ROOT/web-app" && npm install --silent 2>/dev/null || true)
+  (cd "$REPO_ROOT/web-app" && npm ci --silent 2>/dev/null || true)
 fi
 
 # admin-app (Node/npm)
 if [ -f "$REPO_ROOT/admin-app/package.json" ]; then
-  (cd "$REPO_ROOT/admin-app" && npm install --silent 2>/dev/null || true)
+  (cd "$REPO_ROOT/admin-app" && npm ci --silent 2>/dev/null || true)
 fi
 
 # flutter-app (Dart/Flutter)
