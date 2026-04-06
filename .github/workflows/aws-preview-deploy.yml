@@ -2,7 +2,7 @@ name: AWS — Preview Deploy
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 env:
   AWS_REGION: us-west-2
@@ -17,6 +17,7 @@ jobs:
   # ------------------------------------------------------------------
   detect-changes:
     name: Detect changed paths
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     outputs:
       deploy_api: ${{ steps.decide.outputs.deploy_api }}
@@ -55,9 +56,22 @@ jobs:
             echo "deploy_frontend=true" >> "$GITHUB_OUTPUT"
             echo "deploy_supabase=true" >> "$GITHUB_OUTPUT"
           else
-            echo "deploy_api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
-            echo "deploy_frontend=${{ steps.filter.outputs.frontend }}" >> "$GITHUB_OUTPUT"
-            echo "deploy_supabase=${{ steps.filter.outputs.supabase }}" >> "$GITHUB_OUTPUT"
+            SUPABASE="${{ steps.filter.outputs.supabase }}"
+            API="${{ steps.filter.outputs.api }}"
+            FRONTEND="${{ steps.filter.outputs.frontend }}"
+
+            # Cascade: supabase change → full stack, api change → api + frontend
+            if [ "$SUPABASE" = "true" ]; then
+              API=true
+              FRONTEND=true
+            fi
+            if [ "$API" = "true" ]; then
+              FRONTEND=true
+            fi
+
+            echo "deploy_api=$API" >> "$GITHUB_OUTPUT"
+            echo "deploy_frontend=$FRONTEND" >> "$GITHUB_OUTPUT"
+            echo "deploy_supabase=$SUPABASE" >> "$GITHUB_OUTPUT"
           fi
 
           echo "### Change Detection Results" >> "$GITHUB_STEP_SUMMARY"
@@ -442,8 +456,8 @@ jobs:
             echo "api_url=https://api-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
             echo "instance_id=${{ needs.deploy-preview-api.outputs.instance_id }}" >> "$GITHUB_OUTPUT"
           else
-            # No API changes — point frontends at production API
-            echo "api_url=${{ vars.PRODUCTION_API_URL }}" >> "$GITHUB_OUTPUT"
+            # No API changes — point frontends at staging API
+            echo "api_url=${{ vars.STAGING_API_URL }}" >> "$GITHUB_OUTPUT"
             echo "instance_id=" >> "$GITHUB_OUTPUT"
           fi
 
@@ -743,7 +757,7 @@ jobs:
               rows.push(`| Web App | ${webAppUrl} |`);
               rows.push(`| Admin | ${adminUrl} |`);
             }
-            rows.push(`| API | ${apiUrl} ${deployApi ? '' : '_(production — no API changes)_'} |`);
+            rows.push(`| API | ${apiUrl} ${deployApi ? '' : '_(staging — no API changes)_'} |`);
 
             const skipped = [];
             if (!deployApi) skipped.push('API build/deploy (no changes in `web-api/`)');
