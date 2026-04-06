@@ -4,6 +4,7 @@ import { Box, Flex, Text } from '@chakra-ui/react';
 import type { TranscriptMessage, ResponseMode } from '@/api/sessions/sessions.types';
 import { HighlightedText } from './HighlightedText';
 import { MarkdownContent } from './MarkdownContent';
+import { FlashcardDeck } from '@/components/FlashcardDeck';
 import { useStore } from '@/store';
 
 export type { TranscriptMessage };
@@ -41,6 +42,21 @@ function getDisplayText(message: TranscriptMessage, mode: ResponseMode): string 
 function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptBubbleProps) {
   const isUser = message.message_source === 'user';
   const isTutor = message.message_source === 'tutor';
+
+  // Flashcard messages render as a full-width deck, not inside a bubble
+  if (message.message_kind === 'flash_cards') {
+    return (
+      <MotionBox
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        w="full"
+      >
+        <FlashcardDeck message={message} />
+      </MotionBox>
+    );
+  }
 
   // First in group: small corner only on bottom (tail side)
   // Non-first: small corners on both top and bottom (tail side)
