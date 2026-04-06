@@ -44,6 +44,7 @@ jobs:
     uses: ./.github/workflows/_build-api-image.yml
     with:
       ref: ${{ needs.resolve-ref.outputs.ref }}
+      image_tag: prod-${{ github.sha }}
     secrets: inherit
 
   # ── Phase 2: Deploy infra + run migrations (after API image is built) ─

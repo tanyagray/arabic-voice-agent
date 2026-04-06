@@ -1,0 +1,433 @@
+name: Deploy (Preview)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to deploy"
+        required: true
+        type: number
+
+env:
+  AWS_REGION: us-west-2
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Detect what changed ─────────────────────────────────────────────────
+  detect-changes:
+    name: Detect changed paths
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_api: ${{ steps.decide.outputs.deploy_api }}
+      deploy_frontend: ${{ steps.decide.outputs.deploy_frontend }}
+      deploy_supabase: ${{ steps.decide.outputs.deploy_supabase }}
+      deploy_infra: ${{ steps.decide.outputs.deploy_infra }}
+      pr_number: ${{ steps.pr.outputs.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve PR number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect changed paths
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'web-api/**'
+              - 'infra/Dockerfile'
+            frontend:
+              - 'web-app/**'
+              - 'admin-app/**'
+            supabase:
+              - 'supabase/migrations/**'
+              - 'supabase/config.toml'
+              - 'supabase/seed/**'
+            infra:
+              - 'infra/preview/**'
+            workflows:
+              - '.github/workflows/deploy-preview.yml'
+              - '.github/workflows/destroy-preview.yml'
+              - '.github/workflows/_deploy-preview-api.yml'
+              - '.github/workflows/_deploy-preview-static-sites.yml'
+
+      - name: Check for release-please label
+        id: labels
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          if echo "$LABELS" | jq -e 'index("autorelease: pending")' > /dev/null 2>&1; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decide what to deploy
+        id: decide
+        run: |
+          # Manual dispatch → deploy API + frontend (skip supabase — no PR branch context)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+            echo "deploy_frontend=true" >> "$GITHUB_OUTPUT"
+            echo "deploy_supabase=false" >> "$GITHUB_OUTPUT"
+            echo "deploy_infra=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          INFRA="${{ steps.filter.outputs.infra }}"
+
+          # If release-please PR, infra templates, or workflow files changed, deploy everything
+          if [ "${{ steps.labels.outputs.is_release }}" = "true" ] || [ "$INFRA" = "true" ] || [ "${{ steps.filter.outputs.workflows }}" = "true" ]; then
+            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+            echo "deploy_frontend=true" >> "$GITHUB_OUTPUT"
+            echo "deploy_supabase=true" >> "$GITHUB_OUTPUT"
+            echo "deploy_infra=$INFRA" >> "$GITHUB_OUTPUT"
+          else
+            SUPABASE="${{ steps.filter.outputs.supabase }}"
+            API="${{ steps.filter.outputs.api }}"
+            FRONTEND="${{ steps.filter.outputs.frontend }}"
+
+            # Cascade: supabase change → full stack, api change → api + frontend
+            if [ "$SUPABASE" = "true" ]; then
+              API=true
+              FRONTEND=true
+            fi
+            if [ "$API" = "true" ]; then
+              FRONTEND=true
+            fi
+
+            echo "deploy_api=$API" >> "$GITHUB_OUTPUT"
+            echo "deploy_frontend=$FRONTEND" >> "$GITHUB_OUTPUT"
+            echo "deploy_supabase=$SUPABASE" >> "$GITHUB_OUTPUT"
+            echo "deploy_infra=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "### Change Detection Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Component | Changed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----------|---------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release-please PR | ${{ steps.labels.outputs.is_release }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API (web-api/) | ${{ steps.filter.outputs.api }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Frontend (web-app/, admin-app/) | ${{ steps.filter.outputs.frontend }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Supabase (migrations/) | ${{ steps.filter.outputs.supabase }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Infra (infra/preview/) | ${{ steps.filter.outputs.infra }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Workflows | ${{ steps.filter.outputs.workflows }} |" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Deploy preview infra (only when infra/preview/** changed) ───────────
+  deploy-infra:
+    name: Deploy preview infrastructure
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deploy_infra == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get bootstrap stack outputs
+        id: bootstrap
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "arabic-voice-agent-bootstrap" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+          echo "vpc_id=$(get_output VpcId)" >> "$GITHUB_OUTPUT"
+          echo "subnet_id=$(get_output SubnetAId)" >> "$GITHUB_OUTPUT"
+          echo "ec2_instance_profile=$(get_output Ec2InstanceProfileName)" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name "arabic-voice-agent-preview" \
+            --template-file infra/preview/template.yaml \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              VpcId="${{ steps.bootstrap.outputs.vpc_id }}" \
+              SubnetId="${{ steps.bootstrap.outputs.subnet_id }}" \
+              Ec2InstanceProfileName="${{ steps.bootstrap.outputs.ec2_instance_profile }}"
+
+      - name: Print outputs
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "arabic-voice-agent-preview" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+
+          INSTANCE_ID=$(get_output PreviewInstanceId)
+          ELASTIC_IP=$(get_output PreviewElasticIp)
+          BUCKET=$(get_output PreviewStaticBucketName)
+          CF_DOMAIN=$(get_output PreviewStaticDistributionDomain)
+          CF_DIST_ID=$(get_output PreviewStaticDistributionId)
+
+          echo "### Preview Infrastructure Deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Resource | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Instance ID | $INSTANCE_ID |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Elastic IP | $ELASTIC_IP |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Static Bucket | $BUCKET |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| CloudFront Domain | $CF_DOMAIN |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| CloudFront Dist ID | $CF_DIST_ID |" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Wait for Supabase preview branch ────────────────────────────────────
+  wait-for-supabase:
+    name: Wait for Supabase preview branch
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.deploy_supabase == 'true'
+      && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Supabase Preview check
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: check
+        with:
+          checkName: Supabase Preview
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          timeoutSeconds: 600
+          intervalSeconds: 15
+
+      - name: Fail if Supabase branch failed
+        if: steps.check.outputs.conclusion == 'failure'
+        run: exit 1
+
+  # ── Get Supabase credentials ────────────────────────────────────────────
+  supabase-credentials:
+    name: Get Supabase credentials
+    needs: [detect-changes, wait-for-supabase]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      branch_ref: ${{ steps.supabase.outputs.branch_ref }}
+      url: ${{ steps.supabase.outputs.url }}
+      anon_key_b64: ${{ steps.supabase.outputs.anon_key_b64 }}
+      service_key_b64: ${{ steps.supabase.outputs.service_key_b64 }}
+      is_preview_branch: ${{ steps.supabase.outputs.is_preview_branch }}
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Get Supabase credentials
+        id: supabase
+        run: |
+          PROJECT_REF="${{ vars.SUPABASE_PROJECT_REF }}"
+          DEPLOY_SUPABASE="${{ needs.detect-changes.outputs.deploy_supabase }}"
+
+          if [ "$DEPLOY_SUPABASE" = "true" ]; then
+            # Use preview branch
+            BRANCH_NAME="${{ github.head_ref }}"
+            BRANCH_JSON=$(curl -sf \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              "https://api.supabase.com/v1/projects/$PROJECT_REF/branches")
+
+            BRANCH_REF=$(echo "$BRANCH_JSON" | jq -r \
+              ".[] | select(.git_branch == \"$BRANCH_NAME\") | .project_ref // .ref" | head -1)
+
+            if [ -z "$BRANCH_REF" ]; then
+              echo "::error::No Supabase branch found for git branch: $BRANCH_NAME"
+              exit 1
+            fi
+            echo "Using Supabase preview branch: $BRANCH_REF"
+            echo "is_preview_branch=true" >> "$GITHUB_OUTPUT"
+          else
+            # No migration changes — use main project credentials
+            BRANCH_REF="$PROJECT_REF"
+            echo "No migration changes — using main Supabase project: $BRANCH_REF"
+            echo "is_preview_branch=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Get API keys
+          KEYS_JSON=$(curl -sf \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$BRANCH_REF/api-keys")
+
+          ANON_KEY=$(echo "$KEYS_JSON" | jq -r '.[] | select(.name == "anon") | .api_key')
+          SERVICE_KEY=$(echo "$KEYS_JSON" | jq -r '.[] | select(.name == "service_role") | .api_key')
+          BRANCH_URL="https://$BRANCH_REF.supabase.co"
+
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_KEY"
+
+          # Double base64-encode keys — GitHub masks single-encoded secrets too
+          echo "branch_ref=$BRANCH_REF" >> "$GITHUB_OUTPUT"
+          echo "url=$BRANCH_URL" >> "$GITHUB_OUTPUT"
+          echo "anon_key_b64=$(echo -n "$ANON_KEY" | base64 -w0 | base64 -w0)" >> "$GITHUB_OUTPUT"
+          echo "service_key_b64=$(echo -n "$SERVICE_KEY" | base64 -w0 | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+  # ── Build API image ─────────────────────────────────────────────────────
+  build-api-image:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deploy_api == 'true'
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/_build-api-image.yml
+    with:
+      ref: ${{ github.sha }}
+      image_tag: pr-${{ needs.detect-changes.outputs.pr_number }}
+    secrets: inherit
+
+  # ── Deploy API container ────────────────────────────────────────────────
+  deploy-api:
+    needs: [detect-changes, deploy-infra, supabase-credentials, build-api-image]
+    if: always() && !failure() && !cancelled() && needs.detect-changes.outputs.deploy_api == 'true'
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/_deploy-preview-api.yml
+    with:
+      image_uri: ${{ needs.build-api-image.outputs.image_uri }}
+      pr_number: ${{ fromJson(needs.detect-changes.outputs.pr_number) }}
+      supabase_url: ${{ needs.supabase-credentials.outputs.url }}
+      anon_key_b64: ${{ needs.supabase-credentials.outputs.anon_key_b64 }}
+      service_key_b64: ${{ needs.supabase-credentials.outputs.service_key_b64 }}
+    secrets: inherit
+
+  # ── Compute preview URLs ────────────────────────────────────────────────
+  compute-preview-urls:
+    name: Compute preview URLs
+    needs: [detect-changes, deploy-api]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    outputs:
+      api_url: ${{ steps.urls.outputs.api_url }}
+      web_app_url: ${{ steps.urls.outputs.web_app_url }}
+      admin_url: ${{ steps.urls.outputs.admin_url }}
+    steps:
+      - name: Compute URLs
+        id: urls
+        run: |
+          PR_NUM="${{ needs.detect-changes.outputs.pr_number }}"
+          DEPLOY_API="${{ needs.detect-changes.outputs.deploy_api }}"
+
+          if [ "$DEPLOY_API" = "true" ]; then
+            echo "api_url=https://api-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+          else
+            # No API changes — point frontends at production API
+            echo "api_url=${{ vars.PRODUCTION_API_URL }}" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "web_app_url=https://pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+          echo "admin_url=https://admin-pr-${PR_NUM}.preview.mishmish.ai" >> "$GITHUB_OUTPUT"
+
+  # ── Deploy static sites ────────────────────────────────────────────────
+  deploy-static-sites:
+    needs: [detect-changes, deploy-infra, supabase-credentials, compute-preview-urls]
+    if: always() && !failure() && !cancelled() && needs.detect-changes.outputs.deploy_frontend == 'true'
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/_deploy-preview-static-sites.yml
+    with:
+      pr_number: ${{ fromJson(needs.detect-changes.outputs.pr_number) }}
+      api_url: ${{ needs.compute-preview-urls.outputs.api_url }}
+      supabase_branch_ref: ${{ needs.supabase-credentials.outputs.branch_ref }}
+      is_preview_branch: ${{ needs.supabase-credentials.outputs.is_preview_branch }}
+    secrets: inherit
+
+  # ── Post PR comment ─────────────────────────────────────────────────────
+  post-comment:
+    name: Post preview URLs comment
+    needs: [detect-changes, compute-preview-urls, supabase-credentials, deploy-api, deploy-static-sites]
+    if: always() && !failure() && !cancelled() && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployApi = '${{ needs.detect-changes.outputs.deploy_api }}' === 'true';
+            const deployFrontend = '${{ needs.detect-changes.outputs.deploy_frontend }}' === 'true';
+            const deploySupabase = '${{ needs.detect-changes.outputs.deploy_supabase }}' === 'true';
+
+            const apiUrl = '${{ needs.compute-preview-urls.outputs.api_url }}';
+            const webAppUrl = '${{ needs.compute-preview-urls.outputs.web_app_url }}';
+            const adminUrl = '${{ needs.compute-preview-urls.outputs.admin_url }}';
+            const supabaseUrl = '${{ needs.supabase-credentials.outputs.url }}';
+
+            const rows = [];
+            if (deployFrontend) {
+              rows.push(`| Web App | ${webAppUrl} |`);
+              rows.push(`| Admin | ${adminUrl} |`);
+            }
+            rows.push(`| API | ${apiUrl} ${deployApi ? '' : '_(production — no API changes)_'} |`);
+
+            const skipped = [];
+            if (!deployApi) skipped.push('API build/deploy (no changes in `web-api/`)');
+            if (!deployFrontend) skipped.push('Frontend build/deploy (no changes in `web-app/` or `admin-app/`)');
+            if (!deploySupabase) skipped.push('Supabase preview branch (no migration changes)');
+
+            const lines = [
+              '### Preview Environment Ready',
+              '',
+              '| Service | URL |',
+              '|---------|-----|',
+              ...rows,
+              '',
+              deploySupabase
+                ? `_Supabase branch: ${supabaseUrl}_`
+                : '_Supabase: using main project (no migration changes)_',
+            ];
+
+            if (skipped.length > 0) {
+              lines.push('');
+              lines.push(`**Skipped:** ${skipped.join(', ')}`);
+            }
+
+            const body = lines.join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('### Preview Environment Ready')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

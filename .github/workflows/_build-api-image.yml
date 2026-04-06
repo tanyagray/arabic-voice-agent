@@ -7,6 +7,10 @@ on:
         description: Git ref to checkout
         required: true
         type: string
+      image_tag:
+        description: "Docker image tag (e.g. prod-abc1234 or pr-42)"
+        required: true
+        type: string
     outputs:
       image_uri:
         description: Full ECR image URI (registry/repo:tag)
@@ -41,10 +45,9 @@ jobs:
         id: build
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          SHA_SHORT: ${{ github.sha }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
-          SHA_TAG="${SHA_SHORT:0:7}"
-          IMAGE_URI="$ECR_REGISTRY/arabic-voice-agent-api:prod-$SHA_TAG"
+          IMAGE_URI="$ECR_REGISTRY/arabic-voice-agent-api:$IMAGE_TAG"
           docker build -f infra/Dockerfile -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"

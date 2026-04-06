@@ -1,4 +1,4 @@
-name: AWS — Preview Destroy
+name: Destroy (Preview)
 
 on:
   pull_request:
@@ -108,56 +108,6 @@ jobs:
                 --paths "/pr-${PR}/*" 2>/dev/null || true
             fi
           fi
-
-      # Transitional: clean up legacy per-PR CloudFormation stacks (safe to remove
-      # once all preview-pr-* stacks are gone)
-      - name: Clean up legacy per-PR stack (if exists)
-        run: |
-          STACK_NAME="preview-pr-${{ github.event.pull_request.number }}"
-          if ! aws cloudformation describe-stacks --stack-name "$STACK_NAME" 2>/dev/null; then
-            echo "No legacy stack $STACK_NAME found, skipping."
-            exit 0
-          fi
-
-          PR="${{ github.event.pull_request.number }}"
-
-          # Empty old per-PR buckets
-          for BUCKET in "preview-web-app-pr-$PR" "preview-admin-pr-$PR"; do
-            aws s3 rm "s3://$BUCKET" --recursive 2>/dev/null || true
-          done
-
-          get_output() {
-            aws cloudformation describe-stacks \
-              --stack-name "$STACK_NAME" \
-              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
-              --output text
-          }
-
-          # Disable CloudFront distributions before deletion
-          for DIST_KEY in WebAppDistributionId AdminDistributionId; do
-            DIST_ID=$(get_output "$DIST_KEY")
-            if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
-              ETAG=$(aws cloudfront get-distribution-config --id "$DIST_ID" --query "ETag" --output text)
-              CONFIG=$(aws cloudfront get-distribution-config --id "$DIST_ID" --query "DistributionConfig" --output json)
-              UPDATED=$(echo "$CONFIG" | jq '.Enabled = false')
-              aws cloudfront update-distribution \
-                --id "$DIST_ID" --if-match "$ETAG" \
-                --distribution-config "$UPDATED" || true
-            fi
-          done
-
-          # Wait for distributions to disable
-          for DIST_KEY in WebAppDistributionId AdminDistributionId; do
-            DIST_ID=$(get_output "$DIST_KEY")
-            if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
-              aws cloudfront wait distribution-deployed --id "$DIST_ID" || true
-            fi
-          done
-
-          # Delete the stack
-          aws cloudformation delete-stack --stack-name "$STACK_NAME"
-          aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
-          echo "Legacy stack $STACK_NAME deleted."
 
       - name: Delete ECR image
         run: |

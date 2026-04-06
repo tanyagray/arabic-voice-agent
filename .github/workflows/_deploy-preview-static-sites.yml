@@ -1,0 +1,181 @@
+name: Deploy preview static sites
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: Pull request number
+        required: true
+        type: number
+      api_url:
+        description: Preview API URL
+        required: true
+        type: string
+      supabase_branch_ref:
+        description: Supabase branch project ref
+        required: false
+        type: string
+      is_preview_branch:
+        description: Whether using a Supabase preview branch
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-west-2
+
+jobs:
+  deploy:
+    name: Build, upload & configure Caddy
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Fetch shared preview infra outputs (bucket, CloudFront)
+      - name: Get shared preview infra outputs
+        id: preview-infra
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "arabic-voice-agent-preview" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+          echo "instance_id=$(get_output PreviewInstanceId)" >> "$GITHUB_OUTPUT"
+          echo "bucket=$(get_output PreviewStaticBucketName)" >> "$GITHUB_OUTPUT"
+          echo "dist_id=$(get_output PreviewStaticDistributionId)" >> "$GITHUB_OUTPUT"
+          echo "cf_domain=$(get_output PreviewStaticDistributionDomain)" >> "$GITHUB_OUTPUT"
+
+      # Build and deploy web-app
+      - name: Build web-app
+        working-directory: web-app
+        env:
+          VITE_API_URL: ${{ inputs.api_url }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload web-app to S3
+        run: |
+          PR_NUM="${{ inputs.pr_number }}"
+          aws s3 sync web-app/dist/ \
+            "s3://${{ steps.preview-infra.outputs.bucket }}/pr-${PR_NUM}/web-app/" \
+            --delete
+
+      # Build and deploy admin-app
+      - name: Build admin-app
+        working-directory: admin-app
+        env:
+          VITE_API_URL: ${{ inputs.api_url }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload admin-app to S3
+        run: |
+          PR_NUM="${{ inputs.pr_number }}"
+          aws s3 sync admin-app/dist/ \
+            "s3://${{ steps.preview-infra.outputs.bucket }}/pr-${PR_NUM}/admin-app/" \
+            --delete
+
+      # Invalidate CloudFront cache (scoped to this PR's paths)
+      - name: Invalidate CloudFront cache
+        run: |
+          PR_NUM="${{ inputs.pr_number }}"
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.preview-infra.outputs.dist_id }}" \
+            --paths "/pr-${PR_NUM}/*"
+
+      # Configure Caddy to route frontend preview subdomains via shared CloudFront
+      - name: Configure frontend Caddy routes via SSM
+        run: |
+          PR_NUM="${{ inputs.pr_number }}"
+          INSTANCE_ID="${{ steps.preview-infra.outputs.instance_id }}"
+          CF_DOMAIN="${{ steps.preview-infra.outputs.cf_domain }}"
+
+          cat > /tmp/caddy-frontend.sh <<SCRIPT
+          #!/bin/bash
+          set -euo pipefail
+          echo "=== Configuring frontend Caddy routes for PR #$PR_NUM at \$(date) ==="
+
+          # Remove old frontend block if exists
+          sed -i '/^# BEGIN web-pr-${PR_NUM}\$/,/^# END web-pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
+
+          # Add frontend reverse proxy blocks with path rewriting
+          cat >> /etc/caddy/Caddyfile <<'CADDYEOF'
+
+          # BEGIN web-pr-${PR_NUM}
+          pr-${PR_NUM}.preview.mishmish.ai {
+            rewrite * /pr-${PR_NUM}/web-app{uri}
+            reverse_proxy https://${CF_DOMAIN} {
+              header_up Host {upstream_hostport}
+            }
+          }
+          admin-pr-${PR_NUM}.preview.mishmish.ai {
+            rewrite * /pr-${PR_NUM}/admin-app{uri}
+            reverse_proxy https://${CF_DOMAIN} {
+              header_up Host {upstream_hostport}
+            }
+          }
+          # END web-pr-${PR_NUM}
+          CADDYEOF
+
+          systemctl reload caddy
+          echo "Frontend Caddy routes configured for PR #$PR_NUM"
+          SCRIPT
+
+          COMMANDS_JSON=$(jq -R -s 'split("\n") | map(select(length > 0))' < /tmp/caddy-frontend.sh)
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --timeout-seconds 120 \
+            --parameters "{\"commands\":$COMMANDS_JSON}" \
+            --query "Command.CommandId" --output text)
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+
+          RESULT=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query "Status" --output text)
+
+          echo "Frontend Caddy config status: $RESULT"
+          if [ "$RESULT" != "Success" ]; then
+            echo "::error::Frontend Caddy config failed"
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "StandardErrorContent" --output text
+            exit 1
+          fi
+
+      # Set Supabase SITE_URL to the preview web-app URL (only for preview branches)
+      - name: Set Supabase SITE_URL
+        if: inputs.is_preview_branch == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
+        run: |
+          PR_NUM="${{ inputs.pr_number }}"
+          BRANCH_REF="${{ inputs.supabase_branch_ref }}"
+          SITE_URL="https://pr-${PR_NUM}.preview.mishmish.ai"
+          supabase secrets set --project-ref "$BRANCH_REF" SITE_URL="$SITE_URL"
+          echo "Set SITE_URL=$SITE_URL on Supabase branch $BRANCH_REF"
