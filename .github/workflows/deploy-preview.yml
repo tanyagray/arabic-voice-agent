@@ -252,11 +252,13 @@ jobs:
               ".[] | select(.git_branch == \"$BRANCH_NAME\") | .project_ref // .ref" | head -1)
 
             if [ -z "$BRANCH_REF" ]; then
-              echo "::error::No Supabase branch found for git branch: $BRANCH_NAME"
-              exit 1
+              echo "::warning::No Supabase preview branch for '$BRANCH_NAME' — falling back to main project"
+              BRANCH_REF="$PROJECT_REF"
+              echo "is_preview_branch=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "Using Supabase preview branch: $BRANCH_REF"
+              echo "is_preview_branch=true" >> "$GITHUB_OUTPUT"
             fi
-            echo "Using Supabase preview branch: $BRANCH_REF"
-            echo "is_preview_branch=true" >> "$GITHUB_OUTPUT"
           else
             # No migration changes — use main project credentials
             BRANCH_REF="$PROJECT_REF"
