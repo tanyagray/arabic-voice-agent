@@ -4,7 +4,7 @@ import json
 
 from pydantic import BaseModel
 from agents import RunContextWrapper, function_tool
-from services.context_service import AppContext
+from harness.context import AppContext
 from services.flashcard_service import create_flashcard_set
 from services.transcript_service import create_transcript_message
 from services.supabase_client import get_supabase_admin_client

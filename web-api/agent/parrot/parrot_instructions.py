@@ -1,5 +1,5 @@
 from agents import RunContextWrapper, Agent
-from services.context_service import AppContext
+from harness.context import AppContext
 
 def get_instructions(
     context: RunContextWrapper[AppContext], agent: Agent[AppContext]

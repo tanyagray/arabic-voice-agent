@@ -3,8 +3,9 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from services import soniox_service, agent_service, websocket_service, transcript_service
-from services.websocket_service import Message
+from channels.rest.websocket.agent_loop import trigger_agent_turn
+from channels.rest.websocket.connection_manager import Message, send_message
+from services import soniox_service, transcript_service
 
 # Models
 class SonioxWebhookPayload(BaseModel):
@@ -63,7 +64,7 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                         message_kind="text",
                         message_text="Sorry, I couldn't transcribe the audio. Please try again.",
                     )
-                    await websocket_service.send_message(
+                    await send_message(
                         session_id,
                         Message(
                             kind="transcript",
@@ -82,7 +83,7 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                     message_kind="text",
                     message_text=transcript_text,
                 )
-                await websocket_service.send_message(
+                await send_message(
                     session_id,
                     Message(
                         kind="transcript",
@@ -93,7 +94,7 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                 print(f"[Webhook] Failed to save user message: {e}")
 
             # Generate and send agent response (this will save and send the tutor message)
-            await agent_service.trigger_agent_turn(session_id, transcript_text)
+            await trigger_agent_turn(session_id, transcript_text)
 
         elif status == "error":
             # Create and save error message
@@ -104,7 +105,7 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                     message_kind="text",
                     message_text="Sorry, there was an error transcribing your audio. Please try again.",
                 )
-                await websocket_service.send_message(
+                await send_message(
                     session_id,
                     Message(
                         kind="transcript",
@@ -128,7 +129,7 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                 message_kind="text",
                 message_text="Sorry, there was an error processing your message. Please try again.",
             )
-            await websocket_service.send_message(
+            await send_message(
                 session_id,
                 Message(
                     kind="transcript",

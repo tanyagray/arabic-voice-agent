@@ -1,5 +1,3 @@
-"""Pipecat voice pipeline package."""
+"""Backward-compat shim — canonical location is channels.voice.pipeline."""
 
-from .runner import run_pipecat_agent
-
-__all__ = ["run_pipecat_agent"]
+from channels.voice.pipeline import run_pipecat_agent  # noqa: F401

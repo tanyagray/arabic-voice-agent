@@ -2,7 +2,7 @@
 
 from agents import AgentHooks, RunContextWrapper, Agent, Tool
 
-from services.context_service import AppContext
+from harness.context import AppContext
 
 
 class ParrotAgentHooks(AgentHooks):

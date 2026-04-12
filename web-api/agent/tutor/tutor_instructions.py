@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from agents import RunContextWrapper, Agent
-from services.context_service import AppContext
+from harness.context import AppContext
 
 
 def _load_instructions(language: str) -> str:

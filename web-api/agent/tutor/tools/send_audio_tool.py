@@ -1,7 +1,7 @@
 """Tool for sending audio pronunciation to the user."""
 
 from agents import RunContextWrapper, function_tool
-from services.context_service import AppContext
+from harness.context import AppContext
 
 
 @function_tool

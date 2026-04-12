@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from agents import RunContextWrapper, function_tool
-from services.context_service import AppContext
+from harness.context import AppContext
 
 
 # Available languages based on files in the languages directory
