@@ -2,7 +2,6 @@
 
 from agents import Agent
 
-from agent.parrot.parrot_agent import agent as parrot_agent
 from .tools.change_language_tool import change_language
 from .tools.flashcards_tool import generate_flashcards
 from .tools.send_audio_tool import send_audio
@@ -13,10 +12,6 @@ agent = Agent(
     name="Tutor",
     instructions=get_instructions,
     tools=[
-        parrot_agent.as_tool(
-            tool_name="parrot_game",
-            tool_description="Use this tool when the user wants to play the parrot game or practice translations. The parrot game translates words/phrases between English and Arabic (whichever direction is opposite to the input language).",
-        ),
         change_language,
         generate_flashcards,
         send_audio,
