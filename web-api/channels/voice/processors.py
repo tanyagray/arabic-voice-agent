@@ -1,5 +1,7 @@
 """Custom Pipecat frame processors for display text and transcript handling."""
 
+import time
+
 from loguru import logger
 
 from pipecat.frames.frames import (
@@ -14,6 +16,8 @@ from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
 
 from harness.context import get_context
 from harness.scaffolding import generate_scaffolded_text, generate_transliterated_text
+from harness.session_manager import get_session
+from services import posthog_service
 from services.transcript_service import create_transcript_message
 
 
@@ -32,6 +36,7 @@ class DisplayTextGate(FrameProcessor):
         self._buffering = False
         self._tts_transcript = tts_transcript
         self._session_id = session_id
+        self._llm_start_time: float | None = None
 
     def _get_response_mode(self) -> str:
         context = get_context(self._session_id)
@@ -43,6 +48,7 @@ class DisplayTextGate(FrameProcessor):
         if isinstance(frame, LLMFullResponseStartFrame):
             self._buffering = True
             self._buffered_frames = []
+            self._llm_start_time = time.monotonic()
             await self.push_frame(frame, direction)
 
         elif self._buffering and isinstance(frame, TextFrame) and not isinstance(frame, TTSTextFrame):
@@ -51,6 +57,7 @@ class DisplayTextGate(FrameProcessor):
 
         elif isinstance(frame, LLMFullResponseEndFrame):
             self._buffering = False
+            t_scaffolding_start = time.monotonic()
             canonical_text = "".join(f.text for f in self._buffered_frames)
             logger.info(f"DisplayTextGate: canonical='{canonical_text}'")
 
@@ -91,6 +98,14 @@ class DisplayTextGate(FrameProcessor):
                         await self.push_frame(buffered_frame, direction)
             self._buffered_frames = []
 
+            # Pass timing data to TTS transcript processor
+            self._tts_transcript.set_timing(
+                llm_start=self._llm_start_time,
+                scaffolding_start=t_scaffolding_start,
+                scaffolding_end=time.monotonic(),
+            )
+            self._llm_start_time = None
+
             # Release the end frame
             await self.push_frame(frame, direction)
 
@@ -119,6 +134,11 @@ class TTSTranscriptProcessor(FrameProcessor):
         self._display_text: str | None = None
         # For scaffolded mode: canonical text when TTS receives scaffolded text directly
         self._scaffolded_canonical: str | None = None
+        # Timing state (set by DisplayTextGate)
+        self._llm_start_time: float | None = None
+        self._scaffolding_start_time: float | None = None
+        self._scaffolding_end_time: float | None = None
+        self._tts_start_time: float | None = None
 
     def set_transliteration_queue(self, words: list[str]):
         """Set the transliteration word queue (transliterated mode)."""
@@ -145,11 +165,18 @@ class TTSTranscriptProcessor(FrameProcessor):
         self._display_text = None
         logger.debug(f"TTSTranscriptProcessor: scaffolded canonical set")
 
+    def set_timing(self, llm_start: float | None, scaffolding_start: float | None, scaffolding_end: float | None):
+        """Set timing data from DisplayTextGate for analytics."""
+        self._llm_start_time = llm_start
+        self._scaffolding_start_time = scaffolding_start
+        self._scaffolding_end_time = scaffolding_end
+
     async def process_frame(self, frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
         if isinstance(frame, TTSStartedFrame):
             logger.debug("TTSTranscriptProcessor: TTSStartedFrame received")
+            self._tts_start_time = time.monotonic()
             self._current_sentence_canonical = []
             self._current_sentence_transliterated = []
 
@@ -207,6 +234,31 @@ class TTSTranscriptProcessor(FrameProcessor):
                     )
                 except Exception as e:
                     logger.error(f"Failed to persist TTS transcript: {e}")
+
+                # Track response time analytics (fires once per agent turn)
+                if self._llm_start_time is not None:
+                    tts_end = time.monotonic()
+                    context = get_context(self._session_id)
+                    session = get_session(self._session_id)
+                    user = getattr(session, "user", None) if session else None
+                    posthog_service.capture(
+                        distinct_id=user.id if user else self._session_id,
+                        event="agent_response_completed",
+                        properties={
+                            "session_id": self._session_id,
+                            "mode": "voice",
+                            "total_ms": round((tts_end - self._llm_start_time) * 1000, 1),
+                            "llm_ms": round(((self._scaffolding_start_time or tts_end) - self._llm_start_time) * 1000, 1),
+                            "scaffolding_ms": round(((self._scaffolding_end_time or 0) - (self._scaffolding_start_time or 0)) * 1000, 1),
+                            "tts_ms": round((tts_end - (self._tts_start_time or tts_end)) * 1000, 1),
+                            "language": context.agent.language if context else "ar-AR",
+                        },
+                    )
+                    # Clear timing so subsequent TTS sentences don't re-fire
+                    self._llm_start_time = None
+                    self._scaffolding_start_time = None
+                    self._scaffolding_end_time = None
+
                 self._current_sentence_canonical = []
                 self._current_sentence_transliterated = []
 

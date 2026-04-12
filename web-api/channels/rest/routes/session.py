@@ -1,12 +1,13 @@
 """Session management routes and models."""
 
 import logging
+import time
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Depends
 from pydantic import BaseModel, Field
 
 from harness import session_manager as session_service, runner as agent_service, context as context_service, scaffolding as scaffolding_service
-from services import soniox_service, transcript_service, websocket_service
+from services import posthog_service, soniox_service, transcript_service, websocket_service
 from dependencies.auth import get_current_user_token
 
 logger = logging.getLogger(__name__)
@@ -193,7 +194,9 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
         print(f"[Session] Failed to save user message to database: {e}")
 
     # Step 1: Generate the agent response (full Arabic with harakaat)
+    t_start = time.monotonic()
     canonical_response = await agent_service.generate_agent_response(session_id, request.message, access_token)
+    t_after_llm = time.monotonic()
 
     # Step 2: Generate display text based on user's response_mode setting
     context = context_service.get_context(session_id)
@@ -201,6 +204,7 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
     # Always generate both display variants so the user can switch modes
     scaffolded = await scaffolding_service.generate_scaffolded_text(canonical_response, user_message=request.message)
     transliterated = await scaffolding_service.generate_transliterated_text(canonical_response)
+    t_after_scaffolding = time.monotonic()
     highlights = scaffolded.highlights
 
     # Pick the display text based on current response_mode
@@ -275,6 +279,22 @@ async def send_chat_message(session_id: str, request: TextRequest, access_token:
             logger.error(f"[Session] Failed to generate/upload audio: {e}")
         finally:
             context.clear_audio_text()
+
+    # Track response time analytics
+    user = getattr(session, "user", None)
+    posthog_service.capture(
+        distinct_id=user.id if user else session_id,
+        event="agent_response_completed",
+        properties={
+            "session_id": session_id,
+            "mode": "text_rest",
+            "total_ms": round((t_after_scaffolding - t_start) * 1000, 1),
+            "llm_ms": round((t_after_llm - t_start) * 1000, 1),
+            "scaffolding_ms": round((t_after_scaffolding - t_after_llm) * 1000, 1),
+            "tts_ms": None,
+            "language": context.agent.language if context else "ar-AR",
+        },
+    )
 
     return TextResponse(text=display_response, highlights=highlights)
 

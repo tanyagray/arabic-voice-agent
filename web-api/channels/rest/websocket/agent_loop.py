@@ -4,11 +4,15 @@ Handles the full turn cycle: run agent → scaffold → persist → send over We
 """
 
 import asyncio
+import time
+
 from fastapi import WebSocket
 
 from harness.runner import generate_agent_response, generate_agent_followup
 from harness.context import get_context
 from harness.scaffolding import generate_scaffolded_text
+from harness.session_manager import get_session
+from services import posthog_service
 from services.websocket_service import Message, send_message, send_audio_message
 from services.tts_service import get_tts_service
 from services.transcript_service import create_transcript_message
@@ -25,15 +29,36 @@ async def trigger_agent_turn(session_id: str, user_message: str | None = None, u
         user_access_token: Optional user's access token for Supabase authentication
     """
     # Run the agent with or without a new user message
+    t_start = time.monotonic()
     if user_message is not None:
         text_response = await generate_agent_response(session_id, user_message, user_access_token)
     else:
         text_response = await generate_agent_followup(session_id, user_access_token)
+    t_after_llm = time.monotonic()
 
     # Generate scaffolded display text (arabizi) from the canonical Arabic response
     # Pass user_message for context-aware scaffolding (e.g., keep full phrases as Arabizi
     # when the user asked to learn a specific phrase)
     scaffolded_response = await generate_scaffolded_text(text_response, user_message=user_message)
+    t_after_scaffolding = time.monotonic()
+
+    # Track response time analytics
+    session = get_session(session_id)
+    user = getattr(session, "user", None) if session else None
+    context = get_context(session_id)
+    posthog_service.capture(
+        distinct_id=user.id if user else session_id,
+        event="agent_response_completed",
+        properties={
+            "session_id": session_id,
+            "mode": "text_websocket",
+            "total_ms": round((t_after_scaffolding - t_start) * 1000, 1),
+            "llm_ms": round((t_after_llm - t_start) * 1000, 1),
+            "scaffolding_ms": round((t_after_scaffolding - t_after_llm) * 1000, 1),
+            "tts_ms": None,
+            "language": context.agent.language if context else "ar-AR",
+        },
+    )
 
     # Create and save the tutor message to the database
     try:
