@@ -1,0 +1,113 @@
+#!/bin/bash
+set -euo pipefail
+
+# Log all output
+exec > >(tee /var/log/user-data.log) 2>&1
+echo "=== Starting cloud-init at $(date) ==="
+
+# Install Docker
+dnf install -y docker
+systemctl enable docker
+systemctl start docker
+
+# Install Caddy (direct binary — AL2023 has no RPM package)
+curl -sL "https://github.com/caddyserver/caddy/releases/download/v2.9.1/caddy_2.9.1_linux_amd64.tar.gz" -o /tmp/caddy.tar.gz
+tar xzf /tmp/caddy.tar.gz -C /usr/bin caddy
+chmod +x /usr/bin/caddy
+rm /tmp/caddy.tar.gz
+
+# Create caddy user/group and systemd service
+groupadd -r caddy 2>/dev/null || true
+useradd -r -g caddy -d /var/lib/caddy -s /sbin/nologin caddy 2>/dev/null || true
+mkdir -p /var/lib/caddy /etc/caddy /var/log/caddy
+chown caddy:caddy /var/lib/caddy /var/log/caddy
+
+cat > /etc/systemd/system/caddy.service <<'SVCEOF'
+[Unit]
+Description=Caddy
+After=network.target
+[Service]
+User=caddy
+Group=caddy
+ExecStart=/usr/bin/caddy run --environ --config /etc/caddy/Caddyfile
+ExecReload=/usr/bin/caddy reload --config /etc/caddy/Caddyfile
+TimeoutStopSec=5s
+LimitNOFILE=1048576
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+systemctl daemon-reload
+systemctl enable caddy
+
+# Install jq for JSON parsing
+dnf install -y jq
+
+# Create config directory
+mkdir -p /etc/mishmish
+
+%{ if caddy_mode == "prod" ~}
+# ---- prod mode: fetch secrets, pull image, run container ----
+
+SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id "${secret_arn}" \
+  --region "${region}" \
+  --query SecretString --output text)
+
+echo "SUPABASE_URL=$(echo "$SECRET_JSON" | jq -r '.SUPABASE_URL')" > /etc/mishmish/api.env
+echo "SUPABASE_PUBLISHABLE_KEY=$(echo "$SECRET_JSON" | jq -r '.SUPABASE_PUBLISHABLE_KEY')" >> /etc/mishmish/api.env
+echo "SUPABASE_SECRET_KEY=$(echo "$SECRET_JSON" | jq -r '.SUPABASE_SECRET_KEY')" >> /etc/mishmish/api.env
+echo "OPENAI_API_KEY=$(echo "$SECRET_JSON" | jq -r '.OPENAI_API_KEY')" >> /etc/mishmish/api.env
+echo "SONIOX_API_KEY=$(echo "$SECRET_JSON" | jq -r '.SONIOX_API_KEY')" >> /etc/mishmish/api.env
+echo "ELEVEN_API_KEY=$(echo "$SECRET_JSON" | jq -r '.ELEVEN_API_KEY')" >> /etc/mishmish/api.env
+echo "PORT=8000" >> /etc/mishmish/api.env
+chmod 600 /etc/mishmish/api.env
+
+# ECR login and pull initial image
+ECR_REGISTRY=$(echo "${image_uri}" | cut -d'/' -f1)
+aws ecr get-login-password --region "${region}" | \
+  docker login --username AWS --password-stdin "$ECR_REGISTRY"
+docker pull "${image_uri}"
+
+# Run the API container
+docker run -d \
+  --name api \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  --env-file /etc/mishmish/api.env \
+  "${image_uri}"
+
+# Write Caddyfile
+cat > /etc/caddy/Caddyfile <<'CADDYEOF'
+${domain_name} {
+  # CORS headers — belt-and-suspenders with FastAPI CORSMiddleware
+  # so that even 5xx errors from the app always include CORS headers.
+  @cors_preflight method OPTIONS
+  handle @cors_preflight {
+    header Access-Control-Allow-Origin "*"
+    header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    header Access-Control-Allow-Headers "*"
+    header Access-Control-Max-Age "86400"
+    respond "" 204
+  }
+  # ? prefix = set only if not already present (avoids duplicate with FastAPI)
+  header ?Access-Control-Allow-Origin "*"
+  header ?Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  header ?Access-Control-Allow-Headers "*"
+
+  reverse_proxy localhost:8000
+}
+CADDYEOF
+%{ else ~}
+# ---- preview-empty mode: empty Caddyfile; PR blocks added via SSM ----
+cat > /etc/caddy/Caddyfile <<'CADDYEOF'
+# Preview — PR-specific blocks are appended below by GitHub Actions.
+# Each block routes api-pr-X, pr-X, and admin-pr-X subdomains.
+CADDYEOF
+%{ endif ~}
+
+# Start Caddy
+systemctl start caddy
+
+echo "=== Cloud-init complete at $(date) ==="
