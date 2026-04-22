@@ -47,20 +47,26 @@ jobs:
         with:
           version: latest
 
-      # Fetch shared preview infra outputs (bucket, CloudFront)
+      # Fetch shared preview infra outputs (bucket, CloudFront) — resource names
+      # are stable; resolve via tags / static names instead of CloudFormation.
       - name: Get shared preview infra outputs
         id: preview-infra
         run: |
-          get_output() {
-            aws cloudformation describe-stacks \
-              --stack-name "arabic-voice-agent-preview" \
-              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
-              --output text
-          }
-          echo "instance_id=$(get_output PreviewInstanceId)" >> "$GITHUB_OUTPUT"
-          echo "bucket=$(get_output PreviewStaticBucketName)" >> "$GITHUB_OUTPUT"
-          echo "dist_id=$(get_output PreviewStaticDistributionId)" >> "$GITHUB_OUTPUT"
-          echo "cf_domain=$(get_output PreviewStaticDistributionDomain)" >> "$GITHUB_OUTPUT"
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=api-preview.mishmish.ai" \
+                      "Name=instance-state-name,Values=running,pending" \
+            --query "Reservations[0].Instances[0].InstanceId" \
+            --output text)
+          DIST_JSON=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='Shared preview static sites (all PRs)'] | [0].{Id:Id,Domain:DomainName}" \
+            --output json)
+          DIST_ID=$(echo "$DIST_JSON" | jq -r '.Id')
+          CF_DOMAIN=$(echo "$DIST_JSON" | jq -r '.Domain')
+
+          echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
+          echo "bucket=mishmish-preview" >> "$GITHUB_OUTPUT"
+          echo "dist_id=$DIST_ID" >> "$GITHUB_OUTPUT"
+          echo "cf_domain=$CF_DOMAIN" >> "$GITHUB_OUTPUT"
 
       # Build and deploy web-app
       - name: Build web-app
