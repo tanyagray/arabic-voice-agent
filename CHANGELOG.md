@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.0](https://github.com/tanyagray/arabic-voice-agent/compare/v1.2.1...v1.3.0) (2026-04-12)
+
+
+### Features
+
+* flashcard generation tool with swipeable UI ([#139](https://github.com/tanyagray/arabic-voice-agent/issues/139)) ([cbcd4d4](https://github.com/tanyagray/arabic-voice-agent/commit/cbcd4d425c1a51f22ad68fee1a69ad7111f0ef11))
+* **web-api:** add send_audio tool for pronunciation in chat mode ([#135](https://github.com/tanyagray/arabic-voice-agent/issues/135)) ([04085ab](https://github.com/tanyagray/arabic-voice-agent/commit/04085ab060f12e737f8de354dc69abcc8303eaaa))
+* **web-api:** context-aware scaffolding for phrase-learning intent ([#132](https://github.com/tanyagray/arabic-voice-agent/issues/132)) ([7556185](https://github.com/tanyagray/arabic-voice-agent/commit/7556185bdb84377a93ddb40050ab1a5a41a27c03))
+* **web-api:** track agent response times via PostHog analytics ([1022ec8](https://github.com/tanyagray/arabic-voice-agent/commit/1022ec85d604e8e26e057b0ae88faceae008d96e))
+* **web-app:** show word meaning popover on hover for desktop ([#138](https://github.com/tanyagray/arabic-voice-agent/issues/138)) ([7612a80](https://github.com/tanyagray/arabic-voice-agent/commit/7612a80a734a334f87299640cac05429ed50cff5))
+
+
+### Bug Fixes
+
+* **ci:** fall back to main Supabase project when no preview branch exists ([ac24f87](https://github.com/tanyagray/arabic-voice-agent/commit/ac24f874407404e07527734f85f4c81aef2e2622))
+* **config:** use npm ci instead of npm install in session-start hook ([3073596](https://github.com/tanyagray/arabic-voice-agent/commit/307359633bab65783b31d3d26e852804df152ffc))
+* **infra:** remove unsupported InstanceMarketOptions from preview EC2 ([f0414bc](https://github.com/tanyagray/arabic-voice-agent/commit/f0414bc1e8874dd28282b6c6adce5b7237d7a20e))
+* **infra:** rename S3 buckets to avoid cross-region conflict ([69a6249](https://github.com/tanyagray/arabic-voice-agent/commit/69a624979034cbfbc695b7b2268b3b89956f89ea))
+
 ## [1.2.1](https://github.com/tanyagray/arabic-voice-agent/compare/v1.2.0...v1.2.1) (2026-04-06)
 
 
