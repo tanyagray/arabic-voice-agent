@@ -47,32 +47,7 @@
     {
       "Sid": "S3AppBuckets",
       "Effect": "Allow",
-      "Action": [
-        "s3:CreateBucket",
-        "s3:DeleteBucket",
-        "s3:PutBucketPolicy",
-        "s3:GetBucketPolicy",
-        "s3:DeleteBucketPolicy",
-        "s3:PutBucketWebsite",
-        "s3:GetBucketWebsite",
-        "s3:DeleteBucketWebsite",
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:DeleteObject",
-        "s3:ListBucket",
-        "s3:GetBucketLocation",
-        "s3:GetBucketVersioning",
-        "s3:PutBucketVersioning",
-        "s3:PutBucketPublicAccessBlock",
-        "s3:GetBucketPublicAccessBlock",
-        "s3:PutBucketOwnershipControls",
-        "s3:GetBucketOwnershipControls",
-        "s3:PutBucketEncryption",
-        "s3:GetEncryptionConfiguration",
-        "s3:TagResource",
-        "s3:PutBucketTagging",
-        "s3:GetBucketTagging"
-      ],
+      "Action": "s3:*",
       "Resource": [
         "arn:aws:s3:::mishmish-preview",
         "arn:aws:s3:::mishmish-preview/*",
@@ -111,6 +86,12 @@
         "cloudfront:UntagResource",
         "cloudfront:ListTagsForResource"
       ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Ec2DescribeAll",
+      "Effect": "Allow",
+      "Action": ["ec2:Describe*", "ec2:Get*"],
       "Resource": "*"
     },
     {
@@ -161,6 +142,12 @@
         "ec2:DisassociateRouteTable",
         "ec2:DescribeAvailabilityZones",
         "ec2:DescribeImages",
+        "ec2:DescribeInstanceTypes",
+        "ec2:DescribeInstanceAttribute",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeNetworkAcls",
+        "ec2:DescribeVpcAttribute",
+        "ec2:DescribeAccountAttributes",
         "ec2:DescribeKeyPairs",
         "ec2:CreateTags",
         "ec2:DeleteTags",

@@ -25,10 +25,11 @@ jobs:
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
 
-          # Get preview EC2 instance ID
-          INSTANCE_ID=$(aws cloudformation describe-stacks \
-            --stack-name "arabic-voice-agent-preview" \
-            --query "Stacks[0].Outputs[?OutputKey=='PreviewInstanceId'].OutputValue" \
+          # Get preview EC2 instance ID by tag
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=api-preview.mishmish.ai" \
+                      "Name=instance-state-name,Values=running,pending,stopping,stopped" \
+            --query "Reservations[0].Instances[0].InstanceId" \
             --output text 2>/dev/null || echo "")
 
           if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "None" ]; then
@@ -87,15 +88,11 @@ jobs:
         run: |
           PR="${{ github.event.pull_request.number }}"
 
-          get_output() {
-            aws cloudformation describe-stacks \
-              --stack-name "arabic-voice-agent-preview" \
-              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
-              --output text
-          }
-
-          BUCKET=$(get_output PreviewStaticBucketName)
-          DIST_ID=$(get_output PreviewStaticDistributionId)
+          # Bucket name is stable; CloudFront distribution resolved by alias-free lookup
+          BUCKET="mishmish-preview"
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='Shared preview static sites (all PRs)'].Id | [0]" \
+            --output text 2>/dev/null || echo "")
 
           if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
             echo "Deleting s3://$BUCKET/pr-${PR}/..."

@@ -60,13 +60,14 @@ jobs:
       - name: Get preview EC2 instance ID
         id: preview-infra
         run: |
-          INSTANCE_ID=$(aws cloudformation describe-stacks \
-            --stack-name "arabic-voice-agent-preview" \
-            --query "Stacks[0].Outputs[?OutputKey=='PreviewInstanceId'].OutputValue" \
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=api-preview.mishmish.ai" \
+                      "Name=instance-state-name,Values=running,pending" \
+            --query "Reservations[0].Instances[0].InstanceId" \
             --output text)
-          ELASTIC_IP=$(aws cloudformation describe-stacks \
-            --stack-name "arabic-voice-agent-preview" \
-            --query "Stacks[0].Outputs[?OutputKey=='PreviewElasticIp'].OutputValue" \
+          ELASTIC_IP=$(aws ec2 describe-addresses \
+            --filters "Name=tag:Name,Values=api-preview.mishmish.ai" \
+            --query "Addresses[0].PublicIp" \
             --output text)
           echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
           echo "elastic_ip=$ELASTIC_IP" >> "$GITHUB_OUTPUT"
