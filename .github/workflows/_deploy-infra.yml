@@ -31,23 +31,24 @@ on:
 
 env:
   AWS_REGION: us-west-2
+  TF_IN_AUTOMATION: "true"
 
 jobs:
   deploy:
-    name: Deploy CloudFormation stack
+    name: Terraform apply (aws/prod)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     environment: production
     outputs:
-      api_url: ${{ steps.outputs.outputs.api_url }}
-      api_instance_id: ${{ steps.outputs.outputs.api_instance_id }}
-      static_bucket: ${{ steps.outputs.outputs.static_bucket }}
-      web_app_dist_id: ${{ steps.outputs.outputs.web_app_dist_id }}
-      admin_dist_id: ${{ steps.outputs.outputs.admin_dist_id }}
-      web_app_cf_domain: ${{ steps.outputs.outputs.web_app_cf_domain }}
-      admin_cf_domain: ${{ steps.outputs.outputs.admin_cf_domain }}
+      api_url: ${{ steps.tf.outputs.api_url }}
+      api_instance_id: ${{ steps.tf.outputs.api_instance_id }}
+      static_bucket: ${{ steps.tf.outputs.static_bucket }}
+      web_app_dist_id: ${{ steps.tf.outputs.web_app_dist_id }}
+      admin_dist_id: ${{ steps.tf.outputs.admin_dist_id }}
+      web_app_cf_domain: ${{ steps.tf.outputs.web_app_cf_domain }}
+      admin_cf_domain: ${{ steps.tf.outputs.admin_cf_domain }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,80 +59,38 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get bootstrap stack outputs
-        id: bootstrap
-        run: |
-          get_output() {
-            aws cloudformation describe-stacks \
-              --stack-name "arabic-voice-agent-bootstrap" \
-              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
-              --output text
-          }
-          echo "vpc_id=$(get_output VpcId)" >> "$GITHUB_OUTPUT"
-          echo "subnet_id=$(get_output SubnetAId)" >> "$GITHUB_OUTPUT"
-          echo "ec2_instance_profile=$(get_output Ec2InstanceProfileName)" >> "$GITHUB_OUTPUT"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.3
+          terraform_wrapper: false
 
-      - name: Clean up failed stack if needed
-        run: |
-          STACK_NAME="arabic-voice-agent-prod"
-          STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
-            --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
-          if [ "$STATUS" = "ROLLBACK_IN_PROGRESS" ]; then
-            echo "Stack $STACK_NAME is rolling back, waiting..."
-            aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME"
-            STATUS="ROLLBACK_COMPLETE"
-          fi
-          if [ "$STATUS" = "UPDATE_ROLLBACK_FAILED" ]; then
-            echo "Stack $STACK_NAME is stuck in UPDATE_ROLLBACK_FAILED, attempting continue-update-rollback..."
-            aws cloudformation continue-update-rollback --stack-name "$STACK_NAME"
-            aws cloudformation wait stack-rollback-complete --stack-name "$STACK_NAME"
-            STATUS="UPDATE_ROLLBACK_COMPLETE"
-          fi
-          if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "DELETE_FAILED" ] || [ "$STATUS" = "REVIEW_IN_PROGRESS" ]; then
-            echo "Stack $STACK_NAME is in $STATUS state, deleting before redeploy..."
-            aws cloudformation delete-stack --stack-name "$STACK_NAME"
-            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
-          fi
+      - name: Terraform init
+        working-directory: aws/prod
+        run: terraform init -input=false
 
-      - name: Deploy CloudFormation stack
+      - name: Terraform apply
+        working-directory: aws/prod
         run: |
-          aws cloudformation deploy \
-            --stack-name "arabic-voice-agent-prod" \
-            --template-file aws/prod/template.yaml \
-            --no-fail-on-empty-changeset \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --parameter-overrides \
-              AcmCertificateArn="${{ secrets.AWS_ACM_CERTIFICATE_ARN }}" \
-              EcrImageUri="${{ inputs.image_uri }}" \
-              VpcId="${{ steps.bootstrap.outputs.vpc_id }}" \
-              SubnetId="${{ steps.bootstrap.outputs.subnet_id }}" \
-              Ec2InstanceProfileName="${{ steps.bootstrap.outputs.ec2_instance_profile }}" \
-              ApiSecretArn="${{ secrets.API_SECRET_ARN }}"
+          terraform apply -auto-approve -input=false \
+            -var="api_image_uri=${{ inputs.image_uri }}" \
+            -var="api_secret_arn=${{ secrets.API_SECRET_ARN }}"
 
-      - name: Get stack outputs
-        id: outputs
+      - name: Capture outputs
+        id: tf
+        working-directory: aws/prod
         run: |
-          get_output() {
-            aws cloudformation describe-stacks \
-              --stack-name "arabic-voice-agent-prod" \
-              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
-              --output text
-          }
-
-          echo "api_url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
-          echo "api_instance_id=$(get_output ApiInstanceId)" >> "$GITHUB_OUTPUT"
-          echo "static_bucket=$(get_output StaticBucketName)" >> "$GITHUB_OUTPUT"
-          echo "web_app_dist_id=$(get_output WebAppDistributionId)" >> "$GITHUB_OUTPUT"
-          echo "admin_dist_id=$(get_output AdminDistributionId)" >> "$GITHUB_OUTPUT"
-          echo "web_app_cf_domain=$(get_output WebAppCloudFrontDomain)" >> "$GITHUB_OUTPUT"
-          echo "admin_cf_domain=$(get_output AdminCloudFrontDomain)" >> "$GITHUB_OUTPUT"
+          echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
+          echo "api_instance_id=$(terraform output -raw api_instance_id)" >> "$GITHUB_OUTPUT"
+          echo "static_bucket=$(terraform output -raw static_bucket_name)" >> "$GITHUB_OUTPUT"
+          echo "web_app_dist_id=$(terraform output -raw web_app_distribution_id)" >> "$GITHUB_OUTPUT"
+          echo "admin_dist_id=$(terraform output -raw admin_distribution_id)" >> "$GITHUB_OUTPUT"
+          echo "web_app_cf_domain=$(terraform output -raw web_app_cloudfront_domain)" >> "$GITHUB_OUTPUT"
+          echo "admin_cf_domain=$(terraform output -raw admin_cloudfront_domain)" >> "$GITHUB_OUTPUT"
 
       - name: Print API Elastic IP
+        working-directory: aws/prod
         run: |
-          API_EIP=$(aws cloudformation describe-stacks \
-            --stack-name "arabic-voice-agent-prod" \
-            --query "Stacks[0].Outputs[?OutputKey=='ApiElasticIp'].OutputValue" \
-            --output text)
+          API_EIP=$(terraform output -raw api_elastic_ip)
 
           echo "### API DNS record required" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

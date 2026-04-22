@@ -59,6 +59,7 @@ jobs:
               - 'supabase/seed/**'
             infra:
               - 'aws/preview/**'
+              - 'aws/shared/modules/**'
             workflows:
               - '.github/workflows/deploy-preview.yml'
               - '.github/workflows/destroy-preview.yml'
@@ -128,13 +129,15 @@ jobs:
 
   # ── Deploy preview infra (only when aws/preview/** changed) ───────────
   deploy-infra:
-    name: Deploy preview infrastructure
+    name: Terraform apply (aws/preview)
     needs: detect-changes
     if: needs.detect-changes.outputs.deploy_infra == 'true'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
+    env:
+      TF_IN_AUTOMATION: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -143,44 +146,27 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get bootstrap stack outputs
-        id: bootstrap
-        run: |
-          get_output() {
-            aws cloudformation describe-stacks \
-              --stack-name "arabic-voice-agent-bootstrap" \
-              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
-              --output text
-          }
-          echo "vpc_id=$(get_output VpcId)" >> "$GITHUB_OUTPUT"
-          echo "subnet_id=$(get_output SubnetAId)" >> "$GITHUB_OUTPUT"
-          echo "ec2_instance_profile=$(get_output Ec2InstanceProfileName)" >> "$GITHUB_OUTPUT"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.3
+          terraform_wrapper: false
 
-      - name: Deploy CloudFormation stack
-        run: |
-          aws cloudformation deploy \
-            --stack-name "arabic-voice-agent-preview" \
-            --template-file aws/preview/template.yaml \
-            --no-fail-on-empty-changeset \
-            --parameter-overrides \
-              VpcId="${{ steps.bootstrap.outputs.vpc_id }}" \
-              SubnetId="${{ steps.bootstrap.outputs.subnet_id }}" \
-              Ec2InstanceProfileName="${{ steps.bootstrap.outputs.ec2_instance_profile }}"
+      - name: Terraform init
+        working-directory: aws/preview
+        run: terraform init -input=false
+
+      - name: Terraform apply
+        working-directory: aws/preview
+        run: terraform apply -auto-approve -input=false
 
       - name: Print outputs
+        working-directory: aws/preview
         run: |
-          get_output() {
-            aws cloudformation describe-stacks \
-              --stack-name "arabic-voice-agent-preview" \
-              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
-              --output text
-          }
-
-          INSTANCE_ID=$(get_output PreviewInstanceId)
-          ELASTIC_IP=$(get_output PreviewElasticIp)
-          BUCKET=$(get_output PreviewStaticBucketName)
-          CF_DOMAIN=$(get_output PreviewStaticDistributionDomain)
-          CF_DIST_ID=$(get_output PreviewStaticDistributionId)
+          INSTANCE_ID=$(terraform output -raw preview_instance_id)
+          ELASTIC_IP=$(terraform output -raw preview_elastic_ip)
+          BUCKET=$(terraform output -raw preview_static_bucket_name)
+          CF_DOMAIN=$(terraform output -raw preview_static_distribution_domain)
+          CF_DIST_ID=$(terraform output -raw preview_static_distribution_id)
 
           echo "### Preview Infrastructure Deployed" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
