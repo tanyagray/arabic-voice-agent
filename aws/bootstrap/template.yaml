@@ -339,6 +339,7 @@ Resources:
                   - ec2:TerminateInstances
                   - ec2:StartInstances
                   - ec2:StopInstances
+                  - ec2:ModifyInstanceAttribute
                   - ec2:DescribeInstances
                   - ec2:DescribeInstanceStatus
                   - ec2:CreateSecurityGroup
