@@ -28,3 +28,11 @@ supabase/.env.keys
 
 # Task runner
 .task/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+*.auto.tfvars
