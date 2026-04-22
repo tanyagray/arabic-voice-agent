@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Header } from '../components/Header';
 import { ActiveSession } from '../components/ActiveSession/ActiveSession';
-import { PipecatProvider } from '../providers/PipecatProvider';
 import { useStore } from '../store';
 import { Box, Flex } from '@chakra-ui/react';
 import { appGradient } from '@/lib/styles';
@@ -24,9 +23,7 @@ function HomePage() {
     >
       <Header />
       <Box flex={1} minH={0} pt="80px" px={{ base: 0, md: 6 }} pb={{ base: 4, md: 6 }} position="relative" zIndex={1}>
-        <PipecatProvider>
-          <ActiveSession />
-        </PipecatProvider>
+        <ActiveSession />
       </Box>
     </Flex>
   );
