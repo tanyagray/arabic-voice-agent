@@ -26,8 +26,8 @@ variable "api_domain" {
 
 variable "acm_certificate_domain" {
   type        = string
-  default     = "*.mishmish.ai"
-  description = "ACM certificate domain (looked up in us-east-1)."
+  default     = "mishmish.ai"
+  description = "ACM certificate primary domain (looked up in us-east-1; cert includes *.mishmish.ai SAN)."
 }
 
 variable "web_app_aliases" {
