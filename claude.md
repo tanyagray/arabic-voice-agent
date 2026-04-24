@@ -64,6 +64,11 @@ supabase migration up # Apply pending migrations locally (preferred)
 - All schema changes must be done via migration files in `supabase/migrations/`.
 - Before any database refactor, check whether `[experimental.pgdelta]` in `supabase/config.toml` is ready for use. As of March 2026 it was alpha (CLI v2.83.0, `@supabase/pg-delta@1.0.0-alpha.4`). If stable, it can replace the manual `supabase db diff` workflow with a proper declarative sync engine. See: supabase.com/docs/guides/local-development/declarative-database-schemas and github.com/supabase/pg-toolbelt.
 
+**Seeded test users (local + preview environments only):**
+- `freeloader@mishmish.io` / `password` — free plan user, for testing free-tier limits and quota enforcement.
+- `pro@mishmish.io` / `password` — pro plan user, for testing paid features.
+- `test@mishmish.io` / `password` — scratch user for exercising the signup/onboarding flow. Not seeded; create it via the signup UI whenever you need a fresh new-user flow. It is always safe to delete `test@mishmish.io` and all their associated data (profile, conversations, messages, usage events, etc.) from the database to re-run signup from scratch.
+
 ## Architecture
 
 ### Voice Pipeline (web-api)
