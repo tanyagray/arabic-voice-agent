@@ -1,8 +1,10 @@
 """Authentication dependencies for FastAPI routes."""
 
 from typing import Optional
-from fastapi import HTTPException, Security, Query
+from fastapi import Depends, HTTPException, Security, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from services.supabase_client import get_supabase_user_client
 
 security = HTTPBearer()
 
@@ -59,3 +61,30 @@ def get_websocket_token(
         )
 
     return token
+
+
+def get_current_user(access_token: str = Depends(get_current_user_token)):
+    """Resolve the authenticated Supabase user from the Bearer token.
+
+    Returns the Supabase `User` object (with `.id`, `.email`, `.is_anonymous`).
+    Raises 401 if the token is invalid.
+    """
+    try:
+        client = get_supabase_user_client(access_token)
+        resp = client.auth.get_user(access_token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid or expired token: {e}")
+    if not resp or not resp.user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return resp.user
+
+
+def resolve_user_from_token(access_token: str):
+    """Same resolution logic as `get_current_user`, but usable outside FastAPI
+    dependency injection (e.g. in WebSocket handlers)."""
+    try:
+        client = get_supabase_user_client(access_token)
+        resp = client.auth.get_user(access_token)
+    except Exception:
+        return None
+    return resp.user if resp else None

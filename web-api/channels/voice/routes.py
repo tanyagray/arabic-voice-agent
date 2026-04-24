@@ -1,11 +1,15 @@
 """Realtime session WebSocket routes using Pipecat."""
 
+import time
+
 from fastapi import APIRouter, WebSocket
 from fastapi.websockets import WebSocketDisconnect
 from loguru import logger
 
+from dependencies.auth import resolve_user_from_token
 from harness import session_manager as session_service
 from channels.voice.pipeline import run_pipecat_agent
+from services import plan_service
 
 
 # Router
@@ -52,9 +56,35 @@ async def pipecat_session_websocket(websocket: WebSocket, session_id: str):
             await websocket.close(code=1008, reason="Session not found")
             return
 
-        # Run the pipecat agent
+        # Resolve user and enforce voice quota before starting the pipeline.
+        user = resolve_user_from_token(token)
+        if not user:
+            await websocket.send_json({"kind": "error", "data": {"message": "Invalid token"}})
+            await websocket.close(code=1008, reason="Invalid token")
+            return
+
+        try:
+            plan_service.check_voice_quota(user.id)
+        except plan_service.QuotaExceeded as exc:
+            await websocket.send_json({
+                "kind": "quota_exceeded",
+                "data": {"kind": exc.kind, "plan": exc.plan, "message": exc.detail},
+            })
+            await websocket.close(code=1008, reason="Voice quota exceeded")
+            return
+
+        # Run the pipecat agent and record elapsed voice seconds on disconnect.
         logger.info(f"Starting pipecat agent for session {session_id}")
-        await run_pipecat_agent(websocket, session_id, session, token)
+        started_at = time.monotonic()
+        try:
+            await run_pipecat_agent(websocket, session_id, session, token)
+        finally:
+            elapsed = int(time.monotonic() - started_at)
+            if elapsed > 0:
+                try:
+                    plan_service.record_usage(user.id, "voice_seconds", elapsed)
+                except Exception as e:
+                    logger.error(f"Failed to record voice usage for {user.id}: {e}")
 
     except WebSocketDisconnect:
         # Client disconnected

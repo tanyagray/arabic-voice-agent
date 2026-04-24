@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PostHogProvider } from 'posthog-js/react'
 import { SupabaseProvider } from './context/SupabaseContext'
 import { AuthProvider } from './context/AuthContext'
+import { PaywallProvider } from './components/Paywall/PaywallProvider'
 import { Provider } from './components/ui/provider'
 import posthog from './posthog'
 import './typography.css'
@@ -30,7 +31,9 @@ createRoot(document.getElementById('root')!).render(
         <SupabaseProvider>
           <AuthProvider>
             <BrowserRouter>
-              <App />
+              <PaywallProvider>
+                <App />
+              </PaywallProvider>
             </BrowserRouter>
           </AuthProvider>
         </SupabaseProvider>

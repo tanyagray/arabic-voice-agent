@@ -61,6 +61,10 @@ echo "SUPABASE_SECRET_KEY=$(echo "$SECRET_JSON" | jq -r '.SUPABASE_SECRET_KEY')"
 echo "OPENAI_API_KEY=$(echo "$SECRET_JSON" | jq -r '.OPENAI_API_KEY')" >> /etc/mishmish/api.env
 echo "SONIOX_API_KEY=$(echo "$SECRET_JSON" | jq -r '.SONIOX_API_KEY')" >> /etc/mishmish/api.env
 echo "ELEVEN_API_KEY=$(echo "$SECRET_JSON" | jq -r '.ELEVEN_API_KEY')" >> /etc/mishmish/api.env
+echo "STRIPE_SECRET_KEY=$(echo "$SECRET_JSON" | jq -r '.STRIPE_SECRET_KEY // empty')" >> /etc/mishmish/api.env
+echo "STRIPE_WEBHOOK_SECRET=$(echo "$SECRET_JSON" | jq -r '.STRIPE_WEBHOOK_SECRET // empty')" >> /etc/mishmish/api.env
+echo "STRIPE_PRICE_ID_MONTHLY=$(echo "$SECRET_JSON" | jq -r '.STRIPE_PRICE_ID_MONTHLY // empty')" >> /etc/mishmish/api.env
+echo "STRIPE_PRICE_ID_YEARLY=$(echo "$SECRET_JSON" | jq -r '.STRIPE_PRICE_ID_YEARLY // empty')" >> /etc/mishmish/api.env
 echo "PORT=8000" >> /etc/mishmish/api.env
 chmod 600 /etc/mishmish/api.env
 

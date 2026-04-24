@@ -32,11 +32,32 @@ def test_env():
 
 @pytest.fixture
 def client(test_env):
-    """Create a FastAPI test client."""
-    from main import app
+    """Create a FastAPI test client.
 
-    with TestClient(app) as test_client:
+    Overrides:
+    - `get_current_user` + `plan_service.check_chat_quota` / `check_dialect_allowed` /
+      `record_usage` → no-ops by default, so existing route tests don't need to
+      mock billing/quota concerns. Opt-out by clearing `app.dependency_overrides`
+      in the test.
+    """
+    from main import app
+    from dependencies.auth import get_current_user
+    from unittest.mock import patch
+
+    fake_user = Mock()
+    fake_user.id = "test-user-123"
+    fake_user.email = "tester@example.com"
+    fake_user.is_anonymous = False
+
+    app.dependency_overrides[get_current_user] = lambda: fake_user
+    with (
+        patch("services.plan_service.check_chat_quota"),
+        patch("services.plan_service.check_dialect_allowed"),
+        patch("services.plan_service.record_usage"),
+        TestClient(app) as test_client,
+    ):
         yield test_client
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.fixture

@@ -19,6 +19,7 @@ from channels.rest.routes.admin import router as admin_router
 from channels.rest.routes.config import router as config_router
 from channels.rest.routes.wimmelbilder import router as wimmelbilder_router
 from channels.rest.routes.flashcards import router as flashcards_router
+from channels.rest.routes.billing import router as billing_router
 from channels.rest.websocket.routes import router as realtime_session_router
 from channels.voice.routes import router as realtime_pipecat_router
 from routes.webhooks import router as webhooks_router
@@ -73,6 +74,7 @@ app.include_router(admin_router)
 app.include_router(config_router)
 app.include_router(wimmelbilder_router)
 app.include_router(flashcards_router)
+app.include_router(billing_router)
 
 
 @app.on_event("shutdown")

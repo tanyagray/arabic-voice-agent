@@ -7,8 +7,8 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File,
 from pydantic import BaseModel, Field
 
 from harness import session_manager as session_service, runner as agent_service, context as context_service, scaffolding as scaffolding_service
-from services import posthog_service, soniox_service, transcript_service, websocket_service
-from dependencies.auth import get_current_user_token
+from services import posthog_service, soniox_service, transcript_service, websocket_service, plan_service
+from dependencies.auth import get_current_user, get_current_user_token
 
 logger = logging.getLogger(__name__)
 
@@ -161,21 +161,22 @@ async def list_user_sessions(access_token: str = Depends(get_current_user_token)
 
 
 @router.post("/{session_id}/chat", response_model=TextResponse)
-async def send_chat_message(session_id: str, request: TextRequest, access_token: str = Depends(get_current_user_token)):
-    """
-    Send a text message to the chat for a specific session.
+async def send_chat_message(
+    session_id: str,
+    request: TextRequest,
+    access_token: str = Depends(get_current_user_token),
+    user=Depends(get_current_user),
+):
+    """Send a text message to the chat for a specific session."""
+    try:
+        plan_service.check_chat_quota(user.id)
+    except plan_service.QuotaExceeded as exc:
+        raise HTTPException(
+            status_code=402,
+            detail={"kind": exc.kind, "plan": exc.plan, "message": exc.detail},
+        )
+    plan_service.record_usage(user.id, "chat_message", 1)
 
-    Args:
-        session_id: The session ID to send the message to
-        request: TextRequest containing the message
-        access_token: JWT access token from Authorization header (automatically extracted)
-
-    Returns:
-        TextResponse with the agent's response
-
-    Raises:
-        HTTPException: 404 if session not found, 401 if authentication fails
-    """
     # Verify the session exists
     session = session_service.get_session(session_id, user_access_token=access_token)
     if not session:
@@ -334,7 +335,20 @@ async def send_test_event(session_id: str, access_token: str = Depends(get_curre
 
 
 @router.patch("/{session_id}/context", response_model=ContextResponse)
-async def update_context(session_id: str, request: UpdateContextRequest, access_token: str = Depends(get_current_user_token)):
+async def update_context(
+    session_id: str,
+    request: UpdateContextRequest,
+    access_token: str = Depends(get_current_user_token),
+    user=Depends(get_current_user),
+):
+    if request.language is not None:
+        try:
+            plan_service.check_dialect_allowed(user.id, request.language)
+        except plan_service.QuotaExceeded as exc:
+            raise HTTPException(
+                status_code=402,
+                detail={"kind": exc.kind, "plan": exc.plan, "message": exc.detail},
+            )
     """
     Update session context settings (audio, language, etc.).
 
