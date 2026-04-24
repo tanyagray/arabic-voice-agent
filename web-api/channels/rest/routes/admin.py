@@ -138,6 +138,73 @@ async def update_transliteration_prompt(
     return PromptContent(content=body.content)
 
 
+# ── Flow prompts ──────────────────────────────────────────────────────────────
+# Flow prompts live under agent/tutor/prompts/flows/<flow>/<step>/<section>.md,
+# where section ∈ {prompt, schema, examples}. One pair of endpoints handles all
+# flows/steps/sections so adding a new step only requires dropping in markdown
+# files.
+
+FLOWS_DIR = PROMPTS_DIR / "flows"
+
+_FLOW_NAME_PATTERN = "[A-Za-z0-9_-]+"
+_ALLOWED_SECTIONS = {"prompt", "schema", "examples"}
+
+
+def _resolve_flow_prompt_path(flow: str, step: str, section: str) -> Path:
+    """Resolve a flow prompt section path, guarding against traversal."""
+    import re
+    if not re.fullmatch(_FLOW_NAME_PATTERN, flow) or not re.fullmatch(_FLOW_NAME_PATTERN, step):
+        raise HTTPException(status_code=400, detail="Invalid flow or step identifier")
+    if section not in _ALLOWED_SECTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid section '{section}'. Expected one of: {sorted(_ALLOWED_SECTIONS)}",
+        )
+    path = FLOWS_DIR / flow / step / f"{section}.md"
+    # Ensure the resolved path is still inside FLOWS_DIR
+    try:
+        path.resolve().relative_to(FLOWS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid flow path")
+    return path
+
+
+@router.get("/prompts/flows/{flow}/{step}/{section}")
+async def get_flow_prompt_section(
+    flow: str,
+    step: str,
+    section: str,
+    _: str = Depends(get_admin_user),
+) -> PromptContent:
+    """Return the markdown content of a flow-step-section file."""
+    path = _resolve_flow_prompt_path(flow, step, section)
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Flow prompt not found: {flow}/{step}/{section}",
+        )
+    return PromptContent(content=path.read_text(encoding="utf-8"))
+
+
+@router.put("/prompts/flows/{flow}/{step}/{section}")
+async def update_flow_prompt_section(
+    flow: str,
+    step: str,
+    section: str,
+    body: PromptContent,
+    _: str = Depends(get_admin_user),
+) -> PromptContent:
+    """Overwrite a flow-step-section file."""
+    path = _resolve_flow_prompt_path(flow, step, section)
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Flow prompt not found: {flow}/{step}/{section}",
+        )
+    path.write_text(body.content, encoding="utf-8")
+    return PromptContent(content=body.content)
+
+
 # ── Admin chat sessions ───────────────────────────────────────────────────────
 
 # In-memory store for admin sessions (separate from user sessions)

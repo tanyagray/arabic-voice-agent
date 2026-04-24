@@ -7,6 +7,8 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 
 // Lazy load pages
 const HomePage = lazy(() => import('./pages/HomePage'));
+const Landing = lazy(() => import('./pages/Landing'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
 const SignIn = lazy(() => import('./pages/auth/SignIn'));
 const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
@@ -29,6 +31,11 @@ function App() {
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <Routes>
+        <Route path="/landing" element={<Landing />} />
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/onboarding/name" element={<Onboarding />} />
+        <Route path="/onboarding/motivation" element={<Onboarding />} />
+        <Route path="/onboarding/suggestions" element={<Onboarding />} />
         {/* Main app routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/settings" element={<SettingsPage />} />

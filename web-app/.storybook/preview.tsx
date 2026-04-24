@@ -32,17 +32,20 @@ const preview: Preview = {
     }
   },
   decorators: [
-    (Story) => (
-      <SupabaseProvider>
-        <AuthProvider>
-          <MemoryRouter>
-            <ChakraProvider value={system}>
-              <Story />
-            </ChakraProvider>
-          </MemoryRouter>
-        </AuthProvider>
-      </SupabaseProvider>
-    ),
+    (Story, context) => {
+      const initialEntries = (context.parameters?.initialEntries as string[] | undefined) ?? ['/'];
+      return (
+        <ChakraProvider value={system}>
+          <SupabaseProvider>
+            <AuthProvider>
+              <MemoryRouter initialEntries={initialEntries}>
+                <Story />
+              </MemoryRouter>
+            </AuthProvider>
+          </SupabaseProvider>
+        </ChakraProvider>
+      );
+    },
     withThemeByClassName({
       defaultTheme: "light",
       themes: { light: "", dark: "dark" },
