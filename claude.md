@@ -62,6 +62,29 @@ supabase migration up # Apply pending migrations locally (preferred)
 - Never push to remote/production Supabase (`supabase db push --linked` or any production deploy) without explicit permission.
 - For local development, apply migrations with `supabase migration up`.
 - All schema changes must be done via migration files in `supabase/migrations/`.
+
+### Supabase mode: prod vs. local (default = prod)
+
+The web-api reads its Supabase connection from `web-api/.env` (`SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_PUBLISHABLE_KEY`, plus a `SUPABASE_MODE=prod|local` marker). To avoid forcing every worktree to run the local Docker stack, `.env` defaults to the **remote prod Supabase project** (creds pulled from AWS Secrets Manager `mishmish/prod/api`).
+
+**Decision tree Claude MUST follow:**
+
+1. **Before doing any work**, quickly check current mode and cross-worktree conflicts:
+   - `grep ^SUPABASE_MODE web-api/.env` → `prod` or `local`
+   - `scripts/supabase-lock-check.sh` → exits 0 safe / 2 conflict
+
+2. **If the task does NOT modify Supabase** (no changes to `supabase/migrations/`, `supabase/config.toml`, `supabase/functions/`, auth/RLS policy, or seed data): leave `SUPABASE_MODE=prod`. Do not start local Supabase. Treat the database as read-mostly production — do not run destructive SQL.
+
+3. **If the task DOES modify Supabase** (new migration, RLS change, edge function, config change, seed changes, anything needing `db reset`):
+   - Run `scripts/supabase-lock-check.sh`.
+   - **Exit code 2 (owned by another worktree):** STOP. Warn the user: another worktree (print the path from the output) owns the running local Supabase stack. They must finish or release that worktree (`scripts/use-prod-supabase.sh --stop` from there) before continuing here. Do not attempt to take over.
+   - **Exit code 0 (safe):** run `scripts/use-local-supabase.sh`. This starts local Supabase if needed, claims the lock for this worktree, and rewrites `web-api/.env` with local creds. Then restart the `run web-api` VS Code task (or `cd web-api && task dev`) so it picks up the new env. Restart `run web-app` too if it was running.
+
+4. **When switching back** (or when done with Supabase-modifying work and returning to prod creds): run `scripts/use-prod-supabase.sh` (add `--stop` to also stop the Docker stack). Restart web-api.
+
+**Production safety while in prod mode:**
+- Never run migrations, `supabase db push`, seeds, or destructive SQL against prod. Prod creds are for app-level reads/writes during dev only.
+- If a task would require schema or seed changes against prod, switch to local (step 3) and develop the migration there. Production deploys go through `.github/workflows/_deploy-supabase.yml` — not via CLI from a dev machine.
 - Before any database refactor, check whether `[experimental.pgdelta]` in `supabase/config.toml` is ready for use. As of March 2026 it was alpha (CLI v2.83.0, `@supabase/pg-delta@1.0.0-alpha.4`). If stable, it can replace the manual `supabase db diff` workflow with a proper declarative sync engine. See: supabase.com/docs/guides/local-development/declarative-database-schemas and github.com/supabase/pg-toolbelt.
 
 ## Architecture
