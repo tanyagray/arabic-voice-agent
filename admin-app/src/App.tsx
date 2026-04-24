@@ -25,6 +25,7 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Navigate to="/prompts/base" replace />} />
                       <Route path="/prompts" element={<Navigate to="/prompts/base" replace />} />
+                      <Route path="/prompts/flows/:flow/:step" element={<PromptEditPage />} />
                       <Route path="/prompts/:promptType" element={<PromptEditPage />} />
                       <Route path="/debug/chat" element={<ChatDebugPage />} />
                       <Route path="/debug/voice" element={<VoiceDebugPage />} />

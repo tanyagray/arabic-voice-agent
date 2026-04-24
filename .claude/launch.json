@@ -9,6 +9,13 @@
       "port": 5173
     },
     {
+      "name": "storybook",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", ". ~/.nvm/nvm.sh 2>/dev/null; npm run storybook -- --no-open"],
+      "cwd": "web-app",
+      "port": 6006
+    },
+    {
       "name": "admin-app",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", ". ~/.nvm/nvm.sh 2>/dev/null; npm run dev"],
