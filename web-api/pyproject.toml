@@ -16,6 +16,7 @@ dependencies = [
     "debugpy>=1.8.0",
     "posthog>=3.0.0",
     "pillow>=11.0.0",
+    "stripe>=11.0.0",
 ]
 
 [project.optional-dependencies]

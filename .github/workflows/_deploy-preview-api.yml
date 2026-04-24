@@ -106,6 +106,10 @@ jobs:
           OPENAI_API_KEY=\$(echo "\$SECRET_JSON" | jq -r '.OPENAI_API_KEY')
           SONIOX_API_KEY=\$(echo "\$SECRET_JSON" | jq -r '.SONIOX_API_KEY')
           ELEVEN_API_KEY=\$(echo "\$SECRET_JSON" | jq -r '.ELEVEN_API_KEY')
+          STRIPE_SECRET_KEY=\$(echo "\$SECRET_JSON" | jq -r '.STRIPE_SECRET_KEY // empty')
+          STRIPE_WEBHOOK_SECRET=\$(echo "\$SECRET_JSON" | jq -r '.STRIPE_WEBHOOK_SECRET // empty')
+          STRIPE_PRICE_ID_MONTHLY=\$(echo "\$SECRET_JSON" | jq -r '.STRIPE_PRICE_ID_MONTHLY // empty')
+          STRIPE_PRICE_ID_YEARLY=\$(echo "\$SECRET_JSON" | jq -r '.STRIPE_PRICE_ID_YEARLY // empty')
           PORT=8000
           ENVEOF
           chmod 600 /etc/mishmish/pr-${PR_NUM}.env

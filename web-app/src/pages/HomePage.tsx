@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Header } from '../components/Header';
 import { ActiveSession } from '../components/ActiveSession/ActiveSession';
+import { UpgradeBanner } from '../components/Paywall/UpgradeBanner';
 import { useStore } from '../store';
 import { Box, Flex } from '@chakra-ui/react';
 import { appGradient } from '@/lib/styles';
@@ -22,6 +23,7 @@ function HomePage() {
       style={{ backgroundImage: appGradient }}
     >
       <Header />
+      <UpgradeBanner />
       <Box flex={1} minH={0} pt="80px" px={{ base: 0, md: 6 }} pb={{ base: 4, md: 6 }} position="relative" zIndex={1}>
         <ActiveSession />
       </Box>

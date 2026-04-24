@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Box, Button, Container, Flex, Heading, IconButton, Image, Text } from '@chakra-ui/react';
 import { LuSettings } from 'react-icons/lu';
+import { UsageMeter } from '../Paywall/UsageMeter';
 
 export function Header() {
   const { user, isAnonymous, signOut } = useAuth();
@@ -39,17 +40,32 @@ export function Header() {
                 <LuSettings />
               </IconButton>
               {isAnonymous ? (
-                <Button
-                  bg="white"
-                  color="gray.900"
-                  _hover={{ bg: "gray.100" }}
-                  onClick={() => navigate('/sign-in')}
-                  fontWeight="medium"
-                >
-                  Sign In
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    color="white"
+                    _hover={{ bg: "white/10" }}
+                    onClick={() => navigate('/pricing')}
+                    fontWeight="medium"
+                  >
+                    Pricing
+                  </Button>
+                  <Button
+                    bg="white"
+                    color="gray.900"
+                    _hover={{ bg: "gray.100" }}
+                    onClick={() => navigate('/sign-in')}
+                    fontWeight="medium"
+                  >
+                    Sign In
+                  </Button>
+                </>
               ) : (
                 <Flex align="center" gap={4}>
+                  <Box minW="160px" display={{ base: 'none', md: 'block' }}>
+                    <UsageMeter />
+                  </Box>
                   <Text fontSize="sm" color="white/80">
                     {user?.email}
                   </Text>
