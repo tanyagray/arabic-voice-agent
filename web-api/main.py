@@ -20,7 +20,7 @@ from channels.rest.routes.config import router as config_router
 from channels.rest.routes.wimmelbilder import router as wimmelbilder_router
 from channels.rest.routes.flashcards import router as flashcards_router
 from channels.rest.routes.billing import router as billing_router
-from channels.rest.websocket.routes import router as realtime_session_router
+from channels.rest.websocket.routes import router as websocket_session_router
 from channels.voice.routes import router as realtime_pipecat_router
 from routes.webhooks import router as webhooks_router
 
@@ -66,7 +66,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 # Include routes
 app.include_router(session_router)
-app.include_router(realtime_session_router)
+app.include_router(websocket_session_router)
 app.include_router(realtime_pipecat_router)
 app.include_router(content_router)
 app.include_router(webhooks_router)

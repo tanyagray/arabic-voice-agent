@@ -12,29 +12,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const NameStep: Story = {
+export const Default: Story = {
   args: { color: 'apricot' },
-  parameters: { initialEntries: ['/onboarding/name'] },
-};
-
-export const MotivationStep: Story = {
-  args: { color: 'apricot' },
-  parameters: { initialEntries: ['/onboarding/motivation'] },
-  decorators: [
-    (Story) => {
-      sessionStorage.setItem('mishmish:onboarding:name', 'Salma');
-      return <Story />;
-    },
-  ],
-};
-
-export const SuggestionsStep: Story = {
-  args: { color: 'apricot' },
-  parameters: { initialEntries: ['/onboarding/suggestions'] },
-  decorators: [
-    (Story) => {
-      sessionStorage.setItem('mishmish:onboarding:name', 'Salma');
-      return <Story />;
-    },
-  ],
+  parameters: { initialEntries: ['/onboarding'] },
 };

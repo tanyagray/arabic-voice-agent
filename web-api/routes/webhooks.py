@@ -3,7 +3,8 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from channels.rest.websocket.agent_loop import trigger_agent_turn
+from agent.tutor import tutor_agent as tutor_module
+from harness.agent_loop import trigger_turn
 from channels.rest.websocket.connection_manager import Message, send_message
 from services import soniox_service, transcript_service
 
@@ -94,7 +95,17 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
                 print(f"[Webhook] Failed to save user message: {e}")
 
             # Generate and send agent response (this will save and send the tutor message)
-            await trigger_agent_turn(session_id, transcript_text)
+            opts = tutor_module.harness_options
+            await trigger_turn(
+                session_id,
+                transcript_text,
+                agent=tutor_module.agent,
+                scaffold=opts.scaffold,
+                tts=opts.tts,
+                persist_final_output=opts.persist_final_output,
+                flow_tag=opts.flow_tag,
+                user_none_system_prompt=opts.user_none_system_prompt,
+            )
 
         elif status == "error":
             # Create and save error message

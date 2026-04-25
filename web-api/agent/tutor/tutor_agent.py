@@ -2,6 +2,8 @@
 
 from agents import Agent
 
+from harness.options import HarnessOptions
+
 from .tools.change_language_tool import change_language
 from .tools.flashcards_tool import generate_flashcards
 from .tools.send_audio_tool import send_audio
@@ -17,4 +19,17 @@ agent = Agent(
         send_audio,
     ],
     hooks=TutorAgentHooks(),
+)
+
+
+harness_options = HarnessOptions(
+    scaffold=True,
+    tts=True,
+    persist_final_output=True,
+    flow_tag="tutor",
+    idle_followups=True,
+    user_none_system_prompt=(
+        "making the user feel comfortable by continuing the conversation"
+    ),
+    fire_opener=True,
 )

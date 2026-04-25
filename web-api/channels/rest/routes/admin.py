@@ -12,12 +12,17 @@ from harness.session import AgentSession
 from harness.context import create_context, get_context, delete_context
 from harness.scaffolding import generate_scaffolded_text_with_metadata, generate_transliterated_text_with_metadata
 from services.supabase_client import get_supabase_admin_client
+from services import transcript_service
 from agent.tutor.tutor_agent import agent
 from agent.tutor.tutor_instructions import _load_instructions
 from agents import Runner
 
-LANGUAGES_DIR = Path(__file__).parent.parent.parent.parent / "agent" / "tutor" / "languages"
-PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "agent" / "tutor" / "prompts"
+ALLOWED_FLOWS = {"tutor", "onboarding"}
+
+AGENT_DIR = Path(__file__).parent.parent.parent.parent / "agent"
+LANGUAGES_DIR = AGENT_DIR / "tutor" / "languages"
+PROMPTS_DIR = AGENT_DIR / "tutor" / "prompts"
+ONBOARDING_PROMPT_PATH = AGENT_DIR / "onboarding" / "system.md"
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -138,71 +143,143 @@ async def update_transliteration_prompt(
     return PromptContent(content=body.content)
 
 
-# ── Flow prompts ──────────────────────────────────────────────────────────────
-# Flow prompts live under agent/tutor/prompts/flows/<flow>/<step>/<section>.md,
-# where section ∈ {prompt, schema, examples}. One pair of endpoints handles all
-# flows/steps/sections so adding a new step only requires dropping in markdown
-# files.
+# ── Onboarding prompt ─────────────────────────────────────────────────────────
 
-FLOWS_DIR = PROMPTS_DIR / "flows"
-
-_FLOW_NAME_PATTERN = "[A-Za-z0-9_-]+"
-_ALLOWED_SECTIONS = {"prompt", "schema", "examples"}
+@router.get("/prompts/onboarding")
+async def get_onboarding_prompt(_: str = Depends(get_admin_user)) -> PromptContent:
+    """Return the onboarding agent system prompt."""
+    if not ONBOARDING_PROMPT_PATH.exists():
+        raise HTTPException(status_code=404, detail="Onboarding prompt file not found")
+    return PromptContent(content=ONBOARDING_PROMPT_PATH.read_text(encoding="utf-8"))
 
 
-def _resolve_flow_prompt_path(flow: str, step: str, section: str) -> Path:
-    """Resolve a flow prompt section path, guarding against traversal."""
-    import re
-    if not re.fullmatch(_FLOW_NAME_PATTERN, flow) or not re.fullmatch(_FLOW_NAME_PATTERN, step):
-        raise HTTPException(status_code=400, detail="Invalid flow or step identifier")
-    if section not in _ALLOWED_SECTIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid section '{section}'. Expected one of: {sorted(_ALLOWED_SECTIONS)}",
-        )
-    path = FLOWS_DIR / flow / step / f"{section}.md"
-    # Ensure the resolved path is still inside FLOWS_DIR
-    try:
-        path.resolve().relative_to(FLOWS_DIR.resolve())
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid flow path")
-    return path
-
-
-@router.get("/prompts/flows/{flow}/{step}/{section}")
-async def get_flow_prompt_section(
-    flow: str,
-    step: str,
-    section: str,
-    _: str = Depends(get_admin_user),
-) -> PromptContent:
-    """Return the markdown content of a flow-step-section file."""
-    path = _resolve_flow_prompt_path(flow, step, section)
-    if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Flow prompt not found: {flow}/{step}/{section}",
-        )
-    return PromptContent(content=path.read_text(encoding="utf-8"))
-
-
-@router.put("/prompts/flows/{flow}/{step}/{section}")
-async def update_flow_prompt_section(
-    flow: str,
-    step: str,
-    section: str,
+@router.put("/prompts/onboarding")
+async def update_onboarding_prompt(
     body: PromptContent,
     _: str = Depends(get_admin_user),
 ) -> PromptContent:
-    """Overwrite a flow-step-section file."""
-    path = _resolve_flow_prompt_path(flow, step, section)
-    if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Flow prompt not found: {flow}/{step}/{section}",
-        )
-    path.write_text(body.content, encoding="utf-8")
+    """Overwrite the onboarding agent system prompt."""
+    if not ONBOARDING_PROMPT_PATH.exists():
+        raise HTTPException(status_code=404, detail="Onboarding prompt file not found")
+    ONBOARDING_PROMPT_PATH.write_text(body.content, encoding="utf-8")
     return PromptContent(content=body.content)
+
+
+# ── Agent session browsing ────────────────────────────────────────────────────
+# Read-only views over real user sessions, grouped by transcript_messages.flow.
+# Tutor sessions written before the flow column existed have flow=null, so when
+# listing tutor sessions we accept null OR 'tutor'.
+
+class AgentSessionSummary(BaseModel):
+    session_id: str
+    user_id: str | None = None
+    flow: str | None = None
+    message_count: int
+    first_message_at: str
+    last_message_at: str
+
+
+class TranscriptMessageOut(BaseModel):
+    message_id: str
+    session_id: str
+    user_id: str
+    message_source: str
+    message_kind: str
+    message_text: str
+    message_text_canonical: str | None = None
+    message_text_scaffolded: str | None = None
+    message_text_transliterated: str | None = None
+    highlights: list[dict] = []
+    flow: str | None = None
+    node: str | None = None
+    created_at: str
+    updated_at: str
+
+
+@router.get("/agent-sessions", response_model=list[AgentSessionSummary])
+async def list_agent_sessions(
+    flow: str,
+    limit: int = 100,
+    _: str = Depends(get_admin_user),
+) -> list[AgentSessionSummary]:
+    """List sessions whose transcript messages match the given flow tag."""
+    if flow not in ALLOWED_FLOWS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid flow '{flow}'. Expected one of: {sorted(ALLOWED_FLOWS)}",
+        )
+
+    supabase = get_supabase_admin_client()
+    query = supabase.table("transcript_messages").select(
+        "session_id,user_id,flow,created_at"
+    )
+    if flow == "tutor":
+        # Legacy rows have flow=null; treat them as tutor.
+        query = query.or_("flow.is.null,flow.eq.tutor")
+    else:
+        query = query.eq("flow", flow)
+
+    response = query.order("created_at", desc=True).limit(5000).execute()
+    rows = response.data or []
+
+    grouped: dict[str, dict] = {}
+    for row in rows:
+        sid = row["session_id"]
+        ts = row["created_at"]
+        existing = grouped.get(sid)
+        if existing is None:
+            grouped[sid] = {
+                "session_id": sid,
+                "user_id": row.get("user_id"),
+                "flow": row.get("flow"),
+                "message_count": 1,
+                "first_message_at": ts,
+                "last_message_at": ts,
+            }
+        else:
+            existing["message_count"] += 1
+            if ts < existing["first_message_at"]:
+                existing["first_message_at"] = ts
+            if ts > existing["last_message_at"]:
+                existing["last_message_at"] = ts
+
+    summaries = sorted(
+        grouped.values(),
+        key=lambda s: s["last_message_at"],
+        reverse=True,
+    )[:limit]
+    return [AgentSessionSummary(**s) for s in summaries]
+
+
+@router.get(
+    "/agent-sessions/{session_id}/messages",
+    response_model=list[TranscriptMessageOut],
+)
+async def get_agent_session_messages(
+    session_id: str,
+    _: str = Depends(get_admin_user),
+) -> list[TranscriptMessageOut]:
+    """Return all transcript messages for a session in chronological order."""
+    messages = await transcript_service.get_session_messages(session_id)
+    return [
+        TranscriptMessageOut(
+            message_id=m.message_id,
+            session_id=m.session_id,
+            user_id=m.user_id,
+            message_source=m.message_source,
+            message_kind=m.message_kind,
+            message_text=m.message_text,
+            message_text_canonical=m.message_text_canonical,
+            message_text_scaffolded=m.message_text_scaffolded,
+            message_text_transliterated=m.message_text_transliterated,
+            highlights=m.highlights,
+            flow=m.flow,
+            node=m.node,
+            created_at=m.created_at.isoformat(),
+            updated_at=m.updated_at.isoformat(),
+        )
+        for m in messages
+    ]
 
 
 # ── Admin chat sessions ───────────────────────────────────────────────────────

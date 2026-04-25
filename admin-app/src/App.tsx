@@ -8,6 +8,8 @@ import { Login } from './pages/Login'
 import { PromptEditPage } from './pages/PromptEditPage'
 import { ChatDebugPage } from './pages/ChatDebugPage'
 import { VoiceDebugPage } from './pages/VoiceDebugPage'
+import { AgentSessionsPage } from './pages/AgentSessionsPage'
+import { AgentSessionDetailPage } from './pages/AgentSessionDetailPage'
 
 function App() {
   return (
@@ -25,8 +27,9 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Navigate to="/prompts/base" replace />} />
                       <Route path="/prompts" element={<Navigate to="/prompts/base" replace />} />
-                      <Route path="/prompts/flows/:flow/:step" element={<PromptEditPage />} />
                       <Route path="/prompts/:promptType" element={<PromptEditPage />} />
+                      <Route path="/agents/:flow/sessions" element={<AgentSessionsPage />} />
+                      <Route path="/agents/:flow/sessions/:sessionId" element={<AgentSessionDetailPage />} />
                       <Route path="/debug/chat" element={<ChatDebugPage />} />
                       <Route path="/debug/voice" element={<VoiceDebugPage />} />
                     </Routes>
