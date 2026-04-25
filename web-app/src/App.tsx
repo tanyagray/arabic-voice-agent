@@ -34,9 +34,6 @@ function App() {
       <Routes>
         <Route path="/landing" element={<Landing />} />
         <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/onboarding/name" element={<Onboarding />} />
-        <Route path="/onboarding/motivation" element={<Onboarding />} />
-        <Route path="/onboarding/suggestions" element={<Onboarding />} />
         {/* Main app routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/settings" element={<SettingsPage />} />

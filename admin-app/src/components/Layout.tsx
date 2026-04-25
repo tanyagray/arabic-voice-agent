@@ -4,26 +4,26 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { Box, Flex, VStack, Text, Button, Separator } from '@chakra-ui/react'
 import { useAuth } from '../context/AuthContext'
 
-const PROMPT_ITEMS = [
-  { label: 'Base Prompt', path: '/prompts/base' },
-  { label: 'Scaffolding Prompt', path: '/prompts/scaffolding' },
-  { label: 'Transliteration Prompt', path: '/prompts/transliteration' },
-]
+type LeafItem = { label: string; path: string; matchPrefix?: string }
+type AgentDef = { key: string; label: string; items: LeafItem[] }
 
-type FlowGroup = {
-  label: string
-  basePath: string
-  steps: { label: string; path: string }[]
-}
-
-const FLOW_GROUPS: FlowGroup[] = [
+const AGENTS: AgentDef[] = [
   {
+    key: 'tutor',
+    label: 'Tutor',
+    items: [
+      { label: 'Base Prompt', path: '/prompts/base' },
+      { label: 'Scaffolding Prompt', path: '/prompts/scaffolding' },
+      { label: 'Transliteration Prompt', path: '/prompts/transliteration' },
+      { label: 'Sessions', path: '/agents/tutor/sessions', matchPrefix: '/agents/tutor/sessions' },
+    ],
+  },
+  {
+    key: 'onboarding',
     label: 'Onboarding',
-    basePath: '/prompts/flows/onboarding',
-    steps: [
-      { label: 'Name', path: '/prompts/flows/onboarding/name' },
-      { label: 'Motivation', path: '/prompts/flows/onboarding/motivation' },
-      { label: 'Suggestions', path: '/prompts/flows/onboarding/suggestions' },
+    items: [
+      { label: 'Prompt', path: '/prompts/onboarding' },
+      { label: 'Sessions', path: '/agents/onboarding/sessions', matchPrefix: '/agents/onboarding/sessions' },
     ],
   },
 ]
@@ -33,19 +33,23 @@ const OTHER_NAV_ITEMS = [
   { label: 'Voice Debug', path: '/debug/voice' },
 ]
 
+function pathMatches(pathname: string, target: string): boolean {
+  return pathname === target || pathname.startsWith(target + '/')
+}
+
+function agentIsActive(pathname: string, agent: AgentDef): boolean {
+  return agent.items.some((i) => pathMatches(pathname, i.matchPrefix ?? i.path))
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   const { signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const isPromptsActive =
-    location.pathname.startsWith('/prompts') && !location.pathname.startsWith('/prompts/flows')
-  const isFlowsActive = location.pathname.startsWith('/prompts/flows')
-  const [promptsOpen, setPromptsOpen] = useState(isPromptsActive)
-  const [flowsOpen, setFlowsOpen] = useState(isFlowsActive)
-  const [openFlows, setOpenFlows] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(
-      FLOW_GROUPS.map((g) => [g.basePath, location.pathname.startsWith(g.basePath)])
-    )
+
+  const isAgentsActive = AGENTS.some((a) => agentIsActive(location.pathname, a))
+  const [agentsOpen, setAgentsOpen] = useState(isAgentsActive)
+  const [openAgents, setOpenAgents] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(AGENTS.map((a) => [a.key, agentIsActive(location.pathname, a)]))
   )
 
   async function handleSignOut() {
@@ -53,145 +57,100 @@ export function Layout({ children }: { children: ReactNode }) {
     navigate('/login')
   }
 
-  function handlePromptsClick() {
-    if (!promptsOpen) {
-      setPromptsOpen(true)
-      navigate('/prompts/base')
-    } else {
-      setPromptsOpen(false)
-    }
-  }
-
-  function handleFlowsClick() {
-    if (!flowsOpen) {
-      setFlowsOpen(true)
-      const first = FLOW_GROUPS[0]?.steps[0]
+  function handleAgentsClick() {
+    if (!agentsOpen) {
+      setAgentsOpen(true)
+      const first = AGENTS[0]
       if (first) {
-        setOpenFlows((s) => ({ ...s, [FLOW_GROUPS[0].basePath]: true }))
-        navigate(first.path)
+        setOpenAgents((s) => ({ ...s, [first.key]: true }))
+        navigate(first.items[0].path)
       }
     } else {
-      setFlowsOpen(false)
+      setAgentsOpen(false)
     }
   }
 
-  function handleFlowGroupClick(group: FlowGroup) {
-    const wasOpen = openFlows[group.basePath]
-    setOpenFlows((s) => ({ ...s, [group.basePath]: !wasOpen }))
+  function handleAgentClick(agent: AgentDef) {
+    const wasOpen = !!openAgents[agent.key]
+    setOpenAgents((s) => ({ ...s, [agent.key]: !wasOpen }))
     if (!wasOpen) {
-      navigate(group.steps[0].path)
+      navigate(agent.items[0].path)
     }
   }
 
   return (
     <Flex h="100vh" overflow="hidden">
-      {/* Sidebar */}
       <Box w="220px" bg="gray.900" color="white" p={4} flexShrink={0} display="flex" flexDirection="column">
         <Text fontWeight="bold" fontSize="lg" mb={6}>Admin</Text>
         <VStack align="stretch" gap={1} flex={1}>
-          {/* Prompts group */}
+          {/* Agents group */}
           <Box
             px={3}
             py={2}
             borderRadius="md"
-            bg={isPromptsActive && !promptsOpen ? 'blue.600' : 'transparent'}
-            _hover={{ bg: isPromptsActive ? undefined : 'gray.700' }}
+            bg={isAgentsActive && !agentsOpen ? 'blue.600' : 'transparent'}
+            _hover={{ bg: isAgentsActive ? undefined : 'gray.700' }}
             cursor="pointer"
             fontSize="sm"
             fontWeight="semibold"
-            onClick={handlePromptsClick}
+            onClick={handleAgentsClick}
             display="flex"
             alignItems="center"
             justifyContent="space-between"
           >
-            Prompts
-            <Text fontSize="xs" color="gray.400">{promptsOpen ? '▾' : '▸'}</Text>
+            Agents
+            <Text fontSize="xs" color="gray.400">{agentsOpen ? '▾' : '▸'}</Text>
           </Box>
 
-          {promptsOpen && (
+          {agentsOpen && (
             <VStack align="stretch" gap={0} pl={3}>
-              {PROMPT_ITEMS.map((item) => (
-                <NavLink key={item.path} to={item.path}>
-                  {({ isActive }) => (
-                    <Box
-                      px={3}
-                      py={1.5}
-                      borderRadius="md"
-                      bg={isActive ? 'blue.600' : 'transparent'}
-                      _hover={{ bg: isActive ? 'blue.600' : 'gray.700' }}
-                      cursor="pointer"
-                      fontSize="sm"
-                    >
-                      {item.label}
-                    </Box>
-                  )}
-                </NavLink>
-              ))}
-            </VStack>
-          )}
-
-          {/* Flows group */}
-          <Box
-            px={3}
-            py={2}
-            borderRadius="md"
-            bg={isFlowsActive && !flowsOpen ? 'blue.600' : 'transparent'}
-            _hover={{ bg: isFlowsActive ? undefined : 'gray.700' }}
-            cursor="pointer"
-            fontSize="sm"
-            fontWeight="semibold"
-            onClick={handleFlowsClick}
-            display="flex"
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            Flows
-            <Text fontSize="xs" color="gray.400">{flowsOpen ? '▾' : '▸'}</Text>
-          </Box>
-
-          {flowsOpen && (
-            <VStack align="stretch" gap={0} pl={3}>
-              {FLOW_GROUPS.map((group) => {
-                const groupActive = location.pathname.startsWith(group.basePath)
-                const isOpen = !!openFlows[group.basePath]
+              {AGENTS.map((agent) => {
+                const active = agentIsActive(location.pathname, agent)
+                const isOpen = !!openAgents[agent.key]
                 return (
-                  <Box key={group.basePath}>
+                  <Box key={agent.key}>
                     <Box
                       px={3}
                       py={1.5}
                       borderRadius="md"
-                      bg={groupActive && !isOpen ? 'blue.600' : 'transparent'}
-                      _hover={{ bg: groupActive && !isOpen ? undefined : 'gray.700' }}
+                      bg={active && !isOpen ? 'blue.600' : 'transparent'}
+                      _hover={{ bg: active && !isOpen ? undefined : 'gray.700' }}
                       cursor="pointer"
                       fontSize="sm"
                       fontWeight="semibold"
-                      onClick={() => handleFlowGroupClick(group)}
+                      onClick={() => handleAgentClick(agent)}
                       display="flex"
                       alignItems="center"
                       justifyContent="space-between"
                     >
-                      {group.label}
+                      {agent.label}
                       <Text fontSize="xs" color="gray.400">{isOpen ? '▾' : '▸'}</Text>
                     </Box>
                     {isOpen && (
                       <VStack align="stretch" gap={0} pl={3}>
-                        {group.steps.map((step) => (
-                          <NavLink key={step.path} to={step.path}>
-                            {({ isActive }) => (
-                              <Box
-                                px={3}
-                                py={1.5}
-                                borderRadius="md"
-                                bg={isActive ? 'blue.600' : 'transparent'}
-                                _hover={{ bg: isActive ? 'blue.600' : 'gray.700' }}
-                                cursor="pointer"
-                                fontSize="sm"
-                              >
-                                {step.label}
-                              </Box>
-                            )}
-                          </NavLink>
-                        ))}
+                        {agent.items.map((item) => {
+                          const itemActive = pathMatches(
+                            location.pathname,
+                            item.matchPrefix ?? item.path,
+                          )
+                          return (
+                            <NavLink key={item.path} to={item.path} end={!item.matchPrefix}>
+                              {() => (
+                                <Box
+                                  px={3}
+                                  py={1.5}
+                                  borderRadius="md"
+                                  bg={itemActive ? 'blue.600' : 'transparent'}
+                                  _hover={{ bg: itemActive ? 'blue.600' : 'gray.700' }}
+                                  cursor="pointer"
+                                  fontSize="sm"
+                                >
+                                  {item.label}
+                                </Box>
+                              )}
+                            </NavLink>
+                          )
+                        })}
                       </VStack>
                     )}
                   </Box>
@@ -200,7 +159,6 @@ export function Layout({ children }: { children: ReactNode }) {
             </VStack>
           )}
 
-          {/* Other nav items */}
           {OTHER_NAV_ITEMS.map((item) => (
             <NavLink key={item.path} to={item.path}>
               {({ isActive }) => (
@@ -225,7 +183,6 @@ export function Layout({ children }: { children: ReactNode }) {
         </Button>
       </Box>
 
-      {/* Main content */}
       <Box flex={1} overflow="auto" bg="gray.50">
         {children}
       </Box>

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   FONT_STACK,
   QuietFooter,
@@ -8,70 +9,105 @@ import {
   UserInput,
   type ThemeKey,
 } from './Landing';
+import { useOnboardingSession } from '@/hooks/useOnboardingSession';
+import type { Highlight, TranscriptMessage } from '@/api/sessions/sessions.types';
+import {
+  parseComponentMessage,
+  renderTranscriptComponent,
+} from '@/components/TranscriptComponents/registry';
+import type { LessonTile } from '@/components/TranscriptComponents/LessonTiles';
 
 export type OnboardingProps = {
   color?: ThemeKey;
 };
 
-type Step = 'name' | 'motivation' | 'suggestions';
-
-type SuggestionTile = {
-  level: string;
-  title: string;
-  blurb: string;
-  arabic?: string;
-};
-
-const SUGGESTION_TILES: SuggestionTile[] = [
-  {
-    level: 'Beginner',
-    title: 'Your first 10 words',
-    blurb: 'Greetings, ordering coffee, saying your name — enough to feel brave.',
-    arabic: 'مرحبا',
-  },
-  {
-    level: 'Intermediate',
-    title: 'Café in Cairo',
-    blurb: 'Role-play ordering, small talk, asking for the bill — realistic and fun.',
-    arabic: 'قهوة',
-  },
-  {
-    level: 'Advanced',
-    title: 'Today\u2019s headlines',
-    blurb: 'Unpack a news story together — vocabulary for current affairs and opinion.',
-    arabic: 'أخبار',
-  },
-];
-
-type TextSegment = { text: string; color: string };
+type TextSegment = { text: string; color: string; meaning?: string };
 type Line = TextSegment[];
 
-const CPS = 32;
-const LINE_GAP = 800;
+const CPS = 48;
 const FADE_MS = 350;
 const segCharCount = (l: Line) => l.reduce((n, s) => n + [...s.text].length, 0);
 
-function TypingHero({ lines, isMobile, theme, runKey }: {
+type PopoverState = { meaning: string; top: number; left: number };
+
+function HighlightSpan({
+  seg,
+  visibleText,
+  onShow,
+  onHide,
+}: {
+  seg: TextSegment;
+  visibleText: string;
+  onShow: (meaning: string, el: HTMLElement) => void;
+  onHide: () => void;
+}) {
+  return (
+    <span
+      style={{
+        color: seg.color,
+        cursor: 'pointer',
+        borderBottom: `1px dashed ${seg.color}66`,
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onShow(seg.meaning!, e.currentTarget as HTMLElement);
+      }}
+      onPointerEnter={(e) => {
+        if (e.pointerType === 'mouse') onShow(seg.meaning!, e.currentTarget as HTMLElement);
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType === 'mouse') onHide();
+      }}
+    >
+      {visibleText}
+    </span>
+  );
+}
+
+function TypingHero({ lines, isMobile, theme, resetKey }: {
   lines: Line[]; isMobile: boolean; theme: { tint: string; ink: string };
-  runKey: string | number;
+  resetKey: string | number;
 }) {
   const [counts, setCounts] = useState<number[]>(() => lines.map(() => 0));
   const [activeLine, setActiveLine] = useState(-1);
   const rafRef = useRef<number | undefined>(undefined);
+  const prevResetRef = useRef<string | number>(resetKey);
+  const prevLenRef = useRef<number>(0);
+  const linesRef = useRef<Line[]>(lines);
+  linesRef.current = lines;
 
   useEffect(() => {
-    setCounts(lines.map(() => 0));
+    const resetChanged = prevResetRef.current !== resetKey;
+    prevResetRef.current = resetKey;
+
+    // Determine which lines should appear already-typed vs animate from scratch.
+    const carriedCount = resetChanged ? 0 : prevLenRef.current;
+    prevLenRef.current = lines.length;
+
+    setCounts(
+      lines.map((l, i) => (i < carriedCount ? segCharCount(l) : 0)),
+    );
     setActiveLine(-1);
 
-    const startAt = performance.now() + 150;
+    if (lines.length <= carriedCount) return;
+
+    const startAt = performance.now() + 60;
     const lineDur = lines.map((l) => (segCharCount(l) / CPS) * 1000);
     const lineStart: number[] = [];
     for (let i = 0; i < lines.length; i++) {
-      lineStart[i] = i === 0 ? startAt : lineStart[i - 1] + lineDur[i - 1] + LINE_GAP;
+      if (i < carriedCount) {
+        lineStart[i] = -Infinity;
+      } else if (i === carriedCount) {
+        lineStart[i] = startAt;
+      } else {
+        lineStart[i] = lineStart[i - 1] + lineDur[i - 1] + 200;
+      }
     }
 
     const tick = (now: number) => {
-      const next = lines.map((l, i) => {
+      const currentLines = linesRef.current;
+      const next = currentLines.map((l, i) => {
+        if (i < carriedCount) return segCharCount(l);
         const t = now - lineStart[i];
         if (t <= 0) return 0;
         return Math.min(segCharCount(l), Math.floor((t / 1000) * CPS));
@@ -79,10 +115,13 @@ function TypingHero({ lines, isMobile, theme, runKey }: {
       setCounts(next);
 
       let active = -1;
-      for (let i = 0; i < lines.length; i++) if (now >= lineStart[i]) active = i;
+      for (let i = carriedCount; i < currentLines.length; i++) {
+        if (now >= lineStart[i]) active = i;
+      }
       setActiveLine(active);
 
-      const lastEnd = lineStart[lines.length - 1] + lineDur[lines.length - 1];
+      const lastEnd =
+        lineStart[currentLines.length - 1] + lineDur[currentLines.length - 1];
       if (now < lastEnd + 400) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
@@ -94,17 +133,69 @@ function TypingHero({ lines, isMobile, theme, runKey }: {
       if (rafRef.current !== undefined) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runKey]);
+  }, [lines.length, resetKey]);
 
-  const bigSize = isMobile ? 56 : 104;
-  const lineSize = isMobile ? 28 : 44;
+  const lineSize = isMobile ? 30 : 44;
 
-  const renderLine = (segs: Line, count: number, style: CSSProperties, showCursor: boolean, cursorHeight: number) => {
-    const chars = segs.flatMap((s) => [...s.text].map((ch) => ({ ch, color: s.color })));
-    const visible = chars.slice(0, count);
+  const [popover, setPopover] = useState<PopoverState | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!popover) return;
+    const close = () => setPopover(null);
+    const handlePointerDown = (e: PointerEvent) => {
+      if (popoverRef.current?.contains(e.target as Node)) return;
+      close();
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [popover]);
+
+  const showPopover = useCallback((meaning: string, target: HTMLElement) => {
+    const rect = target.getBoundingClientRect();
+    setPopover({
+      meaning,
+      top: rect.top - 4,
+      left: rect.left + rect.width / 2,
+    });
+  }, []);
+  const hidePopover = useCallback(() => setPopover(null), []);
+
+  const renderLine = (segs: Line, count: number, style: CSSProperties, showCursor: boolean, cursorHeight: number, key: string | number) => {
+    let remaining = count;
+    const nodes: ReactNode[] = [];
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      const chars = [...s.text];
+      if (remaining <= 0) break;
+      const take = Math.min(chars.length, remaining);
+      const visibleText = chars.slice(0, take).join('');
+      remaining -= take;
+      if (s.meaning) {
+        nodes.push(
+          <HighlightSpan
+            key={i}
+            seg={s}
+            visibleText={visibleText}
+            onShow={showPopover}
+            onHide={hidePopover}
+          />,
+        );
+      } else {
+        nodes.push(
+          <span key={i} style={{ color: s.color }}>
+            {visibleText}
+          </span>,
+        );
+      }
+    }
     return (
-      <div style={style}>
-        {visible.map((c, i) => (<span key={i} style={{ color: c.color }}>{c.ch}</span>))}
+      <div key={key} style={style}>
+        {nodes}
         <span style={{
           display: 'inline-block', width: 2, height: cursorHeight,
           background: theme.tint, marginLeft: 3, verticalAlign: '-0.12em',
@@ -115,28 +206,96 @@ function TypingHero({ lines, isMobile, theme, runKey }: {
     );
   };
 
-  // First line gets "big" treatment only if it's the only huge headline (name step).
-  // For a multi-line layout, first line is big if lines.length >= 3 and first line is short;
-  // otherwise all lines use lineSize. Caller controls this via the passed lines.
-  const firstIsBig = lines.length >= 3 && segCharCount(lines[0]) <= 20;
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 14 : 22 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 10 : 14 }}>
       {lines.map((l, i) => {
-        const isBig = firstIsBig && i === 0;
-        const size = isBig ? bigSize : lineSize;
-        const weight = isBig ? 700 : 600;
-        const letterSpacing = isBig ? '-0.035em' : '-0.02em';
-        const lineHeight = isBig ? 1 : 1.2;
         return renderLine(l, counts[i] ?? 0, {
           fontFamily: FONT_STACK,
-          fontSize: size, fontWeight: weight,
-          letterSpacing, lineHeight,
-          minHeight: isBig ? size : size * 1.2,
-        }, activeLine === i, isBig ? size * 0.82 : size * 0.95);
+          fontSize: lineSize,
+          fontWeight: 600,
+          letterSpacing: '-0.02em',
+          lineHeight: 1.2,
+          minHeight: lineSize * 1.2,
+        }, activeLine === i, lineSize * 0.95, i);
       })}
+      {popover && createPortal(
+        <div
+          ref={popoverRef}
+          style={{
+            position: 'fixed',
+            top: `${popover.top}px`,
+            left: `${popover.left}px`,
+            transform: 'translate(-50%, -100%)',
+            background: '#1f2937',
+            color: 'white',
+            padding: '6px 12px',
+            borderRadius: 8,
+            boxShadow: '0 10px 24px -12px rgba(0,0,0,0.4)',
+            fontFamily: FONT_STACK,
+            fontSize: 14,
+            fontWeight: 500,
+            letterSpacing: 0,
+            whiteSpace: 'nowrap',
+            zIndex: 1000,
+            pointerEvents: 'auto',
+          }}
+        >
+          {popover.meaning}
+          <div style={{
+            position: 'absolute',
+            bottom: -6,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 0, height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderTop: '6px solid #1f2937',
+          }} />
+        </div>,
+        document.body,
+      )}
     </div>
   );
+}
+
+/**
+ * Build a Line from a transcript message, using the message's own `highlights`
+ * (DB-driven) to mark tinted, interactive segments. Falls back to the
+ * `marhaban/mishmish` keyword highlights so the initial placeholder and any
+ * messages without highlights still get a tint.
+ */
+const FALLBACK_MEANINGS: Record<string, string> = {
+  marhaban: 'Hello',
+  mishmish: 'apricot',
+};
+const FALLBACK_RE = /(marhaban|mishmish)/gi;
+
+function textToLine(text: string, highlights: Highlight[] | null | undefined, theme: { tint: string; ink: string }): Line {
+  const segs: TextSegment[] = [];
+  if (highlights && highlights.length > 0) {
+    const sorted = [...highlights].sort((a, b) => a.start - b.start);
+    let cursor = 0;
+    for (const h of sorted) {
+      if (h.start > cursor) segs.push({ text: text.slice(cursor, h.start), color: theme.ink });
+      segs.push({ text: text.slice(h.start, h.end), color: theme.tint, meaning: h.meaning });
+      cursor = h.end;
+    }
+    if (cursor < text.length) segs.push({ text: text.slice(cursor), color: theme.ink });
+    return segs;
+  }
+  let last = 0;
+  for (const m of text.matchAll(FALLBACK_RE)) {
+    const start = m.index ?? 0;
+    if (start > last) segs.push({ text: text.slice(last, start), color: theme.ink });
+    segs.push({
+      text: m[0],
+      color: theme.tint,
+      meaning: FALLBACK_MEANINGS[m[0].toLowerCase()],
+    });
+    last = start + m[0].length;
+  }
+  if (last < text.length) segs.push({ text: text.slice(last), color: theme.ink });
+  return segs.length ? segs : [{ text, color: theme.ink }];
 }
 
 export function Onboarding({ color = 'apricot' }: OnboardingProps) {
@@ -144,7 +303,6 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
-  const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -153,105 +311,94 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Resolve current step from path. /onboarding → treat as /name.
-  const step: Step = location.pathname.endsWith('/motivation')
-    ? 'motivation'
-    : location.pathname.endsWith('/suggestions')
-      ? 'suggestions'
-      : 'name';
+  const {
+    error,
+    messages,
+    sendMessage,
+    isAgentThinking,
+  } = useOnboardingSession();
 
-  // Redirect bare /onboarding to /onboarding/name
-  useEffect(() => {
-    if (location.pathname === '/onboarding' || location.pathname === '/onboarding/') {
-      navigate('/onboarding/name', { replace: true });
+  // The hero shows the agent's *current* turn — i.e. tutor messages that came
+  // after the most recent user message. As soon as the learner submits, the
+  // earlier bubbles fall out of the slice and the hero clears, then the new
+  // tutor bubbles type in as they arrive. Component messages (LessonTiles)
+  // share the same slice so they vanish on the next user turn too — fine,
+  // because clicking a tile navigates away.
+  const { visibleTutorMessages, turnKey } = useMemo<{
+    visibleTutorMessages: TranscriptMessage[];
+    turnKey: string;
+  }>(() => {
+    let lastUserIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].message_source === 'user') {
+        lastUserIdx = i;
+        break;
+      }
     }
-  }, [location.pathname, navigate]);
+    const tutor = messages
+      .slice(lastUserIdx + 1)
+      .filter((m) => m.message_source === 'tutor');
+    // Identify the turn by the boundary (last user message id) — NOT by the
+    // tutor messages themselves. Otherwise every newly-arriving tutor bubble
+    // looks like a new turn and TypingHero re-animates all prior lines.
+    const turnKey = lastUserIdx >= 0 ? messages[lastUserIdx].message_id : 'start';
+    return { visibleTutorMessages: tutor, turnKey };
+  }, [messages]);
+  const turnFingerprint = `${turnKey}::${visibleTutorMessages.map((m) => m.message_id).join('|')}`;
 
-  // Name persists across steps. In future this will come from the LLM extracting
-  // the name from the user's free-text reply.
-  const [name, setName] = useState<string>(() => sessionStorage.getItem('mishmish:onboarding:name') || '');
-
-  // Fade-transition the hero lines when the step changes.
-  const [displayStep, setDisplayStep] = useState<Step>(step);
+  // Cross-fade between turns so the swap reads softly.
+  const [displayMessages, setDisplayMessages] = useState<TranscriptMessage[]>([]);
+  const [displayTurn, setDisplayTurn] = useState<string>('');
   const [linesVisible, setLinesVisible] = useState(true);
 
   useEffect(() => {
-    if (displayStep === step) return;
+    if (turnFingerprint === displayTurn) return;
+    // If this is the first batch of bubbles for a new turn (display was empty)
+    // we don't fade — just type them in. Subsequent bubbles within the same
+    // turn append without a fade either.
+    const wasEmpty = displayMessages.length === 0;
+    if (wasEmpty || visibleTutorMessages.length >= displayMessages.length) {
+      setDisplayMessages(visibleTutorMessages);
+      setDisplayTurn(turnFingerprint);
+      setLinesVisible(true);
+      return;
+    }
+    // The visible set shrank (a new user submit cleared the previous turn's
+    // bubbles). Fade out, swap, fade in.
     setLinesVisible(false);
     const t = setTimeout(() => {
-      setDisplayStep(step);
+      setDisplayMessages(visibleTutorMessages);
+      setDisplayTurn(turnFingerprint);
       setLinesVisible(true);
     }, FADE_MS);
     return () => clearTimeout(t);
-  }, [step, displayStep]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnFingerprint]);
 
-  // Suggestion tiles reveal after the typing animation finishes on the suggestions step.
-  const [tilesVisible, setTilesVisible] = useState(false);
-  useEffect(() => {
-    if (displayStep !== 'suggestions') {
-      setTilesVisible(false);
-      return;
-    }
-    const t = setTimeout(() => setTilesVisible(true), 2400);
-    return () => clearTimeout(t);
-  }, [displayStep]);
+  // Split text messages (typed into the hero) vs component messages (rendered
+  // via the TranscriptComponents registry below the hero).
+  const textMessages = useMemo(
+    () => displayMessages.filter((m) => m.message_kind !== 'component'),
+    [displayMessages],
+  );
+  const componentMessages = useMemo(
+    () => displayMessages.filter((m) => m.message_kind === 'component'),
+    [displayMessages],
+  );
 
-  const lines: Line[] = useMemo(() => {
-    if (displayStep === 'motivation') {
-      const greetName = name || 'friend';
-      return [
-        [
-          { text: 'ahlan', color: theme.tint },
-          { text: ` ya ${greetName}!`, color: theme.ink },
-        ],
-        [
-          { text: 'tell me, why are you curious to learn ', color: theme.ink },
-          { text: 'arabii', color: theme.tint },
-          { text: '?', color: theme.ink },
-        ],
-      ];
-    }
-    if (displayStep === 'suggestions') {
-      return [
-        [
-          { text: 'mumtaz', color: theme.tint },
-          { text: "! that's a great reason to learn!", color: theme.ink },
-        ],
-        [{ text: 'where shall we begin?', color: theme.ink }],
-      ];
-    }
-    // name step (default)
-    return [
-      [{ text: 'marhaban!', color: theme.tint }],
-      [
-        { text: "i'm ", color: theme.ink },
-        { text: 'mishmish', color: theme.tint },
-        { text: ', which means apricot \uD83D\uDE0A', color: theme.ink },
-      ],
-      [{ text: 'what is your name?', color: theme.ink }],
-    ];
-  }, [displayStep, name, theme.tint, theme.ink]);
+  const lines: Line[] = useMemo(
+    () =>
+      textMessages.map((m) =>
+        textToLine(m.message_text, m.highlights, { tint: theme.tint, ink: theme.ink }),
+      ),
+    [textMessages, theme.tint, theme.ink],
+  );
 
   const handleSubmit = useCallback((msg: string) => {
-    const trimmed = msg.trim();
-    if (step === 'name') {
-      // Naive client-side extraction for now — real extraction will happen on the backend.
-      // Take the last "word" that looks like a name; fall back to the whole message.
-      const guessed = trimmed.split(/\s+/).pop() || trimmed;
-      setName(guessed);
-      sessionStorage.setItem('mishmish:onboarding:name', guessed);
-      navigate('/onboarding/motivation');
-    } else if (step === 'motivation') {
-      sessionStorage.setItem('mishmish:onboarding:motivation', trimmed);
-      navigate('/onboarding/suggestions');
-    } else {
-      // suggestions — free-text entry falls through to the main app.
-      sessionStorage.setItem('mishmish:onboarding:freeText', trimmed);
-      navigate('/');
-    }
-  }, [step, navigate]);
+    sendMessage(msg);
+  }, [sendMessage]);
 
-  const handleSuggestionPick = useCallback((tile: SuggestionTile) => {
+  const handleLessonPick = useCallback((tile: LessonTile) => {
     sessionStorage.setItem('mishmish:onboarding:pick', tile.level.toLowerCase());
     navigate('/');
   }, [navigate]);
@@ -270,7 +417,7 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
       WebkitFontSmoothing: 'antialiased',
       letterSpacing: '-0.01em',
     }}>
-      <style>{`@keyframes mmLandingBlink { 0%, 50% { opacity: 1 } 50.01%, 100% { opacity: 0 } }`}</style>
+      <style>{`@keyframes mmLandingBlink { 0%, 50% { opacity: 1 } 50.01%, 100% { opacity: 0 } } @keyframes mmOnboardingPulse { 0%, 100% { opacity: 0.35 } 50% { opacity: 1 } }`}</style>
       <TopBar theme={theme} isMobile={isMobile} isReturning={false} />
       <div style={{
         maxWidth: containerMax, margin: '0 auto',
@@ -283,92 +430,62 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
           position: 'relative',
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 14 : 22, maxWidth: isMobile ? '100%' : 860 }}>
-            {/* Hero lines — fade out/in on step change */}
+
+            {error && (
+              <div style={{
+                color: '#a33', background: '#fee',
+                padding: '10px 14px', borderRadius: 10, fontSize: 14,
+              }}>
+                {error}
+              </div>
+            )}
+
             <div
               style={{
                 opacity: linesVisible ? 1 : 0,
                 transition: `opacity ${FADE_MS}ms cubic-bezier(.2,.7,.3,1)`,
+                minHeight: isMobile ? 100 : 140,
               }}
             >
-              <TypingHero lines={lines} isMobile={isMobile} theme={theme} runKey={displayStep} />
+              <TypingHero
+                lines={lines}
+                isMobile={isMobile}
+                theme={theme}
+                resetKey={turnKey}
+              />
             </div>
 
-            {/* Suggestion tiles — only on the suggestions step, fade/slide in after the lines type */}
-            {displayStep === 'suggestions' && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: isMobile ? 'column' : 'row',
-                  gap: isMobile ? 12 : 16,
-                  opacity: tilesVisible ? 1 : 0,
-                  transform: tilesVisible ? 'translateY(0)' : 'translateY(12px)',
-                  transition: 'opacity 500ms cubic-bezier(.2,.7,.3,1), transform 500ms cubic-bezier(.2,.7,.3,1)',
-                  pointerEvents: tilesVisible ? 'auto' : 'none',
-                }}
-              >
-                {SUGGESTION_TILES.map((tile) => (
-                  <button
-                    key={tile.level}
-                    onClick={() => handleSuggestionPick(tile)}
-                    style={{
-                      flex: 1,
-                      textAlign: 'left',
-                      padding: isMobile ? '16px 18px' : '20px 22px',
-                      background: theme.surface,
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 18,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 10,
-                      transition: 'transform 200ms, box-shadow 200ms, border-color 200ms',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = theme.tint;
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = `0 16px 32px -20px ${theme.tint}88`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = theme.border;
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-                    }}>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
-                        textTransform: 'uppercase', color: theme.tintDeep,
-                        background: theme.tintSoft,
-                        padding: '3px 8px', borderRadius: 999,
-                      }}>{tile.level}</span>
-                      {tile.arabic && (
-                        <span style={{
-                          fontFamily: 'Noto Sans Arabic, serif', direction: 'rtl',
-                          fontSize: 18, color: theme.tint,
-                        }}>{tile.arabic}</span>
-                      )}
-                    </div>
-                    <div style={{
-                      fontSize: isMobile ? 17 : 19,
-                      fontWeight: 700,
-                      color: theme.ink,
-                      letterSpacing: '-0.01em',
-                      lineHeight: 1.2,
-                    }}>{tile.title}</div>
-                    <div style={{
-                      fontSize: 13.5,
-                      color: theme.sub,
-                      lineHeight: 1.45,
-                    }}>{tile.blurb}</div>
-                  </button>
-                ))}
+            {/* Subtle "thinking" dot while the agent composes its reply */}
+            {isAgentThinking && !error && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, color: theme.sub,
+                fontSize: 13, letterSpacing: '0.02em',
+              }}>
+                <span style={{
+                  display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                  background: theme.tint, animation: 'mmOnboardingPulse 1.2s ease-in-out infinite',
+                }} />
+                <span>mishmish is thinking…</span>
               </div>
             )}
 
-            {/* User input persists across steps (no key change → no remount) */}
+            {componentMessages.map((m) => {
+              const parsed = parseComponentMessage(m);
+              if (!parsed) return null;
+              return (
+                <div key={m.message_id}>
+                  {renderTranscriptComponent(m, {
+                    LessonTiles: {
+                      theme,
+                      isMobile,
+                      visible: linesVisible,
+                      onPick: handleLessonPick,
+                    },
+                  })}
+                </div>
+              );
+            })}
+
             <UserInput
               theme={theme}
               isMobile={isMobile}

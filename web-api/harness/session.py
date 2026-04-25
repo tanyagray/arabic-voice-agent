@@ -1,10 +1,13 @@
 """Supabase-backed session (conversation history) for OpenAI Agents SDK."""
 
-from typing import Any, List, Optional, cast
+from typing import TYPE_CHECKING, Any, List, Optional, cast
 from agents.memory.session import SessionABC
 from agents.items import TResponseInputItem
 from supabase import Client
 from supabase_auth import User
+
+if TYPE_CHECKING:
+    from services.transcript_service import TranscriptMessage, TranscriptMessageInput
 
 
 class AgentSession(SessionABC):
@@ -177,3 +180,20 @@ class AgentSession(SessionABC):
         self.supabase.table("agent_sessions").update({
             "items": []
         }).eq("session_id", self.session_id).execute()
+
+    async def add_message(self, message: "TranscriptMessageInput") -> "TranscriptMessage":
+        """Persist a transcript message draft. Frontend picks it up via Realtime."""
+        from services.transcript_service import create_transcript_message
+
+        return await create_transcript_message(
+            session_id=self.session_id,
+            message_source=message.message_source,
+            message_kind=message.message_kind,
+            message_text=message.message_text,
+            message_text_canonical=message.message_text_canonical,
+            message_text_scaffolded=message.message_text_scaffolded,
+            message_text_transliterated=message.message_text_transliterated,
+            highlights=message.highlights or None,
+            flow=message.flow,
+            node=message.node,
+        )

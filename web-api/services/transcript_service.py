@@ -7,18 +7,33 @@ from pydantic import BaseModel
 from .supabase_client import get_supabase_admin_client
 
 
+class TranscriptMessageInput(BaseModel):
+    """Content-only draft of a transcript message — no ids or timestamps yet."""
+    message_source: str  # 'user', 'tutor', or 'system'
+    message_kind: str  # 'transcript', 'audio', etc.
+    message_text: str
+    message_text_canonical: Optional[str] = None
+    message_text_scaffolded: Optional[str] = None
+    message_text_transliterated: Optional[str] = None
+    highlights: list[dict] = []
+    flow: Optional[str] = None  # e.g. 'onboarding', 'tutor'
+    node: Optional[str] = None  # flow-specific node (e.g. 'name', 'motivation')
+
+
 class TranscriptMessage(BaseModel):
     """Transcript message model matching the database schema."""
     message_id: str
     session_id: str
     user_id: str
-    message_source: str  # 'user', 'tutor', or 'system'
-    message_kind: str  # 'transcript', 'audio', etc.
-    message_text: str  # Display text (arabizi for tutor, raw input for user)
-    message_text_canonical: Optional[str] = None  # Full Arabic with harakaat (tutor only)
-    message_text_scaffolded: Optional[str] = None  # Scaffolded display text
-    message_text_transliterated: Optional[str] = None  # Transliterated display text
-    highlights: list[dict] = []  # Arabizi word highlights: [{word, meaning, start, end}]
+    message_source: str
+    message_kind: str
+    message_text: str
+    message_text_canonical: Optional[str] = None
+    message_text_scaffolded: Optional[str] = None
+    message_text_transliterated: Optional[str] = None
+    highlights: list[dict] = []
+    flow: Optional[str] = None
+    node: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -32,6 +47,8 @@ async def create_transcript_message(
     message_text_scaffolded: Optional[str] = None,
     message_text_transliterated: Optional[str] = None,
     highlights: Optional[list[dict]] = None,
+    flow: Optional[str] = None,
+    node: Optional[str] = None,
 ) -> TranscriptMessage:
     """
     Create and persist a transcript message to the database.
@@ -74,6 +91,8 @@ async def create_transcript_message(
         message_text_scaffolded=message_text_scaffolded,
         message_text_transliterated=message_text_transliterated,
         highlights=highlights or [],
+        flow=flow,
+        node=node,
         created_at=now,
         updated_at=now,
     )
@@ -97,6 +116,10 @@ async def create_transcript_message(
         insert_data["message_text_transliterated"] = message.message_text_transliterated
     if message.highlights:
         insert_data["highlights"] = message.highlights
+    if message.flow is not None:
+        insert_data["flow"] = message.flow
+    if message.node is not None:
+        insert_data["node"] = message.node
 
     # Insert into database
     supabase.table("transcript_messages").insert(insert_data).execute()
@@ -142,6 +165,8 @@ async def get_session_messages(
             message_text_scaffolded=msg.get("message_text_scaffolded"),
             message_text_transliterated=msg.get("message_text_transliterated"),
             highlights=msg.get("highlights") or [],
+            flow=msg.get("flow"),
+            node=msg.get("node"),
             created_at=datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")),
             updated_at=datetime.fromisoformat(msg["updated_at"].replace("Z", "+00:00")),
         )

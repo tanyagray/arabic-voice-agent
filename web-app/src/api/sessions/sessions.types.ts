@@ -27,6 +27,8 @@ export interface TranscriptMessage {
   message_text_scaffolded?: string | null;
   message_text_transliterated?: string | null;
   highlights?: Highlight[] | null;
+  flow?: string | null;
+  node?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,6 +1,6 @@
 """Application context and state tracking for agent execution."""
 
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -28,6 +28,16 @@ class AgentState(BaseModel):
     audio_text: Optional[str] = None  # Text to pronounce via TTS (set by send_audio tool)
 
 
+class OnboardingState(BaseModel):
+    """State for the onboarding flow.
+
+    Goal-driven: the agent decides when it has enough data and calls
+    `generate_lessons`, which sets `completed = True`. No step machine.
+    """
+    collected: Dict[str, Any] = Field(default_factory=dict)
+    completed: bool = False
+
+
 class AppContext(BaseModel):
     """
     Application context that tracks state throughout agent execution.
@@ -43,6 +53,9 @@ class AppContext(BaseModel):
 
     # Agent state
     agent: AgentState = Field(default_factory=AgentState)
+
+    # Onboarding state (only used for onboarding sessions)
+    onboarding: OnboardingState = Field(default_factory=OnboardingState)
 
     # Timestamp
     updated_at: datetime = Field(default_factory=datetime.now)
