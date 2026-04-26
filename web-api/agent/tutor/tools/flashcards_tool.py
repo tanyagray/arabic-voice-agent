@@ -1,4 +1,14 @@
-"""Tool for generating flashcard sets for vocabulary collections."""
+"""Tool for generating flashcard sets for vocabulary collections.
+
+Direct/bypass path: the tutor can drop a flashcard deck mid-conversation
+without going through the propose -> pick -> generate cycle. Each call still
+creates a `lessons` row (in `status='ready'`) alongside the flashcard set so
+the `lessons` table remains the single source of truth for "what content
+does this user have".
+
+For the deliberate two-step flow (propose then generate after the user picks),
+see `propose_lessons_tool.py` and `generate_lesson_content_tool.py`.
+"""
 
 import json
 
@@ -6,6 +16,7 @@ from pydantic import BaseModel
 from agents import RunContextWrapper, function_tool
 from harness.context import AppContext
 from services.flashcard_service import create_flashcard_set
+from services.lesson_service import insert_ready_lesson
 from services.transcript_service import create_transcript_message
 from services.supabase_client import get_supabase_admin_client
 
@@ -24,11 +35,11 @@ async def generate_flashcards(
     cards: list[FlashcardInput],
 ) -> str:
     """
-    Generate a set of flashcards for a vocabulary collection.
-
-    Use this tool when the user wants to learn a collection of vocabulary words,
-    such as days of the week, colours, months, common foods, clothing, animals,
-    body parts, numbers, or any other thematic group of words.
+    Generate a set of flashcards for a vocabulary collection, bypassing the
+    proposal flow. Use this when the conversation makes it obvious the user
+    wants this exact deck right now (e.g. they explicitly ask for "days of
+    the week flashcards"). For browsing-style requests where the user might
+    want to choose between options, use `propose_lessons` instead.
 
     Each card must include:
     - arabic_text: The word in Arabic with FULL harakaat (diacritical marks)
@@ -68,6 +79,18 @@ async def generate_flashcards(
         language=language,
         cards=card_dicts,
         user_id=user_id,
+    )
+
+    # Record a `lessons` row so this deck shows up in the user's lessons history.
+    insert_ready_lesson(
+        user_id=user_id,
+        session_id=session_id,
+        title=topic,
+        blurb=f"{len(cards)}-card flashcard set on {topic}.",
+        fmt="flashcards",
+        content_table="flashcard_sets",
+        content_id=set_id,
+        generation_hints={"cards": card_dicts},
     )
 
     # Create a transcript message so the frontend can render the flashcard deck

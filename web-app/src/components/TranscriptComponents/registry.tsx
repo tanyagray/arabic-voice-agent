@@ -16,6 +16,11 @@ import {
   type LessonTilesContext,
   type LessonTilesProps,
 } from './LessonTiles';
+import {
+  LessonProposalTiles,
+  type LessonProposalTilesContext,
+  type LessonProposalTilesProps,
+} from './LessonProposalTiles';
 
 export type ComponentMessagePayload = {
   component_name: string;
@@ -39,21 +44,31 @@ export function parseComponentMessage(
 /** Context shapes indexed by component_name. Extend as new components land. */
 export type ComponentContextMap = {
   LessonTiles: LessonTilesContext;
+  LessonProposalTiles: LessonProposalTilesContext;
 };
 
 export function renderTranscriptComponent<K extends keyof ComponentContextMap>(
   message: TranscriptMessage,
-  ctxMap: ComponentContextMap,
+  ctxMap: Partial<ComponentContextMap>,
 ): ReactElement | null {
   const payload = parseComponentMessage(message);
   if (!payload) return null;
 
   switch (payload.component_name as K) {
     case 'LessonTiles':
+      if (!ctxMap.LessonTiles) return null;
       return (
         <LessonTiles
           props={payload.props as LessonTilesProps}
           ctx={ctxMap.LessonTiles}
+        />
+      );
+    case 'LessonProposalTiles':
+      if (!ctxMap.LessonProposalTiles) return null;
+      return (
+        <LessonProposalTiles
+          props={payload.props as LessonProposalTilesProps}
+          ctx={ctxMap.LessonProposalTiles}
         />
       );
     default:
