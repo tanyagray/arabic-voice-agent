@@ -37,6 +37,7 @@ jobs:
             supabase
             config
             main
+            claude
           requireScope: false
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: >
