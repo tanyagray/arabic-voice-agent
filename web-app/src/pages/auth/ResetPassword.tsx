@@ -208,7 +208,7 @@ const ResetPassword: React.FC = () => {
     <VStack gap={6}>
       <Box textAlign="center" pt={6}>
         <Image
-          src="/logo.svg"
+          src="/favicon.svg"
           alt="🍑 mishmish.ai"
           h={32}
           mx="auto"

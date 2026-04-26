@@ -88,24 +88,6 @@ const Icon = {
   ),
 };
 
-function ApricotMark({ size = 26 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 40 40">
-      <defs>
-        <radialGradient id="apr-body-2" cx="35%" cy="30%" r="75%">
-          <stop offset="0%" stopColor="#FFD199" />
-          <stop offset="55%" stopColor="#F09B53" />
-          <stop offset="100%" stopColor="#B8501A" />
-        </radialGradient>
-      </defs>
-      <path d="M20 9 C12 9 6 15 6 23 C6 31 12 36 20 36 C28 36 34 31 34 23 C34 15 28 9 20 9 Z" fill="url(#apr-body-2)" />
-      <path d="M20 10 C19 14 19 30 20 36" stroke="rgba(155,63,16,0.35)" strokeWidth="1" fill="none" />
-      <path d="M20 10 C18 5 14 3 10 4 C11 8 15 11 20 10 Z" fill="#5DA34D" />
-      <ellipse cx="14" cy="17" rx="3.5" ry="2" fill="rgba(255,255,255,0.4)" />
-    </svg>
-  );
-}
-
 type TextSegment = { text: string; color: string };
 type ChipSegment = { chip: { ar: string; latin: string; meaning: string } };
 type Segment = TextSegment | ChipSegment;
@@ -667,7 +649,7 @@ export function TopBar({ theme, isMobile, isReturning }: { theme: Theme; isMobil
       WebkitBackdropFilter: 'blur(10px)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-        <ApricotMark size={26} />
+        <img src="/favicon.svg" alt="mishmish.ai logo" width={26} height={26} />
         <span style={{
           fontFamily: FONT_STACK, fontSize: 20, fontWeight: 700,
           color: theme.ink, letterSpacing: '-0.02em',
