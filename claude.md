@@ -120,7 +120,7 @@ Format: `<type>[optional scope]: <description>`
 
 Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
 
-Scopes typically match the package: `web-api`, `web-app`, `flutter-app`, `admin-app`, `storybook`, `supabase`, `config`.
+Scopes typically match the package: `web-api`, `web-app`, `flutter-app`, `admin-app`, `storybook`, `supabase`, `config`, `claude`.
 
 Breaking changes: add `!` after type/scope (e.g., `feat!: change API structure`).
 
