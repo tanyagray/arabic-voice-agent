@@ -169,6 +169,7 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
     <form
       onSubmit={handleSubmit}
       style={{
+        position: 'relative', overflow: 'hidden',
         marginTop: isMobile ? 4 : 8, background: theme.surface,
         border: `1.5px solid ${theme.tint}`,
         borderRadius: isMobile ? 18 : 22, padding: isMobile ? '16px 16px' : '22px 24px',
@@ -176,6 +177,20 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
         boxShadow: `0 20px 40px -24px ${theme.tint}66, 0 0 0 4px ${theme.tintSoft}`,
       }}
     >
+      <style>{`@keyframes mmInputShine { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }`}</style>
+      {disabled && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute', inset: 0,
+            background: `linear-gradient(110deg, transparent 30%, ${theme.tint}cc 50%, transparent 70%)`,
+            transform: 'translateX(-100%)',
+            animation: 'mmInputShine 1.6s ease-in-out infinite',
+            pointerEvents: 'none',
+            mixBlendMode: 'screen',
+          }}
+        />
+      )}
       <input
         ref={inputRef}
         type="text"
@@ -185,8 +200,13 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
         autoComplete="off"
         style={{
           flex: 1, minWidth: 0,
+          position: 'relative',
           fontFamily: FONT_STACK,
-          fontSize: isMobile ? 26 : 40, color: theme.ink,
+          fontSize: isMobile ? 26 : 40,
+          color: disabled ? theme.tint : theme.ink,
+          WebkitTextFillColor: disabled ? theme.tint : theme.ink,
+          opacity: 1,
+          transition: 'color .25s ease, -webkit-text-fill-color .25s ease',
           lineHeight: 1.1, letterSpacing: '-0.02em',
           fontWeight: 600,
           background: 'transparent', border: 'none', outline: 'none',
@@ -199,6 +219,7 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
           disabled
           aria-label="Sending message"
           style={{
+            position: 'relative',
             width: isMobile ? 44 : 54, height: isMobile ? 44 : 54, borderRadius: '50%',
             background: theme.tint, color: '#fff', border: 'none', cursor: 'default',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -213,6 +234,7 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
           type="submit"
           aria-label="Send message"
           style={{
+            position: 'relative',
             width: isMobile ? 44 : 54, height: isMobile ? 44 : 54, borderRadius: '50%',
             background: theme.tint, color: '#fff', border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -227,6 +249,7 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
           onClick={handleMicClick}
           aria-label="Start voice call"
           style={{
+            position: 'relative',
             width: isMobile ? 44 : 54, height: isMobile ? 44 : 54, borderRadius: '50%',
             background: theme.tint, color: '#fff', border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,

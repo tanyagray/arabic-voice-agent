@@ -497,7 +497,7 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
       WebkitFontSmoothing: 'antialiased',
       letterSpacing: '-0.01em',
     }}>
-      <style>{`@keyframes mmLandingBlink { 0%, 50% { opacity: 1 } 50.01%, 100% { opacity: 0 } } @keyframes mmOnboardingPulse { 0%, 100% { opacity: 0.35 } 50% { opacity: 1 } }`}</style>
+      <style>{`@keyframes mmLandingBlink { 0%, 50% { opacity: 1 } 50.01%, 100% { opacity: 0 } }`}</style>
       <TopBar theme={theme} isMobile={isMobile} isReturning={false} />
       <div style={{
         maxWidth: containerMax, margin: '0 auto',
@@ -534,20 +534,6 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
                 resetKey={displayTurnKey}
               />
             </div>
-
-            {/* Subtle "thinking" dot while the agent composes its reply */}
-            {isAgentThinking && !error && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8, color: theme.sub,
-                fontSize: 13, letterSpacing: '0.02em',
-              }}>
-                <span style={{
-                  display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-                  background: theme.tint, animation: 'mmOnboardingPulse 1.2s ease-in-out infinite',
-                }} />
-                <span>mishmish is thinking…</span>
-              </div>
-            )}
 
             {componentMessages.map((m) => {
               const parsed = parseComponentMessage(m);
