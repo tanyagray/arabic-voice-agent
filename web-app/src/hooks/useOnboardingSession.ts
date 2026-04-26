@@ -9,6 +9,12 @@
  * The backend onboarding agent is goal-driven (no step machine): it gathers
  * what it needs at its own pace, then calls `generate_lessons` to render the
  * tile picker and mark onboarding complete.
+ *
+ * The hook is gated by `enabled` — passing `false` keeps it inert (no
+ * session, no WS, no token spend) so visitors who land but never interact
+ * cost nothing. Flip it to `true` once the learner submits their first
+ * message; any message sent before the WS is open is buffered and flushed
+ * on connect.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -27,17 +33,19 @@ export interface OnboardingSessionState {
   isAgentThinking: boolean;
 }
 
-export function useOnboardingSession(): OnboardingSessionState {
+export function useOnboardingSession(enabled: boolean): OnboardingSessionState {
   const supabase = useSupabase();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<TranscriptMessage[]>([]);
   const [collected, setCollected] = useState<Record<string, unknown>>({});
   const [completed, setCompleted] = useState(false);
-  const [isAgentThinking, setIsAgentThinking] = useState(true);
+  const [isAgentThinking, setIsAgentThinking] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const pendingSendRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     let ws: WebSocket | null = null;
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -102,6 +110,10 @@ export function useOnboardingSession(): OnboardingSessionState {
         ws.onopen = () => {
           if (cancelled) return;
           setReady(true);
+          if (pendingSendRef.current) {
+            ws!.send(pendingSendRef.current);
+            pendingSendRef.current = null;
+          }
         };
 
         ws.onmessage = (ev) => {
@@ -149,14 +161,18 @@ export function useOnboardingSession(): OnboardingSessionState {
       wsRef.current = null;
       if (channel) supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [enabled, supabase]);
 
   const sendMessage = useCallback((text: string) => {
-    const ws = wsRef.current;
     const trimmed = text.trim();
-    if (!ws || ws.readyState !== WebSocket.OPEN || !trimmed) return;
+    if (!trimmed) return;
     setIsAgentThinking(true);
-    ws.send(trimmed);
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(trimmed);
+    } else {
+      pendingSendRef.current = trimmed;
+    }
   }, []);
 
   return {
