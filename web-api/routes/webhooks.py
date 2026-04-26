@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from agent.tutor import tutor_agent as tutor_module
-from channels.rest.websocket.turn_dispatcher import dispatch_turn
-from channels.rest.websocket.connection_manager import Message, send_message
+from channels.chat.connection_manager import Message, send_message
+from channels.chat.turn_dispatcher import dispatch_turn
 from services import soniox_service, transcript_service
 
 # Models

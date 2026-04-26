@@ -1,1 +1,1 @@
-"""Delivery channels — REST, WebSocket, and voice (Pipecat)."""
+"""Agent delivery channels grouped by modality: chat (turn-based), voice (streamed)."""

@@ -1,10 +1,10 @@
-"""Run an agent turn and emit the result to the WebSocket channel.
+"""Run an agent turn and emit the result to the chat channel.
 
-`dispatch_turn` is the WS-channel-specific wrapper around
+`dispatch_turn` is the chat-channel-specific wrapper around
 `harness.turn.run_turn`. It pushes the persisted transcript to the
 client, optionally synthesizes TTS audio, and broadcasts the latest
-context. Other channels (Pipecat voice, future REST/WhatsApp) wrap
-`run_turn` their own way.
+context. Other channels (voice, future HTTP/WhatsApp) wrap `run_turn`
+their own way.
 """
 
 import sys
@@ -13,14 +13,14 @@ from typing import Optional
 
 from agents import Agent
 
-from harness.context import get_context
-from harness.turn import TurnConfig, TurnResult, run_turn
-from services.tts_service import get_tts_service
-from services.websocket_service import (
+from channels.chat.connection_manager import (
     Message,
     send_audio_message,
     send_message,
 )
+from harness.context import get_context
+from harness.turn import TurnConfig, TurnResult, run_turn
+from services.tts_service import get_tts_service
 
 
 def _log(msg: str) -> None:

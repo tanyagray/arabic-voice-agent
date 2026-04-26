@@ -14,12 +14,12 @@ from fastapi.websockets import WebSocketDisconnect
 
 from agent.onboarding import onboarding_agent as onboarding_module
 from agent.tutor import tutor_agent as tutor_module
-from channels.rest.websocket import connection_manager as websocket_service
-from channels.rest.websocket.session_loop import start_session_loop
-from channels.rest.websocket.turn_dispatcher import dispatch_turn
+from channels.chat import connection_manager as websocket_service
+from channels.chat.connection_manager import Message, send_message
+from channels.chat.session_loop import start_session_loop
+from channels.chat.turn_dispatcher import dispatch_turn
 from harness import session_manager as session_service
 from harness.options import HarnessOptions
-from services.websocket_service import Message, send_message
 
 
 router = APIRouter(tags=["Session"])
