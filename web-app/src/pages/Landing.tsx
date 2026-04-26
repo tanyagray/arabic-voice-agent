@@ -66,6 +66,13 @@ const Icon = {
       <path d="M21 3 14.5 21l-3.5-8-8-3.5L21 3z" />
     </svg>
   ),
+  spinner: (p: SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" {...p}>
+      <circle cx="12" cy="12" r="9" strokeDasharray="40 60" opacity="0.95">
+        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  ),
   user: (p: SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <circle cx="12" cy="8" r="4" />
@@ -126,6 +133,7 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
 }) {
   const [value, setValue] = useState(prefilled || '');
   const inputRef = useRef<HTMLInputElement>(null);
+  const wasDisabledRef = useRef(disabled);
 
   useEffect(() => {
     if (autoFocus) {
@@ -134,13 +142,22 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
     }
   }, [autoFocus]);
 
+  // Clear the just-submitted text once the parent re-enables the input
+  // (i.e. the agent's reply has arrived). The submitted value remains visible
+  // while disabled so the user keeps context on what they sent.
+  useEffect(() => {
+    if (wasDisabledRef.current && !disabled) {
+      setValue('');
+      if (autoFocus) inputRef.current?.focus();
+    }
+    wasDisabledRef.current = disabled;
+  }, [disabled, autoFocus]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const msg = value.trim();
     if (!msg || disabled) return;
     onSubmit(msg);
-    setValue('');
-    inputRef.current?.focus();
   };
 
   const handleMicClick = () => {
@@ -163,6 +180,7 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        disabled={disabled}
         autoComplete="off"
         style={{
           flex: 1, minWidth: 0,
@@ -174,7 +192,22 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
           caretColor: theme.tint,
         }}
       />
-      {value.trim() ? (
+      {disabled ? (
+        <button
+          type="button"
+          disabled
+          aria-label="Sending message"
+          style={{
+            width: isMobile ? 44 : 54, height: isMobile ? 44 : 54, borderRadius: '50%',
+            background: theme.tint, color: '#fff', border: 'none', cursor: 'default',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            boxShadow: `0 8px 24px -6px ${theme.tint}88`,
+            opacity: 0.85,
+          }}
+        >
+          <Icon.spinner width={isMobile ? 22 : 26} height={isMobile ? 22 : 26} />
+        </button>
+      ) : value.trim() ? (
         <button
           type="submit"
           aria-label="Send message"
