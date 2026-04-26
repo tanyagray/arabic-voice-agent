@@ -302,6 +302,43 @@ function textToLine(text: string, highlights: Highlight[] | null | undefined, th
   return segs.length ? segs : [{ text, color: theme.ink }];
 }
 
+// Static greeting bubbles, shown to every new visitor without an LLM call.
+// These three lines are part of the brand experience — they're rendered
+// client-side so refreshes and idle visits cost zero tokens. The real
+// onboarding agent only spins up after the learner submits their first
+// message (their answer to "what is your name?").
+function buildInitialMessages(now: string): TranscriptMessage[] {
+  const stub = {
+    session_id: '',
+    user_id: '',
+    message_source: 'tutor' as const,
+    message_kind: 'text',
+    flow: 'onboarding',
+    created_at: now,
+    updated_at: now,
+  };
+  return [
+    {
+      ...stub,
+      message_id: 'mishmish:initial:0',
+      message_text: 'marhaban!',
+      highlights: [{ word: 'marhaban', meaning: 'hello', start: 0, end: 8 }],
+    },
+    {
+      ...stub,
+      message_id: 'mishmish:initial:1',
+      message_text: "i'm mishmish, which means apricot in Arabic \uD83D\uDE0A",
+      highlights: [{ word: 'mishmish', meaning: 'apricot', start: 4, end: 12 }],
+    },
+    {
+      ...stub,
+      message_id: 'mishmish:initial:2',
+      message_text: 'what is your name?',
+      highlights: null,
+    },
+  ];
+}
+
 export function Onboarding({ color = 'apricot' }: OnboardingProps) {
   const theme = THEMES[color];
   const [isMobile, setIsMobile] = useState(() =>
@@ -315,12 +352,25 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  const [hasStarted, setHasStarted] = useState(false);
+  const initialMessages = useMemo(() => buildInitialMessages(new Date().toISOString()), []);
+
   const {
     error,
-    messages,
+    messages: liveMessages,
     sendMessage,
     isAgentThinking,
-  } = useOnboardingSession();
+  } = useOnboardingSession(hasStarted);
+
+  // Show the synthetic greeting bubbles only until any live message arrives.
+  // Once the agent has spoken (or the user message echoes back), we hand off
+  // entirely to the live messages — this avoids the failure mode where a
+  // tutor message lands via Realtime before its preceding user message and
+  // gets glued onto the synthetic "first turn" forever.
+  const messages = useMemo(
+    () => (liveMessages.length === 0 ? initialMessages : liveMessages),
+    [initialMessages, liveMessages],
+  );
 
   // The hero shows the agent's *current* turn — i.e. tutor messages that came
   // after the most recent user message. As soon as the learner submits, the
@@ -424,8 +474,9 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
 
   const handleSubmit = useCallback((msg: string) => {
     setSubmitPending(true);
+    if (!hasStarted) setHasStarted(true);
     sendMessage(msg);
-  }, [sendMessage]);
+  }, [hasStarted, sendMessage]);
 
   const handleLessonPick = useCallback((tile: LessonTile) => {
     sessionStorage.setItem('mishmish:onboarding:pick', tile.level.toLowerCase());

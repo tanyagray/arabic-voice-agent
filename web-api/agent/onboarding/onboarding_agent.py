@@ -32,9 +32,5 @@ harness_options = HarnessOptions(
     flow_tag="onboarding",
     user_message_kind="transcript",
     idle_followups=False,
-    user_none_system_prompt=(
-        "Begin onboarding now. Greet the learner warmly and ask their name. "
-        "Use the `say` tool to produce each chat bubble."
-    ),
-    fire_opener=True,
+    fire_opener=False,
 )
