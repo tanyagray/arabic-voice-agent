@@ -1,3 +1,4 @@
+import './dev/fake-mic' // dev-only mic shim, no-op unless VITE_FAKE_MIC=1
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
