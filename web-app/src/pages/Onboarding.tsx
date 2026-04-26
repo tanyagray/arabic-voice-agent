@@ -586,6 +586,7 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
               onSubmit={handleSubmit}
               onMicClick={handleMicClick}
               disabled={submitPending}
+              placeholder={componentMessages.length > 0 ? "actually, i'd like to learn about..." : undefined}
             />
           </div>
         </section>

@@ -110,9 +110,9 @@ function FadeSlide({ show, children, delay = 0 }: { show: boolean; children: Rea
   );
 }
 
-export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true, onSubmit, onMicClick, disabled = false }: {
+export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true, onSubmit, onMicClick, disabled = false, placeholder }: {
   theme: Theme; isMobile: boolean; prefilled?: string | null; autoFocus?: boolean;
-  onSubmit: (msg: string) => void; onMicClick?: () => void; disabled?: boolean;
+  onSubmit: (msg: string) => void; onMicClick?: () => void; disabled?: boolean; placeholder?: string;
 }) {
   const [value, setValue] = useState(prefilled || '');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -159,7 +159,7 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
         boxShadow: `0 20px 40px -24px ${theme.tint}66, 0 0 0 4px ${theme.tintSoft}`,
       }}
     >
-      <style>{`@keyframes mmInputShine { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }`}</style>
+      <style>{`@keyframes mmInputShine { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } } .mm-userinput::placeholder { color: ${theme.tint}80; -webkit-text-fill-color: ${theme.tint}80; opacity: 1; } .mm-userinput::-webkit-input-placeholder { color: ${theme.tint}80; -webkit-text-fill-color: ${theme.tint}80; opacity: 1; }`}</style>
       {disabled && (
         <span
           aria-hidden="true"
@@ -176,9 +176,11 @@ export function UserInput({ theme, isMobile, prefilled = null, autoFocus = true,
       <input
         ref={inputRef}
         type="text"
+        className="mm-userinput"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={disabled}
+        placeholder={placeholder}
         autoComplete="off"
         style={{
           flex: 1, minWidth: 0,
