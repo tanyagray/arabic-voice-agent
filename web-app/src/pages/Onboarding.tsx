@@ -104,7 +104,7 @@ function TypingHero({ lines, isMobile, theme, resetKey }: {
       } else if (i === carriedCount) {
         lineStart[i] = startAt;
       } else {
-        lineStart[i] = lineStart[i - 1] + lineDur[i - 1] + 200;
+        lineStart[i] = lineStart[i - 1] + lineDur[i - 1] + 500;
       }
     }
 
