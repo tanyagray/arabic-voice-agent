@@ -13,16 +13,18 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
 # Delivery channels
-from channels.rest.routes.session import router as session_router
-from channels.rest.routes.content import router as content_router
-from channels.rest.routes.admin import router as admin_router
-from channels.rest.routes.config import router as config_router
-from channels.rest.routes.wimmelbilder import router as wimmelbilder_router
-from channels.rest.routes.flashcards import router as flashcards_router
-from channels.rest.routes.billing import router as billing_router
-from channels.rest.websocket.routes import router as websocket_session_router
+from channels.chat.routes import router as websocket_session_router
 from channels.voice.routes import router as realtime_pipecat_router
+
+# Non-agent HTTP routes
+from routes.admin import router as admin_router
+from routes.billing import router as billing_router
+from routes.config import router as config_router
+from routes.content import router as content_router
+from routes.flashcards import router as flashcards_router
+from routes.session import router as session_router
 from routes.webhooks import router as webhooks_router
+from routes.wimmelbilder import router as wimmelbilder_router
 
 # Load environment variables from .env file in the same directory as this script
 # Use override=True to ensure this .env takes precedence over parent directory .env files

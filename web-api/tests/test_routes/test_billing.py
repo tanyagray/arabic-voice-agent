@@ -32,8 +32,8 @@ def test_me_returns_free_by_default(client, auth_user):
     app.dependency_overrides[get_current_user] = lambda: auth_user
     try:
         with (
-            patch("channels.rest.routes.billing.plan_service.get_plan_state") as gp,
-            patch("channels.rest.routes.billing.plan_service.get_usage") as gu,
+            patch("routes.billing.plan_service.get_plan_state") as gp,
+            patch("routes.billing.plan_service.get_usage") as gu,
         ):
             gp.return_value = plan_service.PlanState(
                 user_id=auth_user.id, plan="free",

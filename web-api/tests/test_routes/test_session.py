@@ -9,8 +9,8 @@ from fastapi.testclient import TestClient
 class TestCreateSession:
     """Tests for POST /sessions endpoint."""
 
-    @patch("channels.rest.routes.session.session_service.create_session")
-    @patch("channels.rest.routes.session.get_current_user_token")
+    @patch("routes.session.session_service.create_session")
+    @patch("routes.session.get_current_user_token")
     def test_create_session_success(self, mock_auth, mock_create_session, client):
         """Test successful session creation."""
         # Arrange
@@ -34,8 +34,8 @@ class TestCreateSession:
         assert response.status_code in (401, 403)
 
 
-    @patch("channels.rest.routes.session.session_service.create_session")
-    @patch("channels.rest.routes.session.get_current_user_token")
+    @patch("routes.session.session_service.create_session")
+    @patch("routes.session.get_current_user_token")
     def test_create_session_expired_token(self, mock_auth, mock_create_session, client):
         """Test session creation with expired token returns 401."""
         from services.session_service import AuthenticationError
@@ -50,8 +50,8 @@ class TestCreateSession:
 class TestListUserSessions:
     """Tests for GET /sessions endpoint."""
 
-    @patch("channels.rest.routes.session.session_service.list_user_sessions")
-    @patch("channels.rest.routes.session.get_current_user_token")
+    @patch("routes.session.session_service.list_user_sessions")
+    @patch("routes.session.get_current_user_token")
     def test_list_sessions_success(self, mock_auth, mock_list_sessions, client):
         """Test successful listing of user sessions."""
         # Arrange
@@ -74,12 +74,12 @@ class TestListUserSessions:
 class TestSendChatMessage:
     """Tests for POST /sessions/{session_id}/chat endpoint."""
 
-    @patch("channels.rest.routes.session.scaffolding_service.generate_scaffolded_text")
-    @patch("channels.rest.routes.session.context_service.get_context")
-    @patch("channels.rest.routes.session.agent_service.generate_agent_response")
-    @patch("channels.rest.routes.session.transcript_service.create_transcript_message")
-    @patch("channels.rest.routes.session.session_service.get_session")
-    @patch("channels.rest.routes.session.get_current_user_token")
+    @patch("routes.session.scaffolding_service.generate_scaffolded_text")
+    @patch("routes.session.context_service.get_context")
+    @patch("routes.session.agent_service.generate_agent_response")
+    @patch("routes.session.transcript_service.create_transcript_message")
+    @patch("routes.session.session_service.get_session")
+    @patch("routes.session.get_current_user_token")
     def test_send_message_success(
         self, mock_auth, mock_get_session, mock_create_transcript, mock_generate_response,
         mock_get_context, mock_scaffold, client
@@ -113,8 +113,8 @@ class TestSendChatMessage:
         mock_generate_response.assert_called_once_with("session-123", "Hello", "test-token")
         mock_scaffold.assert_called_once_with("مرحبا! كيف يمكنني مساعدتك؟", user_message="Hello")
 
-    @patch("channels.rest.routes.session.session_service.get_session")
-    @patch("channels.rest.routes.session.get_current_user_token")
+    @patch("routes.session.session_service.get_session")
+    @patch("routes.session.get_current_user_token")
     def test_send_message_session_not_found(self, mock_auth, mock_get_session, client):
         """Test chat message with non-existent session."""
         # Arrange
@@ -136,9 +136,9 @@ class TestSendChatMessage:
 class TestUpdateContext:
     """Tests for PATCH /sessions/{session_id}/context endpoint."""
 
-    @patch("channels.rest.routes.session.context_service.get_context")
-    @patch("channels.rest.routes.session.session_service.get_session")
-    @patch("channels.rest.routes.session.get_current_user_token")
+    @patch("routes.session.context_service.get_context")
+    @patch("routes.session.session_service.get_session")
+    @patch("routes.session.get_current_user_token")
     def test_update_audio_enabled(self, mock_auth, mock_get_session, mock_get_context, client):
         """Test updating audio_enabled setting."""
         # Arrange
@@ -166,9 +166,9 @@ class TestUpdateContext:
         assert data["audio_enabled"] is True
         mock_context.set_audio_enabled.assert_called_once_with(True)
 
-    @patch("channels.rest.routes.session.context_service.get_context")
-    @patch("channels.rest.routes.session.session_service.get_session")
-    @patch("channels.rest.routes.session.get_current_user_token")
+    @patch("routes.session.context_service.get_context")
+    @patch("routes.session.session_service.get_session")
+    @patch("routes.session.get_current_user_token")
     def test_update_language(self, mock_auth, mock_get_session, mock_get_context, client):
         """Test updating language setting."""
         # Arrange

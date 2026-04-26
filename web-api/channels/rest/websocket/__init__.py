@@ -1,1 +1,0 @@
-"""Text-mode WebSocket delivery."""

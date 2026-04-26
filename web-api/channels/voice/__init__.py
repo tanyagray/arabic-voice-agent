@@ -1,1 +1,1 @@
-"""Pipecat WebRTC voice delivery channel."""
+"""Voice channel — continuous audio streaming via Pipecat with annotation events."""

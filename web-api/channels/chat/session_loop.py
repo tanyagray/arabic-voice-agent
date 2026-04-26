@@ -1,7 +1,7 @@
-"""WebSocket-driven session loop.
+"""Chat-channel session loop.
 
 Reads user messages off the WebSocket and dispatches each into the
-WS-channel `dispatch_turn`. Routes that need an opener turn (e.g.
+chat-channel `dispatch_turn`. Routes that need an opener turn (e.g.
 onboarding's greeting) call `dispatch_turn` themselves before invoking
 this loop.
 """
@@ -14,10 +14,10 @@ from agents import Agent
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketDisconnect
 
-from channels.rest.websocket.turn_dispatcher import dispatch_turn
+from channels.chat.connection_manager import Message, send_message
+from channels.chat.turn_dispatcher import dispatch_turn
 from harness.options import HarnessOptions
 from services.transcript_service import create_transcript_message
-from services.websocket_service import Message, send_message
 
 
 def _log(msg: str) -> None:
