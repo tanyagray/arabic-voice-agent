@@ -10,6 +10,8 @@ Arabic Voice Agent — a monorepo with a FastAPI voice/chat backend (web-api), R
 
 When asked to "start the app", run the **"Start All Services"** VS Code task (`Cmd+Shift+B`). This starts Supabase, web-api, and web-app in separate terminals.
 
+**Before making changes to the web-app**, ensure all services are running (Supabase + web-api + web-app), not just the Vite dev server. The web-app fetches its runtime config and onboarding/landing content from web-api (which in turn depends on Supabase), so without the full stack the app renders a "Failed to load app configuration" error and you cannot visually verify UI changes. If services aren't already up, run the "Start All Services" task before previewing.
+
 ## Common Commands
 
 ### web-api (Python, uv)
