@@ -1,9 +1,9 @@
 """WebSocket-driven session loop.
 
 Reads user messages off the WebSocket and dispatches each into the
-transport-agnostic `harness.agent_loop.trigger_turn`. Routes that need an
-opener turn (e.g. onboarding's greeting) should call `trigger_turn`
-themselves before invoking this loop.
+WS-channel `dispatch_turn`. Routes that need an opener turn (e.g.
+onboarding's greeting) call `dispatch_turn` themselves before invoking
+this loop.
 """
 
 import asyncio
@@ -14,7 +14,7 @@ from agents import Agent
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketDisconnect
 
-from harness.agent_loop import trigger_turn
+from channels.rest.websocket.turn_dispatcher import dispatch_turn
 from harness.options import HarnessOptions
 from services.transcript_service import create_transcript_message
 from services.websocket_service import Message, send_message
@@ -30,6 +30,7 @@ async def start_session_loop(
     *,
     agent: Agent,
     options: HarnessOptions,
+    synthesize_audio: bool = False,
 ) -> None:
     """Drive a session until the WebSocket closes."""
     base_timeout = 5.0
@@ -39,11 +40,8 @@ async def start_session_loop(
 
     turn_kwargs = dict(
         agent=agent,
-        scaffold=options.scaffold,
-        tts=options.tts,
-        persist_final_output=options.persist_final_output,
-        flow_tag=options.flow_tag,
-        user_none_system_prompt=options.user_none_system_prompt,
+        config=options.turn_config(),
+        synthesize_audio=synthesize_audio,
     )
 
     while True:
@@ -61,7 +59,7 @@ async def start_session_loop(
         except asyncio.TimeoutError:
             if followup_count < max_followups:
                 try:
-                    await trigger_turn(session_id, user_message=None, **turn_kwargs)
+                    await dispatch_turn(session_id, user_message=None, **turn_kwargs)
                 except Exception as e:
                     _log(f"Followup turn failed: {e}")
                     traceback.print_exc()
@@ -83,7 +81,7 @@ async def start_session_loop(
             _log(f"Failed to persist user message: {e}")
 
         try:
-            await trigger_turn(
+            await dispatch_turn(
                 session_id, user_message=user_message, **turn_kwargs
             )
         except Exception as e:

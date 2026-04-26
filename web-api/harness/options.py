@@ -1,13 +1,18 @@
 """Per-agent loop configuration.
 
-Each agent module exports a `harness_config` describing how its turns should
-be driven: scaffolding, TTS, message kinds, idle followups, opener, etc.
-Routes read this config and pass it to the session loop — they don't need to
-know anything agent-specific.
+Each agent module exports a `harness_options` describing how its turns
+should be driven: scaffolding, message kinds, idle followups, opener,
+etc. Routes read this and pass it to the session loop — they don't
+need to know anything agent-specific.
+
+Channel-level concerns (TTS, transport, payload format) live on the
+channel route, not here.
 """
 
 from dataclasses import dataclass
 from typing import Optional
+
+from harness.turn import TurnConfig
 
 
 @dataclass(frozen=True)
@@ -15,9 +20,6 @@ class HarnessOptions:
     # Run the canonical Arabic response through the Arabizi scaffolder before
     # persisting/sending. Tutor only.
     scaffold: bool = False
-
-    # Generate TTS audio when `context.agent.audio_enabled`. Tutor only.
-    tts: bool = False
 
     # Persist the agent's `final_output` as a tutor message. Onboarding sets
     # this to False — its visible output goes through the `say` tool.
@@ -36,6 +38,15 @@ class HarnessOptions:
     # turns and idle followups).
     user_none_system_prompt: Optional[str] = None
 
-    # If True, the route fires `trigger_turn(user_message=None)` once after
-    # the WebSocket is registered, before entering the receive loop.
+    # If True, the route fires one turn with `user_message=None` after the
+    # WebSocket is registered, before entering the receive loop.
     fire_opener: bool = False
+
+    def turn_config(self) -> TurnConfig:
+        """Project the per-turn fields out for `harness.turn.run_turn`."""
+        return TurnConfig(
+            scaffold=self.scaffold,
+            persist_final_output=self.persist_final_output,
+            flow_tag=self.flow_tag,
+            user_none_system_prompt=self.user_none_system_prompt,
+        )

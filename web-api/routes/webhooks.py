@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from agent.tutor import tutor_agent as tutor_module
-from harness.agent_loop import trigger_turn
+from channels.rest.websocket.turn_dispatcher import dispatch_turn
 from channels.rest.websocket.connection_manager import Message, send_message
 from services import soniox_service, transcript_service
 
@@ -96,15 +96,12 @@ async def soniox_webhook(payload: SonioxWebhookPayload):
 
             # Generate and send agent response (this will save and send the tutor message)
             opts = tutor_module.harness_options
-            await trigger_turn(
+            await dispatch_turn(
                 session_id,
                 transcript_text,
                 agent=tutor_module.agent,
-                scaffold=opts.scaffold,
-                tts=opts.tts,
-                persist_final_output=opts.persist_final_output,
-                flow_tag=opts.flow_tag,
-                user_none_system_prompt=opts.user_none_system_prompt,
+                config=opts.turn_config(),
+                synthesize_audio=True,
             )
 
         elif status == "error":
