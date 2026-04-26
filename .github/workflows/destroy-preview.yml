@@ -37,7 +37,8 @@ jobs:
             exit 0
           fi
 
-          # Write cleanup script
+          # Write cleanup script. Caddyfile edits are wrapped in flock to avoid
+          # racing with concurrent deploy-preview runs (different PRs share the file).
           cat > /tmp/cleanup.sh <<SCRIPT
           #!/bin/bash
           set -euo pipefail
@@ -47,13 +48,25 @@ jobs:
           docker stop pr-${PR_NUM} 2>/dev/null || true
           docker rm pr-${PR_NUM} 2>/dev/null || true
 
-          # Remove Caddy config blocks (all marker variants)
-          sed -i '/^# BEGIN pr-${PR_NUM}$/,/^# END pr-${PR_NUM}$/d' /etc/caddy/Caddyfile
-          sed -i '/^# BEGIN api-pr-${PR_NUM}$/,/^# END api-pr-${PR_NUM}$/d' /etc/caddy/Caddyfile
-          sed -i '/^# BEGIN web-pr-${PR_NUM}$/,/^# END web-pr-${PR_NUM}$/d' /etc/caddy/Caddyfile
+          (
+            flock -x -w 60 9
+            BACKUP=/etc/caddy/Caddyfile.bak.cleanup-pr-${PR_NUM}
+            cp /etc/caddy/Caddyfile "\$BACKUP"
 
-          # Reload Caddy
-          systemctl reload caddy
+            # Remove Caddy config blocks (all marker variants)
+            sed -i '/^# BEGIN pr-${PR_NUM}\$/,/^# END pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
+            sed -i '/^# BEGIN api-pr-${PR_NUM}\$/,/^# END api-pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
+            sed -i '/^# BEGIN web-pr-${PR_NUM}\$/,/^# END web-pr-${PR_NUM}\$/d' /etc/caddy/Caddyfile
+
+            if ! systemctl reload caddy; then
+              echo "caddy reload failed — restoring previous Caddyfile" >&2
+              cp "\$BACKUP" /etc/caddy/Caddyfile
+              systemctl reload caddy || true
+              rm -f "\$BACKUP"
+              exit 1
+            fi
+            rm -f "\$BACKUP"
+          ) 9>/var/lock/caddy-update.lock
 
           # Clean up env file
           rm -f /etc/mishmish/pr-${PR_NUM}.env
@@ -66,22 +79,40 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --timeout-seconds 120 \
+            --timeout-seconds 180 \
             --parameters "{\"commands\":$COMMANDS_JSON}" \
             --query "Command.CommandId" --output text)
 
           echo "SSM Command ID: $COMMAND_ID"
 
-          aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID" || true
-
-          RESULT=$(aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID" \
-            --query "Status" --output text)
+          # Poll until terminal state or ~3 min, instead of relying on `aws ssm wait`
+          # which silently returns at its 100s default and leaves status as Pending.
+          RESULT=Pending
+          for i in $(seq 1 60); do
+            RESULT=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "Status" --output text)
+            case "$RESULT" in
+              Success|Failed|Cancelled|TimedOut) break ;;
+            esac
+            sleep 3
+          done
 
           echo "Container cleanup status: $RESULT"
+          if [ "$RESULT" != "Success" ]; then
+            echo "::warning::Cleanup did not complete cleanly (status: $RESULT)"
+            echo "--- StandardOutputContent ---"
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "StandardOutputContent" --output text
+            echo "--- StandardErrorContent ---"
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "StandardErrorContent" --output text
+          fi
 
       # Delete this PR's files from the shared preview bucket
       - name: Delete preview static files
