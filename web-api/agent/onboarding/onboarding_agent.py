@@ -28,7 +28,6 @@ agent = Agent(
 
 harness_options = HarnessOptions(
     scaffold=False,
-    tts=False,
     persist_final_output=False,
     flow_tag="onboarding",
     user_message_kind="transcript",

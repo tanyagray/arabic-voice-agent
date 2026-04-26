@@ -1,7 +1,8 @@
 """WebSocket session routes — tutor and onboarding.
 
 Both endpoints share the same accept/auth/register boilerplate. They differ
-only in the agent and its `harness_options`, which the agent module owns.
+only in which agent runs, its `harness_options`, and whether the channel
+should synthesize TTS audio (a delivery concern, declared per route).
 """
 
 import sys
@@ -15,8 +16,8 @@ from agent.onboarding import onboarding_agent as onboarding_module
 from agent.tutor import tutor_agent as tutor_module
 from channels.rest.websocket import connection_manager as websocket_service
 from channels.rest.websocket.session_loop import start_session_loop
+from channels.rest.websocket.turn_dispatcher import dispatch_turn
 from harness import session_manager as session_service
-from harness.agent_loop import trigger_turn
 from harness.options import HarnessOptions
 from services.websocket_service import Message, send_message
 
@@ -30,6 +31,7 @@ async def _open_session(
     *,
     agent: Agent,
     options: HarnessOptions,
+    synthesize_audio: bool = False,
 ) -> None:
     """Shared boilerplate: accept WS, validate token, register, run loop."""
     await websocket.accept()
@@ -61,15 +63,12 @@ async def _open_session(
         try:
             if options.fire_opener:
                 try:
-                    await trigger_turn(
+                    await dispatch_turn(
                         session_id,
                         user_message=None,
                         agent=agent,
-                        scaffold=options.scaffold,
-                        tts=options.tts,
-                        persist_final_output=options.persist_final_output,
-                        flow_tag=options.flow_tag,
-                        user_none_system_prompt=options.user_none_system_prompt,
+                        config=options.turn_config(),
+                        synthesize_audio=synthesize_audio,
                     )
                 except Exception as e:
                     print(f"[Routes] Opener failed: {e}", flush=True, file=sys.stderr)
@@ -83,7 +82,11 @@ async def _open_session(
                         pass
 
             await start_session_loop(
-                websocket, session_id, agent=agent, options=options
+                websocket,
+                session_id,
+                agent=agent,
+                options=options,
+                synthesize_audio=synthesize_audio,
             )
         finally:
             websocket_service.unregister_websocket(session_id)
@@ -110,6 +113,7 @@ async def open_realtime_websocket(websocket: WebSocket, session_id: str):
         session_id,
         agent=tutor_module.agent,
         options=tutor_module.harness_options,
+        synthesize_audio=True,
     )
 
 
@@ -121,4 +125,5 @@ async def open_onboarding_websocket(websocket: WebSocket, session_id: str):
         session_id,
         agent=onboarding_module.agent,
         options=onboarding_module.harness_options,
+        synthesize_audio=False,
     )
