@@ -25,7 +25,7 @@ type TextSegment = { text: string; color: string; meaning?: string };
 type Line = TextSegment[];
 
 const CPS = 48;
-const FADE_MS = 350;
+const FADE_MS = 200;
 const segCharCount = (l: Line) => l.reduce((n, s) => n + [...s.text].length, 0);
 
 type PopoverState = { meaning: string; top: number; left: number };
@@ -353,26 +353,41 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
   // Cross-fade between turns so the swap reads softly.
   const [displayMessages, setDisplayMessages] = useState<TranscriptMessage[]>([]);
   const [displayTurn, setDisplayTurn] = useState<string>('');
+  // Mirrors `turnKey` but only advances in lockstep with `displayMessages`, so
+  // TypingHero doesn't see a new resetKey while it's still rendering the
+  // outgoing turn's lines (which would re-animate them mid-fade).
+  const [displayTurnKey, setDisplayTurnKey] = useState<string>('start');
   const [linesVisible, setLinesVisible] = useState(true);
 
   useEffect(() => {
     if (turnFingerprint === displayTurn) return;
-    // If this is the first batch of bubbles for a new turn (display was empty)
-    // we don't fade — just type them in. Subsequent bubbles within the same
-    // turn append without a fade either.
     const wasEmpty = displayMessages.length === 0;
-    if (wasEmpty || visibleTutorMessages.length >= displayMessages.length) {
+    const isFreshTurn = turnKey !== displayTurnKey;
+
+    // First bubbles ever, or appending more bubbles within the SAME turn —
+    // type in directly without a fade.
+    if (wasEmpty || (!isFreshTurn && visibleTutorMessages.length >= displayMessages.length)) {
       setDisplayMessages(visibleTutorMessages);
       setDisplayTurn(turnFingerprint);
+      setDisplayTurnKey(turnKey);
       setLinesVisible(true);
       return;
     }
-    // The visible set shrank (a new user submit cleared the previous turn's
-    // bubbles). Fade out, swap, fade in.
+
+    // Fresh turn (user just submitted) but the agent hasn't replied yet —
+    // keep the previous turn's bubbles visible so the user has context while
+    // they wait. Don't update display state.
+    if (isFreshTurn && visibleTutorMessages.length === 0) {
+      return;
+    }
+
+    // Fresh turn AND the first new tutor bubble has arrived — fade out the
+    // old bubbles, then swap to the new content (which TypingHero animates in).
     setLinesVisible(false);
     const t = setTimeout(() => {
       setDisplayMessages(visibleTutorMessages);
       setDisplayTurn(turnFingerprint);
+      setDisplayTurnKey(turnKey);
       setLinesVisible(true);
     }, FADE_MS);
     return () => clearTimeout(t);
@@ -398,7 +413,17 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
     [textMessages, theme.tint, theme.ink],
   );
 
+  // Tracks "user has submitted, waiting for agent reply". Drives the input's
+  // disabled/spinner state. We can't use `isAgentThinking` directly because it
+  // is also true on initial page load (before the first greeting), and we
+  // don't want the input to start out disabled.
+  const [submitPending, setSubmitPending] = useState(false);
+  useEffect(() => {
+    if (submitPending && !isAgentThinking) setSubmitPending(false);
+  }, [isAgentThinking, submitPending]);
+
   const handleSubmit = useCallback((msg: string) => {
+    setSubmitPending(true);
     sendMessage(msg);
   }, [sendMessage]);
 
@@ -455,7 +480,7 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
                 lines={lines}
                 isMobile={isMobile}
                 theme={theme}
-                resetKey={turnKey}
+                resetKey={displayTurnKey}
               />
             </div>
 
@@ -495,6 +520,7 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
               isMobile={isMobile}
               onSubmit={handleSubmit}
               onMicClick={handleMicClick}
+              disabled={submitPending}
             />
           </div>
         </section>

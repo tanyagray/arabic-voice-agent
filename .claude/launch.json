@@ -4,9 +4,10 @@
     {
       "name": "web-app",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", ". ~/.nvm/nvm.sh 2>/dev/null; npm run dev"],
+      "runtimeArgs": ["-c", ". ~/.nvm/nvm.sh 2>/dev/null; npm run dev -- --port $PORT"],
       "cwd": "web-app",
-      "port": 5173
+      "port": 5173,
+      "autoPort": true
     },
     {
       "name": "web-app-fake-mic",
