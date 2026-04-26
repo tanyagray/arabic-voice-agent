@@ -9,6 +9,13 @@
       "port": 5173
     },
     {
+      "name": "web-app-fake-mic",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", ". ~/.nvm/nvm.sh 2>/dev/null; VITE_FAKE_MIC=1 npm run dev"],
+      "cwd": "web-app",
+      "port": 5173
+    },
+    {
       "name": "storybook",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", ". ~/.nvm/nvm.sh 2>/dev/null; npm run storybook -- --no-open"],

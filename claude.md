@@ -112,6 +112,16 @@ web-api/tests/
 
 See `web-api/tests/README.md` for detailed testing documentation.
 
+## Smoke-testing voice mode
+
+When you need to test voice mode in the browser preview, use the dev-only fake-mic shim instead of asking the user to speak. It's a smoke-test aid only — not for repeatable automated testing.
+
+Setup: start `web-app-fake-mic` via `preview_start` (it's a separate launch config in `.claude/launch.json` that exports `VITE_FAKE_MIC=1`). Use it *instead of* the regular `web-app` config — the rest of the stack (web-api, Supabase) still needs to be running normally. Confirm `[fake-mic] Shim active` in the browser console.
+
+Per user turn (repeat for multi-turn dialog):
+1. Generate an utterance from the web-api directory: `uv run python scripts/fake_tts.py "your text here"` (defaults to `ar-AR`; pass `--language es-MX` etc. for other voices). Writes to `web-app/public/dev-fake-mic.mp3` (gitignored).
+2. Make sure voice mode is active and the mic is enabled (the call view auto-enables it on connect), then `preview_eval` `await window.__pushMic()`. The MP3 is piped into the fake stream and the agent transcribes/responds normally. Wait a few seconds after `__pushMic()` resolves for STT + LLM round-trip, then snapshot the transcript.
+
 ## Git Commit Conventions
 
 All commits **MUST** follow [Conventional Commits](https://www.conventionalcommits.org/). This project uses release-please for automated versioning.
