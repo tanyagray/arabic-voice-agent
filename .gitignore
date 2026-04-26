@@ -12,6 +12,11 @@ node_modules/
 # dotenvx: encrypted env files (supabase) are safe to commit; keys file is not.
 supabase/.env.keys
 
+# Local marker tracking which worktree/checkout owns the shared Supabase stack.
+# Written by .claude/hooks/supabase-owner.sh on `supabase start`/`stop` so that
+# worktree cleanup only tears down Supabase when this checkout actually owns it.
+.supabase-owner
+
 # IDEs and editors
 .idea/
 *.swp
