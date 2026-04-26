@@ -1,10 +1,12 @@
-"""Tool: generate_lessons — emit the lesson-tile UI and finish onboarding.
+"""Tool: generate_lessons — finalize onboarding and queue the lesson tiles.
 
-Persists a `message_kind='component'` transcript message whose `message_text`
-is the JSON payload `{"component_name": "LessonTiles", "props": {intro, tiles}}`.
-The frontend's TranscriptComponents registry renders this into the three-tile
-picker. Calling this tool also marks onboarding as `completed` and upserts
-the profile row from `app_context.onboarding.collected`.
+Marks `onboarding.completed`, upserts the user's profile row, and queues a
+`LessonTiles` ComponentMessage on `app_context.outbox`. The harness drains
+the outbox after the turn and persists it as a `message_kind='component'`
+transcript_messages row. The handoff text bubble (the agent's "why don't
+we start with one of these duroos?" line) is the agent's own assistant
+text, persisted by the harness from `result.new_items` — not anything
+this tool does.
 """
 
 import json
@@ -14,10 +16,10 @@ from typing import List, Literal, Optional
 from agents import RunContextWrapper, function_tool
 from pydantic import BaseModel
 
+from harness.components import ComponentMessage
 from harness.context import AppContext
 from harness.session_manager import get_session
 from services.supabase_client import get_supabase_admin_client
-from services.transcript_service import create_transcript_message
 
 
 def _log(msg: str) -> None:
@@ -68,22 +70,26 @@ class LessonTile(BaseModel):
 @function_tool
 async def generate_lessons(
     context: RunContextWrapper[AppContext],
-    intro: str,
     tiles: List[LessonTile],
 ) -> str:
     """
     Render three starter-lesson tiles tailored to the learner's motivation
-    and mark onboarding complete. Call this exactly once, after you have a
-    `name` and a `motivation` (or recorded the learner's refusal of either).
+    and finish onboarding. Call this exactly once, after you have a `name`
+    and a `motivation` (or recorded the learner's refusal of either).
+
+    In the SAME response as this tool call, write a short handoff sentence
+    (e.g. "why don't we start with one of these duroos?"). That text becomes
+    the on-screen bubble shown just above the tile picker — the harness
+    persists it automatically. The Arabic word `duroos` (lessons) is tinted
+    on screen via flow vocab; you don't need to mark it up.
 
     Args:
-        intro: One short line to introduce the picker. Currently not displayed
-            on screen but persisted for analytics; keep it warm and concrete.
         tiles: Exactly three tiles — one Beginner, one Intermediate, one
             Advanced — each tailored to the learner's stated motivation.
+            Each needs a `level`, a short `title` (3–6 words), a one-sentence
+            `blurb`, and optionally a single Arabic word/phrase (`arabic`).
     """
     app_context = context.context
-    session_id = app_context.session_id
 
     if app_context.onboarding.completed:
         return "Onboarding is already complete; do not call generate_lessons again."
@@ -98,19 +104,10 @@ async def generate_lessons(
             "(Beginner, Intermediate, Advanced)."
         )
 
-    props = {
-        "intro": intro,
-        "tiles": [t.model_dump() for t in tiles],
-    }
+    props = {"tiles": [t.model_dump() for t in tiles]}
 
-    await create_transcript_message(
-        session_id=session_id,
-        message_source="tutor",
-        message_kind="component",
-        message_text=json.dumps(
-            {"component_name": "LessonTiles", "props": props}
-        ),
-        flow="onboarding",
+    app_context.outbox.append(
+        ComponentMessage(component_name="LessonTiles", props=props)
     )
 
     app_context.onboarding.collected["suggestions"] = props
@@ -118,7 +115,4 @@ async def generate_lessons(
 
     _write_profile(app_context, props)
 
-    # Empty return: the agent uses StopAtTools, so this becomes final_output.
-    # The harness skips persisting empty output, so no extraneous text bubble
-    # appears alongside the tile picker.
-    return ""
+    return "ok"

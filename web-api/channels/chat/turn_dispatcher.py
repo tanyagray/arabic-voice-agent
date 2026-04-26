@@ -52,19 +52,20 @@ async def dispatch_turn(
 async def _send_transcript(
     session_id: str, result: TurnResult, config: TurnConfig
 ) -> None:
-    if result.persisted_message:
-        await send_message(
-            session_id,
-            Message(
-                kind="transcript",
-                data=result.persisted_message.model_dump(mode="json"),
-            ),
-        )
+    if result.persisted_messages:
+        for msg in result.persisted_messages:
+            await send_message(
+                session_id,
+                Message(
+                    kind="transcript",
+                    data=msg.model_dump(mode="json"),
+                ),
+            )
         return
 
-    # Persist failed (or was disabled) but we still have visible text —
+    # Persistence produced nothing but we still have visible text —
     # send a degraded payload so the user isn't stuck waiting.
-    if config.persist_final_output and result.display_text.strip():
+    if result.display_text.strip():
         await send_message(
             session_id,
             Message(
