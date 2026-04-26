@@ -18,8 +18,6 @@ class Highlight(BaseModel):
     """Word-level annotation rendered as a hoverable tinted span."""
     word: str
     meaning: str
-    start: int
-    end: int
 
 
 @function_tool
@@ -38,17 +36,32 @@ async def say(
             may appear as flavour but the line is otherwise English. Never
             output Arabic script or a full Arabic sentence.
         highlights: Optional word annotations. Each entry carries the literal
-            `word`, its English `meaning`, and the character offsets (`start`,
-            `end`) within `text`. Mark Arabic interjections this way so the
-            UI shows their meaning on hover.
+            `word` (must appear verbatim in `text`) and its English `meaning`.
+            Mark Arabic interjections this way so the UI shows their meaning
+            on hover. Character offsets are computed server-side from `word`.
     """
     app_context = context.context
+
+    resolved: list[dict] = []
+    for h in highlights or []:
+        idx = text.find(h.word)
+        if idx < 0:
+            continue
+        resolved.append(
+            {
+                "word": h.word,
+                "meaning": h.meaning,
+                "start": idx,
+                "end": idx + len(h.word),
+            }
+        )
+
     await create_transcript_message(
         session_id=app_context.session_id,
         message_source="tutor",
         message_kind="transcript",
         message_text=text,
-        highlights=[h.model_dump() for h in (highlights or [])],
+        highlights=resolved,
         flow="onboarding",
     )
     return "ok"
