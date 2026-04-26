@@ -1,11 +1,13 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { forwardRef, memo, useEffect, useRef, type HTMLAttributes } from 'react';
+import { forwardRef, memo, useCallback, useEffect, useRef, type HTMLAttributes } from 'react';
 import { Box, Flex, Text } from '@chakra-ui/react';
 import type { TranscriptMessage, ResponseMode } from '@/api/sessions/sessions.types';
 import { AudioBubble } from './AudioBubble';
 import { HighlightedText } from './HighlightedText';
 import { MarkdownContent } from './MarkdownContent';
 import { FlashcardDeck } from '@/components/FlashcardDeck';
+import { renderTranscriptComponent } from '@/components/TranscriptComponents/registry';
+import type { LessonRow } from '@/hooks/useLessonProposalGroup';
 import { useStore } from '@/store';
 
 export type { TranscriptMessage };
@@ -43,6 +45,7 @@ function getDisplayText(message: TranscriptMessage, mode: ResponseMode): string 
 function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptBubbleProps) {
   const isUser = message.message_source === 'user';
   const isTutor = message.message_source === 'tutor';
+  const sendMessage = useStore((s) => s.session.sendMessage);
 
   // Flashcard messages render as a full-width deck, not inside a bubble
   if (message.message_kind === 'flash_cards') {
@@ -56,6 +59,12 @@ function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptB
       >
         <FlashcardDeck message={message} />
       </MotionBox>
+    );
+  }
+
+  if (message.message_kind === 'component') {
+    return (
+      <ComponentBubble message={message} sendMessage={sendMessage} />
     );
   }
 
@@ -110,6 +119,42 @@ function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptB
           <MarkdownContent>{displayText}</MarkdownContent>
         )}
       </Box>
+    </MotionBox>
+  );
+}
+
+function ComponentBubble({
+  message,
+  sendMessage,
+}: {
+  message: TranscriptMessage;
+  sendMessage: (m: string) => Promise<void>;
+}) {
+  const handlePickProposal = useCallback(
+    (lesson: LessonRow) => {
+      // The lesson_id was returned to the agent as part of the propose_lessons
+      // tool result, so the LLM already has it in context — we just send a
+      // natural-language pick and let the agent map title to id.
+      void sendMessage(`Let's do the "${lesson.title}" lesson.`);
+    },
+    [sendMessage],
+  );
+
+  const rendered = renderTranscriptComponent(message, {
+    LessonProposalTiles: { onPick: handlePickProposal },
+  });
+
+  if (!rendered) return null;
+
+  return (
+    <MotionBox
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      w="full"
+    >
+      {rendered}
     </MotionBox>
   );
 }
