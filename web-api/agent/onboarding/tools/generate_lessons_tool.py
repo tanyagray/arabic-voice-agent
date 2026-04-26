@@ -118,7 +118,7 @@ async def generate_lessons(
 
     _write_profile(app_context, props)
 
-    return (
-        "Lessons rendered and onboarding marked complete. Do NOT call any "
-        "more tools and do NOT produce any text — the tiles carry the moment."
-    )
+    # Empty return: the agent uses StopAtTools, so this becomes final_output.
+    # The harness skips persisting empty output, so no extraneous text bubble
+    # appears alongside the tile picker.
+    return ""

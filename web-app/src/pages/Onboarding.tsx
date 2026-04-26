@@ -274,6 +274,18 @@ const FALLBACK_MEANINGS: Record<string, string> = {
 };
 const FALLBACK_RE = /(marhaban|mishmish)/gi;
 
+// The agent emits one transcript row per turn; we split it into sentences so
+// each one types in as its own bubble, preserving the multi-line cadence the
+// UI was designed around. Trailing whitespace is trimmed; a fragment without
+// a terminator (e.g. "Hi there") is treated as one sentence. If the regex
+// finds nothing, return the whole text as a single sentence.
+function splitSentences(text: string): string[] {
+  const matches = text.match(/[^.?!]+[.?!]+(?=\s|$)|[^.?!]+$/g);
+  if (!matches) return [text];
+  const trimmed = matches.map((s) => s.trim()).filter((s) => s.length > 0);
+  return trimmed.length > 0 ? trimmed : [text];
+}
+
 function textToLine(text: string, highlights: Highlight[] | null | undefined, theme: { tint: string; ink: string }): Line {
   const segs: TextSegment[] = [];
   if (highlights && highlights.length > 0) {
@@ -455,13 +467,29 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
     [displayMessages],
   );
 
-  const lines: Line[] = useMemo(
-    () =>
-      textMessages.map((m) =>
-        textToLine(m.message_text, m.highlights, { tint: theme.tint, ink: theme.ink }),
-      ),
-    [textMessages, theme.tint, theme.ink],
-  );
+  // One transcript row → one Line per sentence. Single-sentence messages keep
+  // their DB highlights (offsets are valid against the full text). Multi-
+  // sentence messages drop them — the offsets would be wrong against each
+  // split fragment. The FALLBACK_RE inside textToLine still tints
+  // "marhaban"/"mishmish" client-side either way.
+  const lines: Line[] = useMemo(() => {
+    const result: Line[] = [];
+    for (const m of textMessages) {
+      const sentences = splitSentences(m.message_text);
+      if (sentences.length <= 1) {
+        result.push(
+          textToLine(m.message_text, m.highlights, { tint: theme.tint, ink: theme.ink }),
+        );
+      } else {
+        for (const sentence of sentences) {
+          result.push(
+            textToLine(sentence, null, { tint: theme.tint, ink: theme.ink }),
+          );
+        }
+      }
+    }
+    return result;
+  }, [textMessages, theme.tint, theme.ink]);
 
   // Tracks "user has submitted, waiting for agent reply". Drives the input's
   // disabled/spinner state. We can't use `isAgentThinking` directly because it
