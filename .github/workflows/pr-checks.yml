@@ -38,6 +38,7 @@ jobs:
             config
             main
             claude
+            onboarding
           requireScope: false
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: >
