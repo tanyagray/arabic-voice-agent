@@ -46,7 +46,11 @@ function HighlightSpan({
       style={{
         color: seg.color,
         cursor: 'pointer',
-        borderBottom: `1px dashed ${seg.color}66`,
+        backgroundColor: `${seg.color}22`,
+        borderRadius: '4px',
+        padding: '2px 6px',
+        display: 'inline-block',
+        lineHeight: 1,
       }}
       onClick={(e) => {
         e.stopPropagation();
