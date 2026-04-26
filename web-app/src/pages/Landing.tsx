@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type SVGProps } from 'react';
+import { Link } from 'react-router-dom';
 import { useStore } from '@/store';
 import { useTranscriptMessages } from '@/hooks/useTranscriptMessages';
 import { useSupabase } from '@/context/SupabaseContext';
@@ -649,15 +650,23 @@ export function TopBar({ theme, isMobile, isReturning }: { theme: Theme; isMobil
           color: theme.ink, letterSpacing: '-0.02em',
         }}>mishmish</span>
       </div>
-      <button style={{
-        background: 'transparent', color: theme.sub, border: `1px solid ${theme.border}`,
-        borderRadius: 999, fontSize: 13, cursor: 'pointer',
-        padding: '7px 14px 7px 11px', fontFamily: 'inherit',
-        display: 'inline-flex', alignItems: 'center', gap: 7,
-      }}>
-        {isReturning ? <Icon.settings width={14} height={14} /> : <Icon.user width={14} height={14} />}
-        {isReturning ? 'Settings' : 'Sign in'}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <Link to="/pricing" style={{
+          color: theme.sub, fontSize: 13, fontFamily: 'inherit',
+          textDecoration: 'none', padding: '7px 12px', borderRadius: 999,
+        }}>
+          Pricing
+        </Link>
+        <button style={{
+          background: 'transparent', color: theme.sub, border: `1px solid ${theme.border}`,
+          borderRadius: 999, fontSize: 13, cursor: 'pointer',
+          padding: '7px 14px 7px 11px', fontFamily: 'inherit',
+          display: 'inline-flex', alignItems: 'center', gap: 7,
+        }}>
+          {isReturning ? <Icon.settings width={14} height={14} /> : <Icon.user width={14} height={14} />}
+          {isReturning ? 'Settings' : 'Sign in'}
+        </button>
+      </div>
     </div>
   );
 }
