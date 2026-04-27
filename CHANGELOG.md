@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.4.0](https://github.com/tanyagray/arabic-voice-agent/compare/v1.3.0...v1.4.0) (2026-04-27)
+
+
+### Features
+
+* add Free/Pro plans with Stripe billing and quota enforcement ([#155](https://github.com/tanyagray/arabic-voice-agent/issues/155)) ([5c400bf](https://github.com/tanyagray/arabic-voice-agent/commit/5c400bf9f7ce9fa95d42703b96f8e9ed9cdf1e70))
+* add Terraform modules and envs (dormant) ([#141](https://github.com/tanyagray/arabic-voice-agent/issues/141)) ([430fdda](https://github.com/tanyagray/arabic-voice-agent/commit/430fdda53c1926c73937a2c8bc35f3a3a955557c))
+* introduce lessons table with propose/generate flow ([#177](https://github.com/tanyagray/arabic-voice-agent/issues/177)) ([c0acf5a](https://github.com/tanyagray/arabic-voice-agent/commit/c0acf5af8935a90245c6f5e2b62bdf7a5d130b29))
+* landing + onboarding flow with prompt admin editor ([#153](https://github.com/tanyagray/arabic-voice-agent/issues/153)) ([7d8c9bc](https://github.com/tanyagray/arabic-voice-agent/commit/7d8c9bc0bfe28a9cbfbcead878a5303ba3a5a86e))
+* lesson page with clean lesson schema ([#181](https://github.com/tanyagray/arabic-voice-agent/issues/181)) ([7c1cd71](https://github.com/tanyagray/arabic-voice-agent/commit/7c1cd71e37366636fbc19ee6020d9f14e6f242d4))
+* **lesson:** agent initiates lesson session with topic intro ([#184](https://github.com/tanyagray/arabic-voice-agent/issues/184)) ([290baf0](https://github.com/tanyagray/arabic-voice-agent/commit/290baf087db0e5b1ba41d6cf6178eff129987662))
+* **onboarding:** redirect placeholder when lessons are proposed ([#178](https://github.com/tanyagray/arabic-voice-agent/issues/178)) ([9dc8c0b](https://github.com/tanyagray/arabic-voice-agent/commit/9dc8c0bc67de640dc40fe68333f374d4a81e374d))
+* replace onboarding step-machine with goal-driven agent ([#157](https://github.com/tanyagray/arabic-voice-agent/issues/157)) ([13714b5](https://github.com/tanyagray/arabic-voice-agent/commit/13714b57cdf361f8b8759fa60b72563e1de2a93f))
+* smart entry routing — onboarding for new users, welcome-back for returning ([#182](https://github.com/tanyagray/arabic-voice-agent/issues/182)) ([f4062de](https://github.com/tanyagray/arabic-voice-agent/commit/f4062de2418bac8f200dd28bc93ce02196e3d467))
+* swap deploy workflows to Terraform + delete CloudFormation ([#142](https://github.com/tanyagray/arabic-voice-agent/issues/142)) ([cd634cb](https://github.com/tanyagray/arabic-voice-agent/commit/cd634cb06fb336ab1ae992c25688864d486f9936))
+* **web-api:** add duroos hand-off bubble before lesson tiles ([#170](https://github.com/tanyagray/arabic-voice-agent/issues/170)) ([935d0cf](https://github.com/tanyagray/arabic-voice-agent/commit/935d0cf87b8deea2283bd37bcca00f065242d75a))
+* **web-app:** add pricing link to onboarding/landing top bar ([#169](https://github.com/tanyagray/arabic-voice-agent/issues/169)) ([40dfda1](https://github.com/tanyagray/arabic-voice-agent/commit/40dfda12db9536df2f9a5cd25453d953fed0f268))
+* **web-app:** hold input and hero during agent reply, fade only on new message ([#165](https://github.com/tanyagray/arabic-voice-agent/issues/165)) ([ce8100c](https://github.com/tanyagray/arabic-voice-agent/commit/ce8100c23ee6c6e22656ae704ab427f0ea1e0f3f))
+* **web-app:** lengthen onboarding hero line gap to 500ms ([#174](https://github.com/tanyagray/arabic-voice-agent/issues/174)) ([984b518](https://github.com/tanyagray/arabic-voice-agent/commit/984b5181888c88451e1acb25344ff6d79eb202e2))
+* **web-app:** lesson page — Landing theme styling, full-height chat layout ([#183](https://github.com/tanyagray/arabic-voice-agent/issues/183)) ([d554e03](https://github.com/tanyagray/arabic-voice-agent/commit/d554e039c43f31713128ba9029a607611a94868d))
+* **web-app:** render onboarding greeting statically, skip LLM until first user submit ([#167](https://github.com/tanyagray/arabic-voice-agent/issues/167)) ([91c9c93](https://github.com/tanyagray/arabic-voice-agent/commit/91c9c93fc210dd28f16cfe9029dad7ed42d62167))
+* **web-app:** replace dotted underline on onboarding highlights with background pill ([#158](https://github.com/tanyagray/arabic-voice-agent/issues/158)) ([d3b7317](https://github.com/tanyagray/arabic-voice-agent/commit/d3b7317ebaf9845063c5686e31fe294cf6e0c4a6))
+* **web-app:** show sending state via input shine sweep and tinted text ([#171](https://github.com/tanyagray/arabic-voice-agent/issues/171)) ([71dc54b](https://github.com/tanyagray/arabic-voice-agent/commit/71dc54bfc97ab1d7868195cd2645148f66b53294))
+
+
+### Bug Fixes
+
+* acm cert lookup + secretsmanager policy perm ([#147](https://github.com/tanyagray/arabic-voice-agent/issues/147)) ([e4bf422](https://github.com/tanyagray/arabic-voice-agent/commit/e4bf42254d2cf9ed5d7862e4d886980892f0aac3))
+* add acm:GetCertificate to deploy role ([#148](https://github.com/tanyagray/arabic-voice-agent/issues/148)) ([729bdc2](https://github.com/tanyagray/arabic-voice-agent/commit/729bdc276b38d67f70632fc18f3a541d17f21aaf))
+* **infra:** grant ec2:ModifyInstanceAttribute to deploy role ([1bb76a5](https://github.com/tanyagray/arabic-voice-agent/commit/1bb76a56e2fb786d6450bfb38723d33583db3b42))
+* serialize Caddyfile updates in preview deploys ([#173](https://github.com/tanyagray/arabic-voice-agent/issues/173)) ([f336efe](https://github.com/tanyagray/arabic-voice-agent/commit/f336efe6c2ad3dddbd3c7a649a57bbd49767ced9))
+* **web-app:** audio bubble invisible on light theme and silent playback failure ([#185](https://github.com/tanyagray/arabic-voice-agent/issues/185)) ([6d4b4d0](https://github.com/tanyagray/arabic-voice-agent/commit/6d4b4d013afe201cb146460394fe8b756e328974))
+* **web-app:** use favicon.svg as logo across onboarding and password reset pages ([#172](https://github.com/tanyagray/arabic-voice-agent/issues/172)) ([bc2e209](https://github.com/tanyagray/arabic-voice-agent/commit/bc2e209f779ce0254a25f90cc3571c85d4c42622))
+
+
+### Performance Improvements
+
+* **web-app:** defer Pipecat client until user starts a call ([#150](https://github.com/tanyagray/arabic-voice-agent/issues/150)) ([e591b1d](https://github.com/tanyagray/arabic-voice-agent/commit/e591b1df6b5a7c646b25b53169d8e96c15abcfbb))
+
 ## [1.3.0](https://github.com/tanyagray/arabic-voice-agent/compare/v1.2.1...v1.3.0) (2026-04-12)
 
 
