@@ -113,6 +113,7 @@ function TranscriptBubble({ message, isFirstInGroup, responseMode, theme }: Tran
                 : message.message_text_transliterated ?? message.message_text_canonical ?? undefined
             }
             dir={responseMode === 'canonical' ? 'rtl' : undefined}
+            isDark={!theme}
           />
         ) : isUser ? (
           <Text fontSize="lg" lineHeight="relaxed">
