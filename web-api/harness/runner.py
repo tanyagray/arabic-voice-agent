@@ -33,7 +33,12 @@ async def generate_agent_response(session_id: str, user_message: str, user_acces
     # Run the agent
     result = await Runner.run(agent, user_message, session=session, context=context)
 
-    return result.final_output
+    output = result.final_output
+    if hasattr(output, "messages"):
+        from harness.response import TextMessage
+        parts = [msg.content.text for msg in output.messages if isinstance(msg, TextMessage)]
+        return " ".join(parts)
+    return str(output)
 
 
 async def generate_greeting(session_id: str, user_access_token: str | None = None) -> str:

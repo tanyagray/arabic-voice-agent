@@ -6,8 +6,10 @@ import time
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from pydantic import BaseModel, Field
 
+from agent.tutor import tutor_agent as tutor_module
 from channels.chat import connection_manager as websocket_service
 from harness import session_manager as session_service, runner as agent_service, context as context_service, scaffolding as scaffolding_service
+from harness.turn import run_turn
 from services import posthog_service, soniox_service, transcript_service, plan_service
 from dependencies.auth import get_current_user, get_current_user_token
 
@@ -77,7 +79,7 @@ router = APIRouter(prefix="/sessions", tags=["Session"])
 
 
 @router.post("", response_model=SessionResponse)
-async def create_session(access_token: str = Depends(get_current_user_token)):
+async def create_session(lesson_id: str | None = None, access_token: str = Depends(get_current_user_token)):
     """
     Generate a new session ID.
 
@@ -94,7 +96,7 @@ async def create_session(access_token: str = Depends(get_current_user_token)):
         HTTPException: 401 if authentication fails, 500 if session creation fails
     """
     try:
-        session_id = session_service.create_session(access_token)
+        session_id = session_service.create_session(access_token, lesson_id=lesson_id)
     except session_service.AuthenticationError as e:
         raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
@@ -123,6 +125,32 @@ async def list_user_sessions(access_token: str = Depends(get_current_user_token)
     except session_service.AuthenticationError as e:
         raise HTTPException(status_code=401, detail=str(e))
     return SessionListResponse(sessions=sessions)
+
+
+@router.post("/{session_id}/opener", response_model=TextResponse)
+async def fire_opener(
+    session_id: str,
+    access_token: str = Depends(get_current_user_token),
+):
+    """Generate the agent's opening message for a session without user input."""
+    session = session_service.get_session(session_id, user_access_token=access_token)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+
+    try:
+        result = await run_turn(
+            session_id,
+            user_message=None,
+            agent=tutor_module.agent,
+            config=tutor_module.harness_options.turn_config(),
+        )
+    except Exception as e:
+        import traceback
+        logger.error(f"[Opener] run_turn failed for session {session_id}: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Opener failed: {str(e)}")
+
+    return TextResponse(text=result.display_text, highlights=[])
 
 
 @router.post("/{session_id}/chat", response_model=TextResponse)

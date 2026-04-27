@@ -49,8 +49,18 @@ def get_instructions(
 
     user_context = "\n".join(user_info_lines) if user_info_lines else "- No user information available"
 
+    lesson_section = ""
+    if app_context and app_context.lesson and app_context.lesson.lesson_id:
+        lesson_section = f"""
+
+## Current Lesson
+- title: {app_context.lesson.lesson_title}
+- objective: {app_context.lesson.lesson_objective}
+
+Open this session by introducing the lesson topic warmly and concisely, then start teaching immediately."""
+
     return f"""{instructions}
 
 ## User Info
-{user_context}
+{user_context}{lesson_section}
 """
