@@ -21,10 +21,6 @@ class HarnessOptions:
     # persisting/sending. Tutor only.
     scaffold: bool = False
 
-    # Persist the agent's `final_output` as a tutor message. Onboarding sets
-    # this to False — its visible output goes through the `say` tool.
-    persist_final_output: bool = True
-
     # `flow` field stamped onto every persisted message (user + tutor).
     flow_tag: Optional[str] = None
 
@@ -46,7 +42,6 @@ class HarnessOptions:
         """Project the per-turn fields out for `harness.turn.run_turn`."""
         return TurnConfig(
             scaffold=self.scaffold,
-            persist_final_output=self.persist_final_output,
             flow_tag=self.flow_tag,
             user_none_system_prompt=self.user_none_system_prompt,
         )

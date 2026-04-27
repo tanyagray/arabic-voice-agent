@@ -1,19 +1,36 @@
 """Run a single agent turn — channel-agnostic.
 
-`run_turn` invokes the agent, optionally scaffolds the output, persists
-the resulting tutor message, and records analytics. It returns a
-`TurnResult` describing what happened. It does no channel I/O — no
-WebSocket sends, no TTS — those are the channel's job.
+`run_turn` invokes the agent, optionally scaffolds each text output, and
+persists every visible bubble the turn produced. It returns a `TurnResult`
+listing the persisted rows. It does no channel I/O — no WebSocket sends,
+no TTS — those are the channel's job.
+
+The harness owns `transcript_messages`. Two sources land here:
+
+- **Text bubbles** come from any `MessageOutputItem` in `result.new_items`
+  (the LLM's assistant text, including text emitted alongside a tool call).
+  Each one becomes a `message_kind='text'` row, optionally scaffolded
+  (Arabic → Arabizi) and tagged with flow-vocab highlights.
+
+- **Component bubbles** come from `app_context.outbox`, which tools fill
+  during the run by appending `ComponentMessage` instances. Each one
+  becomes a `message_kind='component'` row.
+
+Tools never call `create_transcript_message` themselves.
 """
 
+import json
+import re
 import sys
 import time
 from dataclasses import dataclass, field
 from typing import Optional
 
 from agents import Agent, Runner, RunConfig
+from agents.items import ItemHelpers, MessageOutputItem
 
 from harness.context import get_context
+from harness.highlights import compute_highlights
 from harness.scaffolding import generate_scaffolded_text
 from harness.session_manager import get_session
 from services import posthog_service
@@ -24,12 +41,27 @@ def _log(msg: str) -> None:
     print(f"[Turn] {msg}", flush=True, file=sys.stderr)
 
 
+# Same shape as the frontend's splitSentences regex — keeps server and client
+# aligned on what counts as a sentence boundary.
+_SENTENCE_RE = re.compile(r"[^.?!]+[.?!]+(?=\s|$)|[^.?!]+$")
+
+
+def _first_sentence(text: str) -> str:
+    """Return just the first sentence of `text` (trimmed).
+
+    Used to clip an agent's reply when the same turn also lands a UI
+    component — components carry the moment, the bubble is the lead-in.
+    Falls back to the original text if no sentence boundary is found.
+    """
+    match = _SENTENCE_RE.search(text)
+    return match.group(0).strip() if match else text.strip()
+
+
 @dataclass(frozen=True)
 class TurnConfig:
     """Per-turn behavior. Decoupled from delivery channel."""
 
     scaffold: bool = False
-    persist_final_output: bool = True
     flow_tag: Optional[str] = None
     user_none_system_prompt: Optional[str] = None
 
@@ -38,10 +70,12 @@ class TurnConfig:
 class TurnResult:
     """Outcome of one agent turn — channels render this however they want."""
 
+    # Concatenated canonical text from all text bubbles, for TTS / analytics.
     canonical_text: str
+    # Concatenated display text (post-scaffold), for the WebSocket "degraded"
+    # fallback path when persistence has nothing to surface.
     display_text: str
-    highlights: list[dict] = field(default_factory=list)
-    persisted_message: Optional[TranscriptMessage] = None
+    persisted_messages: list[TranscriptMessage] = field(default_factory=list)
     timings: dict[str, float] = field(default_factory=dict)
 
 
@@ -50,18 +84,17 @@ async def _run_agent(
     session_id: str,
     user_message: Optional[str],
     user_none_system_prompt: Optional[str],
-) -> str:
-    """Invoke the agent for one turn. Returns its final_output text."""
+):
+    """Invoke the agent for one turn. Returns the SDK RunResult."""
     session = get_session(session_id)
     if not session:
         raise ValueError(f"Session not found: {session_id}")
     context = get_context(session_id)
 
     if user_message is not None:
-        result = await Runner.run(
+        return await Runner.run(
             agent, user_message, session=session, context=context
         )
-        return result.final_output or ""
 
     system_prompt = user_none_system_prompt or "Continue the conversation appropriately."
     system_message = {"role": "system", "content": system_prompt}
@@ -70,49 +103,76 @@ async def _run_agent(
         return history + new_input
 
     run_config = RunConfig(session_input_callback=session_input_callback)
-    result = await Runner.run(
+    return await Runner.run(
         agent,
         [system_message],
         session=session,
         context=context,
         run_config=run_config,
     )
-    return result.final_output or ""
 
 
-async def _maybe_scaffold(
-    canonical_text: str,
-    user_message: Optional[str],
-    config: TurnConfig,
-) -> tuple[str, list[dict]]:
-    if not (config.scaffold and canonical_text.strip()):
-        return canonical_text, []
-    scaffolded = await generate_scaffolded_text(
-        canonical_text, user_message=user_message
-    )
-    return scaffolded.text, scaffolded.highlights
-
-
-async def _maybe_persist(
+async def _persist_text_item(
     session_id: str,
     canonical_text: str,
-    display_text: str,
     config: TurnConfig,
-) -> Optional[TranscriptMessage]:
-    if not (config.persist_final_output and canonical_text.strip()):
-        return None
+    user_message: Optional[str],
+) -> tuple[Optional[TranscriptMessage], str, str]:
+    """Persist one assistant-text item. Returns (row, canonical, display)."""
+    canonical = canonical_text.strip()
+    if not canonical:
+        return None, "", ""
+
+    if config.scaffold:
+        scaffolded = await generate_scaffolded_text(canonical, user_message=user_message)
+        display = scaffolded.text
+        highlights = scaffolded.highlights
+    else:
+        display = canonical
+        highlights = compute_highlights(display, config.flow_tag)
+
     try:
-        return await create_transcript_message(
+        row = await create_transcript_message(
             session_id=session_id,
             message_source="tutor",
             message_kind="text",
-            message_text=display_text,
-            message_text_canonical=canonical_text if config.scaffold else None,
+            message_text=display,
+            message_text_canonical=canonical if config.scaffold else None,
+            highlights=highlights,
             flow=config.flow_tag,
         )
     except Exception as e:
-        _log(f"Failed to persist tutor message: {e}")
-        return None
+        _log(f"Failed to persist tutor text message: {e}")
+        return None, canonical, display
+    return row, canonical, display
+
+
+async def _persist_component_messages(
+    session_id: str,
+    config: TurnConfig,
+) -> list[TranscriptMessage]:
+    """Drain the context outbox and persist each queued ComponentMessage."""
+    context = get_context(session_id)
+    if not context or not context.outbox:
+        return []
+    queued = context.outbox
+    context.outbox = []
+    rows: list[TranscriptMessage] = []
+    for cm in queued:
+        try:
+            row = await create_transcript_message(
+                session_id=session_id,
+                message_source="tutor",
+                message_kind="component",
+                message_text=json.dumps(
+                    {"component_name": cm.component_name, "props": cm.props}
+                ),
+                flow=config.flow_tag,
+            )
+            rows.append(row)
+        except Exception as e:
+            _log(f"Failed to persist component message {cm.component_name}: {e}")
+    return rows
 
 
 def _record_analytics(
@@ -152,19 +212,41 @@ async def run_turn(
     """Run one agent turn end-to-end and return the result."""
     t_start = time.monotonic()
 
-    canonical_text = await _run_agent(
+    run_result = await _run_agent(
         agent, session_id, user_message, config.user_none_system_prompt
     )
     t_after_llm = time.monotonic()
 
-    display_text, highlights = await _maybe_scaffold(
-        canonical_text, user_message, config
-    )
+    persisted: list[TranscriptMessage] = []
+    canonical_parts: list[str] = []
+    display_parts: list[str] = []
+
+    # If a tool queued a UI component this turn, clip the agent's text to its
+    # first sentence. The component is the moment; the bubble is just the
+    # lead-in. Encoded in the harness so we don't have to trust the prompt to
+    # keep the agent from enumerating tile content in chat.
+    context = get_context(session_id)
+    clip_to_first_sentence = bool(context and context.outbox)
+
+    for item in run_result.new_items:
+        if not isinstance(item, MessageOutputItem):
+            continue
+        text = ItemHelpers.text_message_output(item)
+        if clip_to_first_sentence:
+            text = _first_sentence(text)
+        row, canonical, display = await _persist_text_item(
+            session_id, text, config, user_message
+        )
+        if row is not None:
+            persisted.append(row)
+        if canonical:
+            canonical_parts.append(canonical)
+        if display:
+            display_parts.append(display)
+
     t_after_scaffold = time.monotonic()
 
-    persisted = await _maybe_persist(
-        session_id, canonical_text, display_text, config
-    )
+    persisted.extend(await _persist_component_messages(session_id, config))
 
     timings = {
         "total_ms": round((t_after_scaffold - t_start) * 1000, 1),
@@ -174,9 +256,8 @@ async def run_turn(
     _record_analytics(session_id, timings, config)
 
     return TurnResult(
-        canonical_text=canonical_text,
-        display_text=display_text,
-        highlights=highlights,
-        persisted_message=persisted,
+        canonical_text=" ".join(canonical_parts),
+        display_text=" ".join(display_parts),
+        persisted_messages=persisted,
         timings=timings,
     )

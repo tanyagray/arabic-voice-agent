@@ -276,14 +276,43 @@ const FALLBACK_RE = /(marhaban|mishmish)/gi;
 
 // The agent emits one transcript row per turn; we split it into sentences so
 // each one types in as its own bubble, preserving the multi-line cadence the
-// UI was designed around. Trailing whitespace is trimmed; a fragment without
-// a terminator (e.g. "Hi there") is treated as one sentence. If the regex
-// finds nothing, return the whole text as a single sentence.
-function splitSentences(text: string): string[] {
-  const matches = text.match(/[^.?!]+[.?!]+(?=\s|$)|[^.?!]+$/g);
-  if (!matches) return [text];
-  const trimmed = matches.map((s) => s.trim()).filter((s) => s.length > 0);
-  return trimmed.length > 0 ? trimmed : [text];
+// UI was designed around. Each fragment carries its absolute `[start, end)`
+// span in the original text so per-sentence highlights can be re-aligned.
+type Sentence = { text: string; start: number; end: number };
+
+function splitSentences(text: string): Sentence[] {
+  const matches = [...text.matchAll(/[^.?!]+[.?!]+(?=\s|$)|[^.?!]+$/g)];
+  if (matches.length === 0) return [{ text, start: 0, end: text.length }];
+  const out: Sentence[] = [];
+  for (const m of matches) {
+    const raw = m[0];
+    const rawStart = m.index ?? 0;
+    const leading = raw.length - raw.trimStart().length;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const start = rawStart + leading;
+    out.push({ text: trimmed, start, end: start + trimmed.length });
+  }
+  return out.length > 0 ? out : [{ text, start: 0, end: text.length }];
+}
+
+// Re-base whole-message highlight offsets onto a single sentence span.
+// Drops highlights that don't fall entirely inside the sentence.
+function shiftHighlights(
+  highlights: Highlight[] | null | undefined,
+  sentence: Sentence,
+): Highlight[] {
+  if (!highlights || highlights.length === 0) return [];
+  const out: Highlight[] = [];
+  for (const h of highlights) {
+    if (h.start < sentence.start || h.end > sentence.end) continue;
+    out.push({
+      ...h,
+      start: h.start - sentence.start,
+      end: h.end - sentence.start,
+    });
+  }
+  return out;
 }
 
 function textToLine(text: string, highlights: Highlight[] | null | undefined, theme: { tint: string; ink: string }): Line {
@@ -467,25 +496,18 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
     [displayMessages],
   );
 
-  // One transcript row → one Line per sentence. Single-sentence messages keep
-  // their DB highlights (offsets are valid against the full text). Multi-
-  // sentence messages drop them — the offsets would be wrong against each
-  // split fragment. The FALLBACK_RE inside textToLine still tints
-  // "marhaban"/"mishmish" client-side either way.
+  // One transcript row → one Line per sentence. Each sentence inherits the
+  // slice of the message's DB highlights whose offsets fall inside its span,
+  // re-based to sentence-local indices.
   const lines: Line[] = useMemo(() => {
     const result: Line[] = [];
     for (const m of textMessages) {
       const sentences = splitSentences(m.message_text);
-      if (sentences.length <= 1) {
+      for (const sentence of sentences) {
+        const localHighlights = shiftHighlights(m.highlights, sentence);
         result.push(
-          textToLine(m.message_text, m.highlights, { tint: theme.tint, ink: theme.ink }),
+          textToLine(sentence.text, localHighlights, { tint: theme.tint, ink: theme.ink }),
         );
-      } else {
-        for (const sentence of sentences) {
-          result.push(
-            textToLine(sentence, null, { tint: theme.tint, ink: theme.ink }),
-          );
-        }
       }
     }
     return result;

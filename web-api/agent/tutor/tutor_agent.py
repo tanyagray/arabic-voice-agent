@@ -28,7 +28,6 @@ agent = Agent(
 
 harness_options = HarnessOptions(
     scaffold=True,
-    persist_final_output=True,
     flow_tag="tutor",
     idle_followups=True,
     user_none_system_prompt=(
