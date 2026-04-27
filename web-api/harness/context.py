@@ -44,6 +44,13 @@ class WelcomeBackState(BaseModel):
     completed: bool = False
 
 
+class LessonState(BaseModel):
+    """State for a lesson session."""
+    lesson_id: Optional[str] = None
+    lesson_title: Optional[str] = None
+    lesson_objective: Optional[str] = None
+
+
 class AppContext(BaseModel):
     """
     Application context that tracks state throughout agent execution.
@@ -65,6 +72,9 @@ class AppContext(BaseModel):
 
     # Welcome-back state (only used for welcome-back sessions)
     welcome_back: WelcomeBackState = Field(default_factory=WelcomeBackState)
+
+    # Lesson state (only used for lesson sessions)
+    lesson: LessonState = Field(default_factory=LessonState)
 
     # Timestamp
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -194,7 +204,10 @@ def create_context(
     user_id: Optional[str] = None,
     user_name: Optional[str] = None,
     user_motivation: Optional[str] = None,
-    active_tool: Optional[str] = None
+    active_tool: Optional[str] = None,
+    lesson_id: Optional[str] = None,
+    lesson_title: Optional[str] = None,
+    lesson_objective: Optional[str] = None,
 ) -> AppContext:
     """
     Create a new AppContext instance and store it indexed by session_id.
@@ -218,7 +231,12 @@ def create_context(
     context = AppContext(
         session_id=session_id,
         user=user_info,
-        agent=agent_state
+        agent=agent_state,
+        lesson=LessonState(
+            lesson_id=lesson_id,
+            lesson_title=lesson_title,
+            lesson_objective=lesson_objective,
+        ),
     )
 
     # Store context indexed by session_id

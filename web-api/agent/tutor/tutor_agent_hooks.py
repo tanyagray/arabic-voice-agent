@@ -112,7 +112,7 @@ class TutorAgentHooks(AgentHooks):
         self.event_counter += 1
         print(
             f"[Tutor Assistant] Agent '{agent.name}' completed "
-            f"with output length {len(output)} chars (event #{self.event_counter})"
+            f"with output length {len(str(output))} chars (event #{self.event_counter})"
         )
 
         if context.context:

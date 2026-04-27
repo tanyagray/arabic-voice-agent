@@ -37,8 +37,9 @@ export async function getSessions(): Promise<Session[]> {
  *
  * Backend endpoint: POST /sessions
  */
-export async function createSession(): Promise<string> {
-  const response = await apiClient.post<CreateSessionResponse>('/sessions');
+export async function createSession(lessonId?: string): Promise<string> {
+  const params = lessonId ? { lesson_id: lessonId } : undefined;
+  const response = await apiClient.post<CreateSessionResponse>('/sessions', undefined, { params });
   return response.data.session_id;
 }
 
@@ -53,6 +54,18 @@ export async function createSession(): Promise<string> {
  *
  * Backend endpoint: POST /sessions/{session_id}/chat
  */
+/**
+ * Fire the agent's opening message for a session (no user input required).
+ *
+ * Backend endpoint: POST /sessions/{session_id}/opener
+ */
+export async function fireOpener(sessionId: string): Promise<string> {
+  const response = await apiClient.post<SendMessageResponse>(
+    `/sessions/${sessionId}/opener`,
+  );
+  return response.data.text;
+}
+
 export async function sendMessage(
   sessionId: string,
   message: string,

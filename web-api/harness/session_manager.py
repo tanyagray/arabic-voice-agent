@@ -6,7 +6,7 @@ from typing import Dict, Optional
 from harness.session import AgentSession
 from harness.context import create_context, delete_context
 from services.supabase_client import get_supabase_user_client, get_supabase_admin_client
-from services import posthog_service
+from services import posthog_service, lesson_service
 
 
 class AuthenticationError(Exception):
@@ -18,7 +18,7 @@ class AuthenticationError(Exception):
 _sessions: Dict[str, AgentSession] = {}
 
 
-def create_session(user_access_token: str) -> str:
+def create_session(user_access_token: str, lesson_id: Optional[str] = None) -> str:
     """
     Create a new agent session and store it.
     Also creates an associated context for the session.
@@ -59,12 +59,27 @@ def create_session(user_access_token: str) -> str:
         profile_name = None
         profile_motivation = None
 
+    # Resolve lesson data if provided
+    lesson_title = None
+    lesson_objective = None
+    if lesson_id:
+        try:
+            lesson_data = lesson_service.get_lesson(lesson_id)
+            if lesson_data:
+                lesson_title = lesson_data.get("title")
+                lesson_objective = lesson_data.get("objective")
+        except Exception:
+            pass
+
     # Create context for this session
     create_context(
         session_id=session_id,
         user_id=actual_user_id,
         user_name=profile_name,
         user_motivation=profile_motivation,
+        lesson_id=lesson_id,
+        lesson_title=lesson_title,
+        lesson_objective=lesson_objective,
     )
 
     # Track session creation

@@ -1,13 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Flex, Spinner, Text } from '@chakra-ui/react';
 import { ChatView } from '../components/ChatView/ChatView';
 import { useStore } from '../store';
 import { THEMES, FONT_STACK, TopBar } from '@/pages/Landing';
 import { useTranscriptMessages } from '@/hooks/useTranscriptMessages';
-import { getLesson, type LessonData } from '@/api/lessons';
-import { createSession } from '@/api/sessions/sessions.api';
-import type { TranscriptMessage } from '@/api/sessions/sessions.types';
+import { createSession, fireOpener } from '@/api/sessions/sessions.api';
 
 const theme = THEMES['apricot'];
 
@@ -23,7 +21,6 @@ function LessonPage() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const [lesson, setLesson] = useState<LessonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const setActiveSessionId = useStore((s) => s.session.setActiveSessionId);
@@ -43,16 +40,16 @@ function LessonPage() {
 
     async function init() {
       try {
-        const [lessonData, sessionId] = await Promise.all([
-          getLesson(lessonId!),
-          createSession(),
-        ]);
+        const sessionId = await createSession(lessonId!);
         if (cancelled) return;
-        setLesson(lessonData);
+        await fireOpener(sessionId);
+        if (cancelled) return;
         setMessages([]);
         setActiveSessionId(sessionId);
-      } catch {
-        if (!cancelled) setError('Failed to load lesson. Please try again.');
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail ?? (err as { message?: string })?.message ?? 'Unknown error';
+        console.error('[LessonPage] init failed:', err);
+        if (!cancelled) setError(`Failed to load lesson: ${msg}`);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -62,26 +59,6 @@ function LessonPage() {
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
-
-  // Synthetic first "agent" message showing the lesson summary
-  const lessonIntroMessage = useMemo<TranscriptMessage | null>(() => {
-    if (!lesson || !activeSessionId) return null;
-    return {
-      message_id: `lesson:${lesson.id}:intro`,
-      session_id: activeSessionId,
-      user_id: '',
-      message_source: 'tutor',
-      message_kind: 'text',
-      message_text: `**${lesson.title}**\n\n${lesson.objective}`,
-      created_at: new Date(0).toISOString(),
-      updated_at: new Date(0).toISOString(),
-    };
-  }, [lesson, activeSessionId]);
-
-  const allMessages = useMemo(
-    () => (lessonIntroMessage ? [lessonIntroMessage, ...messages] : messages),
-    [lessonIntroMessage, messages],
-  );
 
   const pageStyle: React.CSSProperties = {
     background: theme.bg,
@@ -129,7 +106,7 @@ function LessonPage() {
             <Spinner size="xl" color={theme.tint} />
           </Flex>
         ) : (
-          <ChatView messages={allMessages} onStartCall={() => {}} theme={theme} />
+          <ChatView messages={messages} onStartCall={() => {}} theme={theme} />
         )}
       </Flex>
     </div>
