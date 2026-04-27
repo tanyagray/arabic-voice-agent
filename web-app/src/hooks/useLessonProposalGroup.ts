@@ -25,12 +25,7 @@ export interface LessonRow {
   created_by: string;
   session_id: string | null;
   title: string;
-  blurb: string;
-  arabic_preview: string | null;
-  format: string;
-  generation_hints: Record<string, unknown>;
-  content_table: string | null;
-  content_id: string | null;
+  objective: string;
   status: LessonStatus;
   error: string | null;
   started_at: string | null;

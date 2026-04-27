@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { forwardRef, memo, useCallback, useEffect, useRef, type HTMLAttributes } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Flex, Text } from '@chakra-ui/react';
 import type { TranscriptMessage, ResponseMode } from '@/api/sessions/sessions.types';
 import { AudioBubble } from './AudioBubble';
@@ -125,19 +126,17 @@ function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptB
 
 function ComponentBubble({
   message,
-  sendMessage,
 }: {
   message: TranscriptMessage;
   sendMessage: (m: string) => Promise<void>;
 }) {
+  const navigate = useNavigate();
+
   const handlePickProposal = useCallback(
     (lesson: LessonRow) => {
-      // The lesson_id was returned to the agent as part of the propose_lessons
-      // tool result, so the LLM already has it in context — we just send a
-      // natural-language pick and let the agent map title to id.
-      void sendMessage(`Let's do the "${lesson.title}" lesson.`);
+      navigate(`/lesson/${lesson.id}`);
     },
-    [sendMessage],
+    [navigate],
   );
 
   const rendered = renderTranscriptComponent(message, {

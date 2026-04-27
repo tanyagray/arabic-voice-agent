@@ -120,36 +120,15 @@ export function LessonProposalTiles({
             >
               <div
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 8,
+                  fontSize: 16,
+                  fontWeight: 700,
+                  letterSpacing: '-0.01em',
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  {lesson.title}
-                </div>
-                {lesson.arabic_preview && (
-                  <div
-                    style={{
-                      fontFamily: 'Noto Sans Arabic, serif',
-                      direction: 'rtl',
-                      fontSize: 16,
-                      opacity: 0.85,
-                    }}
-                  >
-                    {lesson.arabic_preview}
-                  </div>
-                )}
+                {lesson.title}
               </div>
               <div style={{ fontSize: 13, opacity: 0.75, lineHeight: 1.4 }}>
-                {lesson.blurb}
+                {lesson.objective}
               </div>
               {lesson.status === 'generating' && (
                 <div style={{ fontSize: 11, opacity: 0.7 }}>Preparing…</div>

@@ -16,6 +16,7 @@ import {
   renderTranscriptComponent,
 } from '@/components/TranscriptComponents/registry';
 import type { LessonTile } from '@/components/TranscriptComponents/LessonTiles';
+import { createLesson } from '@/api/lessons';
 
 export type OnboardingProps = {
   color?: ThemeKey;
@@ -548,9 +549,13 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
     sendMessage(msg);
   }, [hasStarted, sendMessage]);
 
-  const handleLessonPick = useCallback((tile: LessonTile) => {
-    sessionStorage.setItem('mishmish:onboarding:pick', tile.level.toLowerCase());
-    navigate('/');
+  const handleLessonPick = useCallback(async (tile: LessonTile) => {
+    try {
+      const lesson = await createLesson({ title: tile.title, objective: tile.objective });
+      navigate(`/lesson/${lesson.id}`);
+    } catch {
+      navigate('/');
+    }
   }, [navigate]);
 
   const handleMicClick = useCallback(() => {

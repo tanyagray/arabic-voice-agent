@@ -1,10 +1,8 @@
 import type { Theme } from '@/pages/Landing';
 
 export type LessonTile = {
-  level: 'Beginner' | 'Intermediate' | 'Advanced';
   title: string;
-  blurb: string;
-  arabic?: string | null;
+  objective: string;
 };
 
 export type LessonTilesProps = {
@@ -25,7 +23,7 @@ export function LessonTiles({
   props: LessonTilesProps;
   ctx: LessonTilesContext;
 }) {
-  const valid = Array.isArray(props.lessons) && props.lessons.length === 3;
+  const valid = Array.isArray(props.lessons) && props.lessons.length > 0;
   if (!valid) return null;
 
   return (
@@ -50,7 +48,7 @@ export function LessonTiles({
       >
         {props.lessons.map((tile) => (
           <button
-            key={tile.level + tile.title}
+            key={tile.title}
             onClick={() => onPick(tile)}
             style={{
               flex: 1,
@@ -80,41 +78,6 @@ export function LessonTiles({
           >
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  color: theme.tintDeep,
-                  background: theme.tintSoft,
-                  padding: '3px 8px',
-                  borderRadius: 999,
-                }}
-              >
-                {tile.level}
-              </span>
-              {tile.arabic && (
-                <span
-                  style={{
-                    fontFamily: 'Noto Sans Arabic, serif',
-                    direction: 'rtl',
-                    fontSize: 18,
-                    color: theme.tint,
-                  }}
-                >
-                  {tile.arabic}
-                </span>
-              )}
-            </div>
-            <div
-              style={{
                 fontSize: isMobile ? 17 : 19,
                 fontWeight: 700,
                 color: theme.ink,
@@ -131,7 +94,7 @@ export function LessonTiles({
                 lineHeight: 1.45,
               }}
             >
-              {tile.blurb}
+              {tile.objective}
             </div>
           </button>
         ))}

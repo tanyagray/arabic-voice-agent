@@ -22,6 +22,7 @@ from routes.billing import router as billing_router
 from routes.config import router as config_router
 from routes.content import router as content_router
 from routes.flashcards import router as flashcards_router
+from routes.lessons import router as lessons_router
 from routes.session import router as session_router
 from routes.webhooks import router as webhooks_router
 from routes.wimmelbilder import router as wimmelbilder_router
@@ -76,6 +77,7 @@ app.include_router(admin_router)
 app.include_router(config_router)
 app.include_router(wimmelbilder_router)
 app.include_router(flashcards_router)
+app.include_router(lessons_router)
 app.include_router(billing_router)
 
 
