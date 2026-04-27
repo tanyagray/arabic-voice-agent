@@ -18,12 +18,13 @@ from harness.response import AgentResponse
 
 from .onboarding_instructions import get_instructions
 from .tools.generate_lessons_tool import generate_lessons
+from .tools.record_profile_tool import record_profile
 
 
 agent = Agent(
     name="Onboarding",
     instructions=get_instructions,
-    tools=[generate_lessons],
+    tools=[record_profile, generate_lessons],
     output_type=AgentResponse,
 )
 

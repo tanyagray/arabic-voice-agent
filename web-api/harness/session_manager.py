@@ -46,11 +46,25 @@ def create_session(user_access_token: str) -> str:
     # Store session indexed by session_id
     _sessions[session_id] = session
 
+    # Resolve actual user_id and profile data for context
+    try:
+        user_response = supabase_client.auth.get_user(user_access_token)
+        actual_user_id = user_response.user.id if user_response and user_response.user else session_id
+        profile = get_supabase_admin_client().table("profiles").select("name, motivation").eq("id", actual_user_id).maybe_single().execute()
+        profile_data = profile.data or {}
+        profile_name = profile_data.get("name") or None
+        profile_motivation = profile_data.get("motivation") or None
+    except Exception:
+        actual_user_id = session_id
+        profile_name = None
+        profile_motivation = None
+
     # Create context for this session
     create_context(
         session_id=session_id,
-        user_id=session_id,  # Using session_id as user_id for now
-        user_name="User"     # Placeholder user name
+        user_id=actual_user_id,
+        user_name=profile_name,
+        user_motivation=profile_motivation,
     )
 
     # Track session creation

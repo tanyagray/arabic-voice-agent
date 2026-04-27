@@ -16,7 +16,7 @@ const AuthLayout: React.FC = () => {
   // Allow authenticated users to stay on reset-password page
   // Redirect authenticated (non-anonymous) users from other auth pages
   if (user && !isAnonymous && location.pathname !== '/reset-password') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   return (

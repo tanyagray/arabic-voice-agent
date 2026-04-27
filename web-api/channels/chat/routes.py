@@ -14,6 +14,7 @@ from fastapi.websockets import WebSocketDisconnect
 
 from agent.onboarding import onboarding_agent as onboarding_module
 from agent.tutor import tutor_agent as tutor_module
+from agent.welcome_back import welcome_back_agent as welcome_back_module
 from channels.chat import connection_manager as websocket_service
 from channels.chat.connection_manager import Message, send_message
 from channels.chat.session_loop import start_session_loop
@@ -125,5 +126,17 @@ async def open_onboarding_websocket(websocket: WebSocket, session_id: str):
         session_id,
         agent=onboarding_module.agent,
         options=onboarding_module.harness_options,
+        synthesize_audio=False,
+    )
+
+
+@router.websocket("/welcome-back-session/{session_id}")
+async def open_welcome_back_websocket(websocket: WebSocket, session_id: str):
+    """Open a WebSocket for the welcome-back agent."""
+    await _open_session(
+        websocket,
+        session_id,
+        agent=welcome_back_module.agent,
+        options=welcome_back_module.harness_options,
         synthesize_audio=False,
     )

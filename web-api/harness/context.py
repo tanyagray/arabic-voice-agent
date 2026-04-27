@@ -14,6 +14,7 @@ class UserInfo(BaseModel):
     """
     user_id: Optional[str] = None
     user_name: Optional[str] = None
+    user_motivation: Optional[str] = None
 
 
 class AgentState(BaseModel):
@@ -38,6 +39,11 @@ class OnboardingState(BaseModel):
     completed: bool = False
 
 
+class WelcomeBackState(BaseModel):
+    """State for the welcome-back flow."""
+    completed: bool = False
+
+
 class AppContext(BaseModel):
     """
     Application context that tracks state throughout agent execution.
@@ -56,6 +62,9 @@ class AppContext(BaseModel):
 
     # Onboarding state (only used for onboarding sessions)
     onboarding: OnboardingState = Field(default_factory=OnboardingState)
+
+    # Welcome-back state (only used for welcome-back sessions)
+    welcome_back: WelcomeBackState = Field(default_factory=WelcomeBackState)
 
     # Timestamp
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -184,6 +193,7 @@ def create_context(
     session_id: str,
     user_id: Optional[str] = None,
     user_name: Optional[str] = None,
+    user_motivation: Optional[str] = None,
     active_tool: Optional[str] = None
 ) -> AppContext:
     """
@@ -199,7 +209,7 @@ def create_context(
         AppContext: A new context instance
     """
     # Create user info
-    user_info = UserInfo(user_id=user_id, user_name=user_name)
+    user_info = UserInfo(user_id=user_id, user_name=user_name, user_motivation=user_motivation)
 
     # Create agent state
     agent_state = AgentState(active_tool=active_tool)

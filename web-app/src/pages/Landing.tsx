@@ -664,15 +664,16 @@ export function TopBar({ theme, isMobile, isReturning }: { theme: Theme; isMobil
         }}>
           Pricing
         </Link>
-        <button style={{
+        <Link to={isReturning ? '/settings' : '/sign-in'} style={{
           background: 'transparent', color: theme.sub, border: `1px solid ${theme.border}`,
           borderRadius: 999, fontSize: 13, cursor: 'pointer',
           padding: '7px 14px 7px 11px', fontFamily: 'inherit',
           display: 'inline-flex', alignItems: 'center', gap: 7,
+          textDecoration: 'none',
         }}>
           {isReturning ? <Icon.settings width={14} height={14} /> : <Icon.user width={14} height={14} />}
           {isReturning ? 'Settings' : 'Sign in'}
-        </button>
+        </Link>
       </div>
     </div>
   );
@@ -762,7 +763,7 @@ export function Landing({ userState = 'new', color = 'apricot' }: LandingProps) 
   }, [activeSessionId, addMessage, sendMessage, refetchMessages]);
 
   const handleMicClick = useCallback(() => {
-    window.location.href = '/';
+    window.location.href = '/home';
   }, []);
 
   const gutter = isMobile ? 20 : 64;

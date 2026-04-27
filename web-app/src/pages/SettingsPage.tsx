@@ -41,7 +41,7 @@ function SettingsPage() {
       }).catch((err) => console.warn('Failed to sync preferences to session:', err));
     }
 
-    navigate('/');
+    navigate('/home');
   };
 
   return (
@@ -69,7 +69,7 @@ function SettingsPage() {
               fontWeight="bold"
               color="white"
               cursor="pointer"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/home')}
             >
               <Flex align="center" gap={2}>
                 <Image src="/favicon.svg" alt="mishmish.ai logo" boxSize="24px" />
@@ -139,7 +139,7 @@ function SettingsPage() {
                   variant="ghost"
                   color="white"
                   _hover={{ bg: 'white/10' }}
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate('/home')}
                 >
                   Cancel
                 </Button>

@@ -30,18 +30,13 @@ def _write_profile(app_context: AppContext, props: dict) -> None:
         return
 
     collected = app_context.onboarding.collected
-    name_data = collected.get("name") or {}
-    motivation_data = collected.get("motivation") or {}
+    raw_name = collected.get("name")
+    raw_motivation = collected.get("motivation")
 
     row: dict[str, Optional[str]] = {
         "id": user_id,
-        "name": name_data.get("name") if isinstance(name_data, dict) else None,
-        "motivation": motivation_data.get("acknowledgement")
-        if isinstance(motivation_data, dict)
-        else None,
-        "motivation_tag": motivation_data.get("motivation_tag")
-        if isinstance(motivation_data, dict)
-        else None,
+        "name": raw_name if isinstance(raw_name, str) else None,
+        "motivation": raw_motivation if isinstance(raw_motivation, str) else None,
         "interests": json.dumps(props),
         "onboarding_completed_at": app_context.updated_at.isoformat(),
     }
@@ -69,8 +64,8 @@ async def generate_lessons(
 ) -> str:
     """
     Render three starter-lesson tiles tailored to the learner's motivation
-    and finish onboarding. Call this exactly once, after you have a `name`
-    and a `motivation` (or recorded the learner's refusal of either).
+    and finish onboarding. Call this exactly once, after you have called
+    `record_profile` to persist the learner's name and motivation.
 
     After this tool returns, include BOTH a `text` message (your handoff
     sentence using 'duroos') AND a `lesson-suggestions` message (using the

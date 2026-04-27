@@ -27,7 +27,7 @@ function LessonPage() {
 
   useEffect(() => {
     if (!lessonId) {
-      navigate('/');
+      navigate('/home');
       return;
     }
 
