@@ -5,6 +5,7 @@ import { Transcript } from '../Transcript/Transcript';
 import { Box, Flex, Input, IconButton } from '@chakra-ui/react';
 import { BsSend, BsTelephone } from 'react-icons/bs';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
+import type { Theme } from '@/pages/Landing';
 
 const MotionBox = motion.create(Box);
 const MotionIconButton = motion.create(IconButton);
@@ -12,9 +13,10 @@ const MotionIconButton = motion.create(IconButton);
 interface ChatViewProps {
   messages: TranscriptMessage[];
   onStartCall: () => void;
+  theme?: Theme;
 }
 
-export function ChatView({ messages, onStartCall }: ChatViewProps) {
+export function ChatView({ messages, onStartCall, theme }: ChatViewProps) {
   const sendMessage = useStore((state) => state.session.sendMessage);
   const [textMessage, setTextMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,11 +46,21 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
     }
   };
 
+  const inputBg = theme ? theme.surface : 'white/10';
+  const inputBorder = theme ? theme.border : 'white/20';
+  const inputColor = theme ? theme.ink : 'white';
+  const placeholderColor = theme ? theme.sub : 'white/50';
+  const btnColor = theme ? theme.sub : 'white/60';
+  const btnHoverColor = theme ? theme.ink : 'white';
+  const callBtnBg = theme ? theme.tintSoft : 'white/10';
+  const callBtnColor = theme ? theme.tint : 'white';
+  const callBtnHoverBg = theme ? theme.highlight : 'white/20';
+
   return (
     <Flex direction="column" flex={1} gap={6} minH={0} w="full">
       {/* Transcript - fills available space, full width so scrollbar is at viewport edge */}
       <Box flex={1} minH={0} w="full">
-        <Transcript messages={chatMessages} />
+        <Transcript messages={chatMessages} theme={theme} />
       </Box>
 
       {/* Input controls - constrained width, centered */}
@@ -59,10 +71,10 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
           display="flex"
           alignItems="center"
           flex={1}
-          bg="white/10"
+          bg={inputBg}
           rounded="full"
           borderWidth="1px"
-          borderColor="white/20"
+          borderColor={inputBorder}
           css={{ transition: "all 0.2s" }}
           _focusWithin={{ borderColor: 'accent.400' }}
           px={2}
@@ -74,8 +86,8 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
             placeholder="Type a message..."
             flex={1}
             bg="transparent"
-            color="white"
-            _placeholder={{ color: 'white/50' }}
+            color={inputColor}
+            _placeholder={{ color: placeholderColor }}
             px={4}
             size="lg"
             border="none"
@@ -86,8 +98,8 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
             aria-label="Send message"
             disabled={!textMessage.trim()}
             bg="transparent"
-            color="white/60"
-            _hover={{ color: 'white' }}
+            color={btnColor}
+            _hover={{ color: btnHoverColor }}
             rounded="full"
             size="md"
             variant="ghost"
@@ -103,9 +115,9 @@ export function ChatView({ messages, onStartCall }: ChatViewProps) {
           type="button"
           onClick={onStartCall}
           aria-label="Start voice call"
-          bg="white/10"
-          color="white"
-          _hover={{ bg: 'white/20' }}
+          bg={callBtnBg}
+          color={callBtnColor}
+          _hover={{ bg: callBtnHoverBg }}
           rounded="full"
           size="lg"
           shadow="lg"
