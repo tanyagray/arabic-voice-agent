@@ -1,19 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Flex, Spinner, Text } from '@chakra-ui/react';
-import { Header } from '../components/Header';
-import { UpgradeBanner } from '../components/Paywall/UpgradeBanner';
+import { Flex, Spinner, Text } from '@chakra-ui/react';
 import { ChatView } from '../components/ChatView/ChatView';
 import { useStore } from '../store';
-import { appGradient } from '@/lib/styles';
+import { THEMES, FONT_STACK, TopBar } from '@/pages/Landing';
 import { useTranscriptMessages } from '@/hooks/useTranscriptMessages';
 import { getLesson, type LessonData } from '@/api/lessons';
 import { createSession } from '@/api/sessions/sessions.api';
 import type { TranscriptMessage } from '@/api/sessions/sessions.types';
 
+const theme = THEMES['apricot'];
+
 function LessonPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false,
+  );
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const [lesson, setLesson] = useState<LessonData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,52 +83,56 @@ function LessonPage() {
     [lessonIntroMessage, messages],
   );
 
+  const pageStyle: React.CSSProperties = {
+    background: theme.bg,
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    fontFamily: FONT_STACK,
+    WebkitFontSmoothing: 'antialiased',
+    color: theme.ink,
+  };
+
   if (loading) {
     return (
-      <Flex minH="100vh" align="center" justify="center" style={{ backgroundImage: appGradient }}>
-        <Spinner size="xl" color="white" />
-      </Flex>
+      <div style={pageStyle}>
+        <Flex flex={1} align="center" justify="center">
+          <Spinner size="xl" color={theme.tint} />
+        </Flex>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Flex minH="100vh" align="center" justify="center" style={{ backgroundImage: appGradient }}>
-        <Text color="white" fontSize="lg">{error}</Text>
-      </Flex>
+      <div style={pageStyle}>
+        <Flex flex={1} align="center" justify="center">
+          <Text fontSize="lg" style={{ color: theme.sub }}>{error}</Text>
+        </Flex>
+      </div>
     );
   }
 
   return (
-    <Flex
-      minH="100vh"
-      h="100vh"
-      direction="column"
-      overflow="hidden"
-      style={{ backgroundImage: appGradient }}
-    >
-      <Header />
-      <UpgradeBanner />
-      <Box
+    <div style={pageStyle}>
+      <TopBar theme={theme} isMobile={isMobile} isReturning={true} />
+      <Flex
         flex={1}
         minH={0}
-        pt="80px"
+        direction="column"
         px={{ base: 0, md: 6 }}
         pb={{ base: 4, md: 6 }}
-        position="relative"
-        zIndex={1}
       >
         {!activeSessionId ? (
           <Flex w="full" h="full" align="center" justify="center">
-            <Spinner size="xl" color="white" />
+            <Spinner size="xl" color={theme.tint} />
           </Flex>
         ) : (
-          <Flex direction="column" flex={1} h="full">
-            <ChatView messages={allMessages} onStartCall={() => {}} />
-          </Flex>
+          <ChatView messages={allMessages} onStartCall={() => {}} theme={theme} />
         )}
-      </Box>
-    </Flex>
+      </Flex>
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@ import { forwardRef, memo, useCallback, useEffect, useRef, type HTMLAttributes }
 import { useNavigate } from 'react-router-dom';
 import { Box, Flex, Text } from '@chakra-ui/react';
 import type { TranscriptMessage, ResponseMode } from '@/api/sessions/sessions.types';
+import type { Theme } from '@/pages/Landing';
 import { AudioBubble } from './AudioBubble';
 import { HighlightedText } from './HighlightedText';
 import { MarkdownContent } from './MarkdownContent';
@@ -18,12 +19,14 @@ export interface TranscriptProps extends HTMLAttributes<HTMLDivElement> {
   messages: TranscriptMessage[];
   /** Text to show when there are no messages */
   emptyText?: string;
+  theme?: Theme;
 }
 
 interface TranscriptBubbleProps {
   message: TranscriptMessage;
   isFirstInGroup: boolean;
   responseMode: ResponseMode;
+  theme?: Theme;
 }
 
 const MotionBox = motion.create(Box);
@@ -43,7 +46,7 @@ function getDisplayText(message: TranscriptMessage, mode: ResponseMode): string 
   return message.message_text;
 }
 
-function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptBubbleProps) {
+function TranscriptBubble({ message, isFirstInGroup, responseMode, theme }: TranscriptBubbleProps) {
   const isUser = message.message_source === 'user';
   const isTutor = message.message_source === 'tutor';
   const sendMessage = useStore((s) => s.session.sendMessage);
@@ -92,13 +95,14 @@ function TranscriptBubble({ message, isFirstInGroup, responseMode }: TranscriptB
         maxW="80%"
         px={4}
         py={2}
-        bg={isUser ? 'accent.500' : 'white/20'}
-        color="white"
+        bg={isUser ? 'accent.500' : (theme ? theme.surface : 'white/20')}
+        color={isUser ? 'white' : (theme ? theme.ink : 'white')}
         roundedTopRight={roundedTopRight}
         roundedTopLeft={roundedTopLeft}
         roundedBottomRight={roundedBottomRight}
         roundedBottomLeft={roundedBottomLeft}
         dir={isTutor && responseMode === 'canonical' ? 'rtl' : undefined}
+        style={theme && !isUser ? { border: `1px solid ${theme.border}` } : undefined}
       >
         {message.message_kind === 'audio' ? (
           <AudioBubble
@@ -178,7 +182,7 @@ function groupMessages(messages: TranscriptMessage[]): TranscriptMessage[][] {
  * This is a presentational component - data should be passed via the `messages` prop.
  */
 export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
-  ({ messages, emptyText = 'No messages yet', style, ...props }, ref) => {
+  ({ messages, emptyText = 'No messages yet', theme, style, ...props }, ref) => {
     const responseMode = useStore((s) => s.session.context.response_mode);
     const containerRef = useRef<HTMLDivElement>(null);
     const hasScrolledRef = useRef(false);
@@ -230,6 +234,7 @@ export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
                       message={message}
                       isFirstInGroup={i === 0}
                       responseMode={responseMode}
+                      theme={theme}
                     />
                   ))}
                 </AnimatePresence>
@@ -238,7 +243,7 @@ export const Transcript = memo(forwardRef<HTMLDivElement, TranscriptProps>(
           </Flex>
         ) : (
           <Flex h="full" align="center" justify="center">
-            <Text color="white" opacity={0.5}>
+            <Text style={{ color: theme ? theme.sub : undefined }} color={theme ? undefined : 'white'} opacity={0.5}>
               {emptyText}
             </Text>
           </Flex>

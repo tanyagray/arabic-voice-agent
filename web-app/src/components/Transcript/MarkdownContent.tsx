@@ -180,7 +180,7 @@ export interface MarkdownContentProps
 
 export function MarkdownContent({ children, ...props }: MarkdownContentProps) {
   return (
-    <Box color="white" {...props}>
+    <Box color="inherit" {...props}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {children}
       </ReactMarkdown>
