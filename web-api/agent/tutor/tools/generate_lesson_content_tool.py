@@ -26,7 +26,6 @@ from services.lesson_service import (
     update_lesson,
 )
 from services.supabase_client import get_supabase_admin_client
-from services.transcript_service import create_transcript_message
 
 
 @function_tool
@@ -104,21 +103,22 @@ async def generate_lesson_content(
     )
 
     if lesson["format"] == "flashcards":
-        await create_transcript_message(
-            session_id=session_id,
-            message_source="tutor",
-            message_kind="flash_cards",
-            message_text=json.dumps({"set_id": content_id, "title": lesson["title"]}),
-            flow="tutor",
-        )
+        return json.dumps({
+            "status": "ok",
+            "format": "flashcards",
+            "set_id": content_id,
+            "title": lesson["title"],
+            "language": app_context.agent.language,
+            "instruction": (
+                f"Include a 'flashcard-set' message in your response with "
+                f"set_id='{content_id}', title='{lesson['title']}', "
+                f"language='{app_context.agent.language}'. "
+                "Do not produce any additional text commentary."
+            ),
+        })
     else:
         # Future formats: extend this dispatch as new renderers land.
         return (
             f"Generated lesson '{lesson['title']}' but no transcript renderer "
             f"is wired up for format '{lesson['format']}' yet."
         )
-
-    return (
-        f"Lesson '{lesson['title']}' is ready and has been shown to the user. "
-        "Do not produce additional commentary."
-    )

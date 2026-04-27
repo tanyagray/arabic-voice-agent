@@ -17,7 +17,6 @@ from agents import RunContextWrapper, function_tool
 from harness.context import AppContext
 from services.flashcard_service import create_flashcard_set
 from services.lesson_service import insert_ready_lesson
-from services.transcript_service import create_transcript_message
 from services.supabase_client import get_supabase_admin_client
 
 
@@ -93,12 +92,14 @@ async def generate_flashcards(
         generation_hints={"cards": card_dicts},
     )
 
-    # Create a transcript message so the frontend can render the flashcard deck
-    await create_transcript_message(
-        session_id=session_id,
-        message_source="tutor",
-        message_kind="flash_cards",
-        message_text=json.dumps({"set_id": set_id, "title": topic}),
-    )
-
-    return f"I've created a flashcard set for '{topic}' with {len(cards)} cards. The images and audio are being generated now."
+    return json.dumps({
+        "status": "ok",
+        "set_id": set_id,
+        "title": topic,
+        "card_count": len(cards),
+        "instruction": (
+            f"Include a 'flashcard-set' message in your response with set_id='{set_id}', "
+            f"title='{topic}', language='{language}'. "
+            "Also include a brief text acknowledgement in Arabic."
+        ),
+    })

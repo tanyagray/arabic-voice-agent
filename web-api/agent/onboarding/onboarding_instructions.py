@@ -25,9 +25,10 @@ def get_instructions(
     )
     if app_context and app_context.onboarding and app_context.onboarding.completed:
         # Onboarding already finished — guard against accidental further turns.
+        # Return empty messages array in the required JSON format.
         return (
-            "Onboarding is complete. Do not call any tools. Do not produce "
-            "any text. The conversation is over."
+            "Onboarding is complete. Do not call any tools. "
+            'Respond with exactly: {"messages": []}'
         )
     template = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     return template.replace("{collected}", str(collected or "{}"))
