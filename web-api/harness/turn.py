@@ -1,36 +1,41 @@
 """Run a single agent turn — channel-agnostic.
 
-`run_turn` invokes the agent, optionally scaffolds each text output, and
-persists every visible bubble the turn produced. It returns a `TurnResult`
-listing the persisted rows. It does no channel I/O — no WebSocket sends,
-no TTS — those are the channel's job.
+`run_turn` invokes the agent, processes its structured `AgentResponse`, applies
+per-type transforms (scaffolding, highlights), and persists every message.  It
+returns a `TurnResult` listing the persisted rows.  It does no channel I/O.
 
-The harness owns `transcript_messages`. Two sources land here:
+The harness owns `transcript_messages`.  Every message in the agent's response
+lands here:
 
-- **Text bubbles** come from any `MessageOutputItem` in `result.new_items`
-  (the LLM's assistant text, including text emitted alongside a tool call).
-  Each one becomes a `message_kind='text'` row, optionally scaffolded
-  (Arabic → Arabizi) and tagged with flow-vocab highlights.
+- **text** bubbles are optionally scaffolded (Arabic → Arabizi) and tagged
+  with flow-vocab highlights, then persisted as `message_kind='text'`.
 
-- **Component bubbles** come from `app_context.outbox`, which tools fill
-  during the run by appending `ComponentMessage` instances. Each one
-  becomes a `message_kind='component'` row.
+- **lesson-suggestions** bubbles are persisted as `message_kind='component'`
+  rows so the frontend can render the appropriate picker UI.
 
-Tools never call `create_transcript_message` themselves.
+- **image** bubbles are persisted as `message_kind='component'` rows.
+
+Tools never call `create_transcript_message` themselves (except `generate_flashcards`
+which predates this pattern and still writes its own component row directly).
 """
 
 import json
-import re
 import sys
 import time
 from dataclasses import dataclass, field
 from typing import Optional
 
 from agents import Agent, Runner, RunConfig
-from agents.items import ItemHelpers, MessageOutputItem
 
 from harness.context import get_context
 from harness.highlights import compute_highlights
+from harness.response import (
+    AgentResponse,
+    FlashcardSetMessage,
+    ImageMessage,
+    LessonSuggestionsMessage,
+    TextMessage,
+)
 from harness.scaffolding import generate_scaffolded_text
 from harness.session_manager import get_session
 from services import posthog_service
@@ -41,25 +46,9 @@ def _log(msg: str) -> None:
     print(f"[Turn] {msg}", flush=True, file=sys.stderr)
 
 
-# Same shape as the frontend's splitSentences regex — keeps server and client
-# aligned on what counts as a sentence boundary.
-_SENTENCE_RE = re.compile(r"[^.?!]+[.?!]+(?=\s|$)|[^.?!]+$")
-
-
-def _first_sentence(text: str) -> str:
-    """Return just the first sentence of `text` (trimmed).
-
-    Used to clip an agent's reply when the same turn also lands a UI
-    component — components carry the moment, the bubble is the lead-in.
-    Falls back to the original text if no sentence boundary is found.
-    """
-    match = _SENTENCE_RE.search(text)
-    return match.group(0).strip() if match else text.strip()
-
-
 @dataclass(frozen=True)
 class TurnConfig:
-    """Per-turn behavior. Decoupled from delivery channel."""
+    """Per-turn behaviour. Decoupled from delivery channel."""
 
     scaffold: bool = False
     flow_tag: Optional[str] = None
@@ -112,14 +101,14 @@ async def _run_agent(
     )
 
 
-async def _persist_text_item(
+async def _persist_text_message(
     session_id: str,
-    canonical_text: str,
+    msg: TextMessage,
     config: TurnConfig,
     user_message: Optional[str],
 ) -> tuple[Optional[TranscriptMessage], str, str]:
-    """Persist one assistant-text item. Returns (row, canonical, display)."""
-    canonical = canonical_text.strip()
+    """Scaffold, highlight, and persist one text message. Returns (row, canonical, display)."""
+    canonical = msg.content.text.strip()
     if not canonical:
         return None, "", ""
 
@@ -142,37 +131,95 @@ async def _persist_text_item(
             flow=config.flow_tag,
         )
     except Exception as e:
-        _log(f"Failed to persist tutor text message: {e}")
+        _log(f"Failed to persist text message: {e}")
         return None, canonical, display
     return row, canonical, display
 
 
-async def _persist_component_messages(
+async def _persist_lesson_suggestions_message(
     session_id: str,
+    msg: LessonSuggestionsMessage,
     config: TurnConfig,
-) -> list[TranscriptMessage]:
-    """Drain the context outbox and persist each queued ComponentMessage."""
-    context = get_context(session_id)
-    if not context or not context.outbox:
-        return []
-    queued = context.outbox
-    context.outbox = []
-    rows: list[TranscriptMessage] = []
-    for cm in queued:
-        try:
-            row = await create_transcript_message(
-                session_id=session_id,
-                message_source="tutor",
-                message_kind="component",
-                message_text=json.dumps(
-                    {"component_name": cm.component_name, "props": cm.props}
-                ),
-                flow=config.flow_tag,
-            )
-            rows.append(row)
-        except Exception as e:
-            _log(f"Failed to persist component message {cm.component_name}: {e}")
-    return rows
+) -> Optional[TranscriptMessage]:
+    """Persist a lesson-suggestions message as a component row."""
+    content = msg.content
+    if content.proposal_group_id:
+        # Tutor proposal flow — frontend subscribes via realtime using the group ID.
+        props = {
+            "proposal_group_id": content.proposal_group_id,
+            "lessons": [l.model_dump(exclude_none=True) for l in content.lessons],
+        }
+        component_name = "LessonProposalTiles"
+    else:
+        # Onboarding lesson flow — rendered inline. Map to the shape LessonTiles expects:
+        # {lessons: [{level, title, blurb, arabic}]}
+        props = {
+            "lessons": [
+                {
+                    "level": l.level,
+                    "title": l.title,
+                    "blurb": l.description,
+                    "arabic": l.arabic_preview,
+                }
+                for l in content.lessons
+            ],
+        }
+        component_name = "LessonTiles"
+
+    try:
+        return await create_transcript_message(
+            session_id=session_id,
+            message_source="tutor",
+            message_kind="component",
+            message_text=json.dumps({"component_name": component_name, "props": props}),
+            flow=config.flow_tag,
+        )
+    except Exception as e:
+        _log(f"Failed to persist lesson-suggestions message: {e}")
+        return None
+
+
+async def _persist_image_message(
+    session_id: str,
+    msg: ImageMessage,
+    config: TurnConfig,
+) -> Optional[TranscriptMessage]:
+    """Persist an image message as a component row."""
+    props = {
+        "url": msg.content.url,
+        "alt_text": msg.content.alt_text,
+        "language": msg.content.language,
+    }
+    try:
+        return await create_transcript_message(
+            session_id=session_id,
+            message_source="tutor",
+            message_kind="component",
+            message_text=json.dumps({"component_name": "Image", "props": props}),
+            flow=config.flow_tag,
+        )
+    except Exception as e:
+        _log(f"Failed to persist image message: {e}")
+        return None
+
+
+async def _persist_flashcard_set_message(
+    session_id: str,
+    msg: FlashcardSetMessage,
+    config: TurnConfig,
+) -> Optional[TranscriptMessage]:
+    """Persist a flashcard-set message as a flash_cards row (frontend expects this kind)."""
+    try:
+        return await create_transcript_message(
+            session_id=session_id,
+            message_source="tutor",
+            message_kind="flash_cards",
+            message_text=json.dumps({"set_id": msg.content.set_id, "title": msg.content.title}),
+            flow=config.flow_tag,
+        )
+    except Exception as e:
+        _log(f"Failed to persist flashcard-set message: {e}")
+        return None
 
 
 def _record_analytics(
@@ -217,36 +264,40 @@ async def run_turn(
     )
     t_after_llm = time.monotonic()
 
+    response: AgentResponse = run_result.final_output
+
     persisted: list[TranscriptMessage] = []
     canonical_parts: list[str] = []
     display_parts: list[str] = []
 
-    # If a tool queued a UI component this turn, clip the agent's text to its
-    # first sentence. The component is the moment; the bubble is just the
-    # lead-in. Encoded in the harness so we don't have to trust the prompt to
-    # keep the agent from enumerating tile content in chat.
-    context = get_context(session_id)
-    clip_to_first_sentence = bool(context and context.outbox)
+    for msg in response.messages:
+        if isinstance(msg, TextMessage):
+            row, canonical, display = await _persist_text_message(
+                session_id, msg, config, user_message
+            )
+            if row is not None:
+                persisted.append(row)
+            if canonical:
+                canonical_parts.append(canonical)
+            if display:
+                display_parts.append(display)
 
-    for item in run_result.new_items:
-        if not isinstance(item, MessageOutputItem):
-            continue
-        text = ItemHelpers.text_message_output(item)
-        if clip_to_first_sentence:
-            text = _first_sentence(text)
-        row, canonical, display = await _persist_text_item(
-            session_id, text, config, user_message
-        )
-        if row is not None:
-            persisted.append(row)
-        if canonical:
-            canonical_parts.append(canonical)
-        if display:
-            display_parts.append(display)
+        elif isinstance(msg, LessonSuggestionsMessage):
+            row = await _persist_lesson_suggestions_message(session_id, msg, config)
+            if row is not None:
+                persisted.append(row)
+
+        elif isinstance(msg, ImageMessage):
+            row = await _persist_image_message(session_id, msg, config)
+            if row is not None:
+                persisted.append(row)
+
+        elif isinstance(msg, FlashcardSetMessage):
+            row = await _persist_flashcard_set_message(session_id, msg, config)
+            if row is not None:
+                persisted.append(row)
 
     t_after_scaffold = time.monotonic()
-
-    persisted.extend(await _persist_component_messages(session_id, config))
 
     timings = {
         "total_ms": round((t_after_scaffold - t_start) * 1000, 1),

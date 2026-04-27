@@ -1,10 +1,8 @@
 """Application context and state tracking for agent execution."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
-
-from harness.components import ComponentMessage
 
 # In-memory context storage indexed by session_id
 _contexts: Dict[str, "AppContext"] = {}
@@ -58,11 +56,6 @@ class AppContext(BaseModel):
 
     # Onboarding state (only used for onboarding sessions)
     onboarding: OnboardingState = Field(default_factory=OnboardingState)
-
-    # UI bubbles queued by tools during a turn — drained and persisted by the
-    # harness once the run completes. Tools never write to transcript_messages
-    # directly; they `outbox.append(ComponentMessage(...))` and move on.
-    outbox: List[ComponentMessage] = Field(default_factory=list)
 
     # Timestamp
     updated_at: datetime = Field(default_factory=datetime.now)

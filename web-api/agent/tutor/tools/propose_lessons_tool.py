@@ -21,7 +21,6 @@ from pydantic import BaseModel, Field
 from harness.context import AppContext
 from services.lesson_service import insert_lesson_proposals
 from services.supabase_client import get_supabase_admin_client
-from services.transcript_service import create_transcript_message
 
 
 class FlashcardCardHint(BaseModel):
@@ -133,25 +132,24 @@ async def propose_lessons(
         proposals=rows_to_insert,
     )
 
-    await create_transcript_message(
-        session_id=session_id,
-        message_source="tutor",
-        message_kind="component",
-        message_text=json.dumps(
-            {
-                "component_name": "LessonProposalTiles",
-                "props": {
-                    "proposal_group_id": proposal_group_id,
-                    "intro": intro,
-                },
-            }
-        ),
-        flow="tutor",
-    )
-
     summary = ", ".join(f"'{row['title']}' (id: {row['id']})" for row in inserted)
-    return (
-        f"Proposed {len(inserted)} lessons: {summary}. "
-        "Wait for the user to pick a tile. When they do, call "
-        "`generate_lesson_content` with the matching lesson id."
-    )
+    return json.dumps({
+        "status": "ok",
+        "proposal_group_id": proposal_group_id,
+        "lessons": [
+            {
+                "id": row["id"],
+                "title": row["title"],
+                "description": row["blurb"],
+                "arabic_preview": row.get("arabic_preview"),
+            }
+            for row in inserted
+        ],
+        "instruction": (
+            f"Proposed {len(inserted)} lessons: {summary}. "
+            "Include a 'lesson-suggestions' message in your response using this "
+            "proposal_group_id and the lesson list above. "
+            "Wait for the user to pick a tile. When they do, call "
+            "`generate_lesson_content` with the matching lesson id."
+        ),
+    })

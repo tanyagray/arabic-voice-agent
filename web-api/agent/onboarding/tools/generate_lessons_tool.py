@@ -1,12 +1,9 @@
-"""Tool: generate_lessons — finalize onboarding and queue the lesson tiles.
+"""Tool: generate_lessons — finalize onboarding and return lesson tile data.
 
-Marks `onboarding.completed`, upserts the user's profile row, and queues a
-`LessonTiles` ComponentMessage on `app_context.outbox`. The harness drains
-the outbox after the turn and persists it as a `message_kind='component'`
-transcript_messages row. The handoff text bubble (the agent's "why don't
-we start with one of these duroos?" line) is the agent's own assistant
-text, persisted by the harness from `result.new_items` — not anything
-this tool does.
+Marks `onboarding.completed`, upserts the user's profile row, and returns the
+tile data as JSON so the agent can include a `lesson-suggestions` message in
+its structured response. The agent is responsible for emitting both the handoff
+text bubble and the lesson-suggestions message in the same response.
 """
 
 import json
@@ -16,7 +13,6 @@ from typing import List, Literal, Optional
 from agents import RunContextWrapper, function_tool
 from pydantic import BaseModel
 
-from harness.components import ComponentMessage
 from harness.context import AppContext
 from harness.session_manager import get_session
 from services.supabase_client import get_supabase_admin_client
@@ -77,11 +73,9 @@ async def generate_lessons(
     and finish onboarding. Call this exactly once, after you have a `name`
     and a `motivation` (or recorded the learner's refusal of either).
 
-    In the SAME response as this tool call, write a short handoff sentence
-    (e.g. "why don't we start with one of these duroos?"). That text becomes
-    the on-screen bubble shown just above the tile picker — the harness
-    persists it automatically. The Arabic word `duroos` (lessons) is tinted
-    on screen via flow vocab; you don't need to mark it up.
+    After this tool returns, include BOTH a `text` message (your handoff
+    sentence using 'duroos') AND a `lesson-suggestions` message (using the
+    tile data from this tool's response) in your structured JSON response.
 
     Args:
         tiles: Exactly three tiles — one Beginner, one Intermediate, one
@@ -106,13 +100,24 @@ async def generate_lessons(
 
     props = {"tiles": [t.model_dump() for t in tiles]}
 
-    app_context.outbox.append(
-        ComponentMessage(component_name="LessonTiles", props=props)
-    )
-
     app_context.onboarding.collected["suggestions"] = props
     app_context.onboarding.completed = True
 
     _write_profile(app_context, props)
 
-    return "ok"
+    return json.dumps({
+        "status": "ok",
+        "lessons": [
+            {
+                "title": t.title,
+                "description": t.blurb,
+                "arabic_preview": t.arabic,
+                "level": t.level,
+            }
+            for t in tiles
+        ],
+        "instruction": (
+            "Include a 'lesson-suggestions' message in your response with these lessons. "
+            "Your text message should be only the handoff sentence using 'duroos'."
+        ),
+    })

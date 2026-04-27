@@ -3,6 +3,7 @@
 from agents import Agent
 
 from harness.options import HarnessOptions
+from harness.response import AgentResponse
 
 from .tools.change_language_tool import change_language
 from .tools.flashcards_tool import generate_flashcards
@@ -23,6 +24,7 @@ agent = Agent(
         send_audio,
     ],
     hooks=TutorAgentHooks(),
+    output_type=AgentResponse,
 )
 
 

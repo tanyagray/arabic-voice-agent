@@ -8,8 +8,7 @@ export type LessonTile = {
 };
 
 export type LessonTilesProps = {
-  intro: string;
-  tiles: LessonTile[];
+  lessons: LessonTile[];
 };
 
 export type LessonTilesContext = {
@@ -26,7 +25,7 @@ export function LessonTiles({
   props: LessonTilesProps;
   ctx: LessonTilesContext;
 }) {
-  const valid = Array.isArray(props.tiles) && props.tiles.length === 3;
+  const valid = Array.isArray(props.lessons) && props.lessons.length === 3;
   if (!valid) return null;
 
   return (
@@ -49,7 +48,7 @@ export function LessonTiles({
           gap: isMobile ? 12 : 16,
         }}
       >
-        {props.tiles.map((tile) => (
+        {props.lessons.map((tile) => (
           <button
             key={tile.level + tile.title}
             onClick={() => onPick(tile)}

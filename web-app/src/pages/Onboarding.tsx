@@ -513,6 +513,26 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
     return result;
   }, [textMessages, theme.tint, theme.ink]);
 
+  // How long the TypingHero animation runs for the current set of lines.
+  // Matches TypingHero's internal timing: 60ms start delay + per-line durations
+  // at CPS chars/sec + 500ms gaps between lines.
+  const textAnimationMs = useMemo(() => {
+    if (lines.length === 0) return 0;
+    const totalChars = lines.reduce((n, l) => n + segCharCount(l), 0);
+    return 60 + (totalChars / CPS) * 1000 + (lines.length - 1) * 500;
+  }, [lines]);
+
+  // Tiles animate in only after the text typing animation completes.
+  const [tilesVisible, setTilesVisible] = useState(false);
+  useEffect(() => {
+    if (!linesVisible || componentMessages.length === 0) {
+      setTilesVisible(false);
+      return;
+    }
+    const t = setTimeout(() => setTilesVisible(true), textAnimationMs);
+    return () => clearTimeout(t);
+  }, [linesVisible, componentMessages.length, textAnimationMs]);
+
   // Tracks "user has submitted, waiting for agent reply". Drives the input's
   // disabled/spinner state. We can't use `isAgentThinking` directly because it
   // is also true on initial page load (before the first greeting), and we
@@ -594,7 +614,7 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
                     LessonTiles: {
                       theme,
                       isMobile,
-                      visible: linesVisible,
+                      visible: tilesVisible,
                       onPick: handleLessonPick,
                     },
                   })}

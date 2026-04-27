@@ -55,8 +55,7 @@ const sampleTiles: LessonTile[] = [
 export const Default: Story = {
   args: {
     props: {
-      intro: 'Pick a lesson to start with:',
-      tiles: sampleTiles,
+      lessons: sampleTiles,
     },
     ctx: {
       theme: THEMES.apricot,
@@ -117,8 +116,7 @@ export const Hidden: Story = {
 export const NoArabic: Story = {
   args: {
     props: {
-      intro: 'Pick a lesson to start with:',
-      tiles: sampleTiles.map((t) => ({ ...t, arabic: null })),
+      lessons: sampleTiles.map((t) => ({ ...t, arabic: null })),
     },
     ctx: Default.args!.ctx,
   },
@@ -127,8 +125,7 @@ export const NoArabic: Story = {
 export const LongContent: Story = {
   args: {
     props: {
-      intro: 'Pick a lesson to start with:',
-      tiles: [
+      lessons: [
         {
           level: 'Beginner',
           title: 'Navigating an airport in a foreign city',
@@ -159,8 +156,7 @@ export const LongContent: Story = {
 export const ShortContent: Story = {
   args: {
     props: {
-      intro: 'Pick a lesson:',
-      tiles: [
+      lessons: [
         { level: 'Beginner', title: 'Hello', blurb: 'Say hi.', arabic: 'مرحبا' },
         { level: 'Intermediate', title: 'Café', blurb: 'Order coffee.', arabic: 'قهوة' },
         { level: 'Advanced', title: 'Debate', blurb: 'Argue politely.', arabic: 'نقاش' },
