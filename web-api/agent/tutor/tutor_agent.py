@@ -7,7 +7,6 @@ from harness.response import AgentResponse
 
 from .tools.change_language_tool import change_language
 from .tools.flashcards_tool import generate_flashcards
-from .tools.generate_lesson_content_tool import generate_lesson_content
 from .tools.propose_lessons_tool import propose_lessons
 from .tools.send_audio_tool import send_audio
 from .tutor_agent_hooks import TutorAgentHooks
@@ -20,7 +19,6 @@ agent = Agent(
         change_language,
         generate_flashcards,
         propose_lessons,
-        generate_lesson_content,
         send_audio,
     ],
     hooks=TutorAgentHooks(),

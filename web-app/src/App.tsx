@@ -16,6 +16,7 @@ const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const WimmelbildPage = lazy(() => import('./pages/WimmelbildPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const LessonPage = lazy(() => import('./pages/LessonPage'));
 
 function App() {
   const { loading, user } = useAuth();
@@ -37,6 +38,7 @@ function App() {
         {/* Main app routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/lesson/:lessonId" element={<LessonPage />} />
         <Route path="/wimmelbilder/:id" element={<WimmelbildPage />} />
         <Route path="/pricing" element={<PricingPage />} />
 

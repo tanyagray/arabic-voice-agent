@@ -32,24 +32,9 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const sampleTiles: LessonTile[] = [
-  {
-    level: 'Beginner',
-    title: 'Greetings & introductions',
-    blurb: 'Say hello, ask how someone is, and introduce yourself confidently.',
-    arabic: 'مرحبا',
-  },
-  {
-    level: 'Intermediate',
-    title: 'Ordering at a café',
-    blurb: 'Practice ordering coffee, asking about the menu, and paying the bill.',
-    arabic: 'قهوة',
-  },
-  {
-    level: 'Advanced',
-    title: 'Debating current events',
-    blurb: 'Express opinions, agree and disagree, and argue your point politely.',
-    arabic: 'نقاش',
-  },
+  { title: 'Greetings & introductions', objective: 'Say hello, ask how someone is, and introduce yourself confidently.' },
+  { title: 'Ordering at a café', objective: 'Practice ordering coffee, asking about the menu, and paying the bill.' },
+  { title: 'Debating current events', objective: 'Express opinions, agree and disagree, and argue your point politely.' },
 ];
 
 export const Default: Story = {
@@ -126,27 +111,9 @@ export const LongContent: Story = {
   args: {
     props: {
       lessons: [
-        {
-          level: 'Beginner',
-          title: 'Navigating an airport in a foreign city',
-          blurb:
-            'Learn the vocabulary and phrases you need to check in, find your gate, ask for help, and handle common issues at airport security and customs.',
-          arabic: 'مطار',
-        },
-        {
-          level: 'Intermediate',
-          title: 'Renting an apartment and signing a lease',
-          blurb:
-            'Discuss neighborhoods, ask about rent, utilities, and amenities, and understand the key vocabulary in a rental contract.',
-          arabic: 'إيجار',
-        },
-        {
-          level: 'Advanced',
-          title: 'Negotiating a salary and discussing benefits',
-          blurb:
-            'Confidently navigate a job offer conversation, including pay, vacation, health coverage, and remote work flexibility.',
-          arabic: 'راتب',
-        },
+        { title: 'Navigating an airport in a foreign city', objective: 'Learn the vocabulary and phrases you need to check in, find your gate, ask for help, and handle common issues at airport security and customs.' },
+        { title: 'Renting an apartment and signing a lease', objective: 'Discuss neighborhoods, ask about rent, utilities, and amenities, and understand the key vocabulary in a rental contract.' },
+        { title: 'Negotiating a salary and discussing benefits', objective: 'Confidently navigate a job offer conversation, including pay, vacation, health coverage, and remote work flexibility.' },
       ],
     },
     ctx: Default.args!.ctx,
@@ -157,9 +124,9 @@ export const ShortContent: Story = {
   args: {
     props: {
       lessons: [
-        { level: 'Beginner', title: 'Hello', blurb: 'Say hi.', arabic: 'مرحبا' },
-        { level: 'Intermediate', title: 'Café', blurb: 'Order coffee.', arabic: 'قهوة' },
-        { level: 'Advanced', title: 'Debate', blurb: 'Argue politely.', arabic: 'نقاش' },
+        { title: 'Hello', objective: 'Say hi.' },
+        { title: 'Café', objective: 'Order coffee.' },
+        { title: 'Debate', objective: 'Argue politely.' },
       ],
     },
     ctx: Default.args!.ctx,

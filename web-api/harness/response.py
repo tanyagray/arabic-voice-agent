@@ -17,9 +17,7 @@ class TextContent(BaseModel):
 class LessonSuggestion(BaseModel):
     id: Optional[str] = None
     title: str
-    description: str
-    arabic_preview: Optional[str] = None
-    level: Optional[Literal["Beginner", "Intermediate", "Advanced"]] = None
+    objective: str
 
 
 class LessonSuggestionsContent(BaseModel):

@@ -151,16 +151,10 @@ async def _persist_lesson_suggestions_message(
         }
         component_name = "LessonProposalTiles"
     else:
-        # Onboarding lesson flow — rendered inline. Map to the shape LessonTiles expects:
-        # {lessons: [{level, title, blurb, arabic}]}
+        # Onboarding lesson flow — rendered inline.
         props = {
             "lessons": [
-                {
-                    "level": l.level,
-                    "title": l.title,
-                    "blurb": l.description,
-                    "arabic": l.arabic_preview,
-                }
+                {"title": l.title, "objective": l.objective}
                 for l in content.lessons
             ],
         }

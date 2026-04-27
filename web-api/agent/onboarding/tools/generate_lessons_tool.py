@@ -59,8 +59,7 @@ class LessonTile(BaseModel):
     """One starter-lesson tile."""
     level: Literal["Beginner", "Intermediate", "Advanced"]
     title: str
-    blurb: str
-    arabic: Optional[str] = None
+    objective: str
 
 
 @function_tool
@@ -80,8 +79,8 @@ async def generate_lessons(
     Args:
         tiles: Exactly three tiles — one Beginner, one Intermediate, one
             Advanced — each tailored to the learner's stated motivation.
-            Each needs a `level`, a short `title` (3–6 words), a one-sentence
-            `blurb`, and optionally a single Arabic word/phrase (`arabic`).
+            Each needs a `level`, a short `title` (3–6 words), and a one-sentence
+            `objective` stating what the learner will be able to do.
     """
     app_context = context.context
 
@@ -110,9 +109,7 @@ async def generate_lessons(
         "lessons": [
             {
                 "title": t.title,
-                "description": t.blurb,
-                "arabic_preview": t.arabic,
-                "level": t.level,
+                "objective": t.objective,
             }
             for t in tiles
         ],
