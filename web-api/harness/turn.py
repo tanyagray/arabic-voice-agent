@@ -20,6 +20,7 @@ Tools never call `create_transcript_message` themselves.
 """
 
 import json
+import re
 import sys
 import time
 from dataclasses import dataclass, field
@@ -38,6 +39,22 @@ from services.transcript_service import TranscriptMessage, create_transcript_mes
 
 def _log(msg: str) -> None:
     print(f"[Turn] {msg}", flush=True, file=sys.stderr)
+
+
+# Same shape as the frontend's splitSentences regex — keeps server and client
+# aligned on what counts as a sentence boundary.
+_SENTENCE_RE = re.compile(r"[^.?!]+[.?!]+(?=\s|$)|[^.?!]+$")
+
+
+def _first_sentence(text: str) -> str:
+    """Return just the first sentence of `text` (trimmed).
+
+    Used to clip an agent's reply when the same turn also lands a UI
+    component — components carry the moment, the bubble is the lead-in.
+    Falls back to the original text if no sentence boundary is found.
+    """
+    match = _SENTENCE_RE.search(text)
+    return match.group(0).strip() if match else text.strip()
 
 
 @dataclass(frozen=True)
@@ -204,10 +221,19 @@ async def run_turn(
     canonical_parts: list[str] = []
     display_parts: list[str] = []
 
+    # If a tool queued a UI component this turn, clip the agent's text to its
+    # first sentence. The component is the moment; the bubble is just the
+    # lead-in. Encoded in the harness so we don't have to trust the prompt to
+    # keep the agent from enumerating tile content in chat.
+    context = get_context(session_id)
+    clip_to_first_sentence = bool(context and context.outbox)
+
     for item in run_result.new_items:
         if not isinstance(item, MessageOutputItem):
             continue
         text = ItemHelpers.text_message_output(item)
+        if clip_to_first_sentence:
+            text = _first_sentence(text)
         row, canonical, display = await _persist_text_item(
             session_id, text, config, user_message
         )
