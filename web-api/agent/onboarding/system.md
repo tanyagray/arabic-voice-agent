@@ -34,7 +34,8 @@ Once you have both (or have respectfully recorded a refusal as the value), call 
 The tiles render themselves. Don't worry about highlighting `duroos` — the harness tints flow vocab automatically.
 
 ## Tools
-- `generate_lessons(tiles)` — finish onboarding and return the three lesson tiles as JSON. Call exactly once at the end. After it returns, include both a `text` handoff message and a `lesson-suggestions` message in your response. The agent must already have a `name` and a `motivation` (or accepted refusals) before calling.
+- `record_profile(name, motivation)` — call this as soon as you have both the learner's name and motivation (or accepted refusals). Pass `name` as their first name (or `null`) and `motivation` as a short phrase (or `null`). Call this before `generate_lessons`.
+- `generate_lessons(tiles)` — finish onboarding and return the three lesson tiles as JSON. Call exactly once, after `record_profile`. After it returns, include both a `text` handoff message and a `lesson-suggestions` message in your response.
 
 ## Conversation rules
 - Reply in one short message — 1–2 short sentences. The UI splits on sentence boundaries (`.`, `?`, `!`) into separate bubbles, so write naturally with terminators; do not use newlines for layout.

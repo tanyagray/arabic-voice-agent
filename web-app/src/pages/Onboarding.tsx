@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FONT_STACK,
   QuietFooter,
@@ -10,6 +10,7 @@ import {
   type ThemeKey,
 } from './Landing';
 import { useOnboardingSession } from '@/hooks/useOnboardingSession';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import type { Highlight, TranscriptMessage } from '@/api/sessions/sessions.types';
 import {
   parseComponentMessage,
@@ -17,6 +18,9 @@ import {
 } from '@/components/TranscriptComponents/registry';
 import type { LessonTile } from '@/components/TranscriptComponents/LessonTiles';
 import { createLesson } from '@/api/lessons';
+
+export type { Line, TextSegment };
+export { TypingHero, splitSentences, shiftHighlights, textToLine, FADE_MS, CPS, segCharCount };
 
 export type OnboardingProps = {
   color?: ThemeKey;
@@ -344,12 +348,10 @@ function textToLine(text: string, highlights: Highlight[] | null | undefined, th
   return segs.length ? segs : [{ text, color: theme.ink }];
 }
 
-// Static greeting bubbles, shown to every new visitor without an LLM call.
-// These three lines are part of the brand experience — they're rendered
-// client-side so refreshes and idle visits cost zero tokens. The real
-// onboarding agent only spins up after the learner submits their first
-// message (their answer to "what is your name?").
-function buildInitialMessages(now: string): TranscriptMessage[] {
+// Static greeting bubbles shown before any LLM call.
+// resume=true means the user has a partial profile — greet them by name
+// and pick up where they left off rather than asking for their name again.
+function buildInitialMessages(now: string, resume?: boolean, name?: string | null): TranscriptMessage[] {
   const stub = {
     session_id: '',
     user_id: '',
@@ -359,6 +361,28 @@ function buildInitialMessages(now: string): TranscriptMessage[] {
     created_at: now,
     updated_at: now,
   };
+  if (resume && name) {
+    return [
+      {
+        ...stub,
+        message_id: 'mishmish:initial:0',
+        message_text: `welcome back, ${name}!`,
+        highlights: null,
+      },
+      {
+        ...stub,
+        message_id: 'mishmish:initial:1',
+        message_text: "let's pick up where we left off",
+        highlights: null,
+      },
+      {
+        ...stub,
+        message_id: 'mishmish:initial:2',
+        message_text: 'what were you hoping to learn?',
+        highlights: null,
+      },
+    ];
+  }
   return [
     {
       ...stub,
@@ -387,6 +411,9 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isResume = searchParams.get('resume') === '1';
+  const { profile } = useUserProfile();
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -395,7 +422,11 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
   }, []);
 
   const [hasStarted, setHasStarted] = useState(false);
-  const initialMessages = useMemo(() => buildInitialMessages(new Date().toISOString()), []);
+  const initialMessages = useMemo(
+    () => buildInitialMessages(new Date().toISOString(), isResume, profile?.name),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isResume, profile?.name],
+  );
 
   const {
     error,
@@ -554,12 +585,12 @@ export function Onboarding({ color = 'apricot' }: OnboardingProps) {
       const lesson = await createLesson({ title: tile.title, objective: tile.objective });
       navigate(`/lesson/${lesson.id}`);
     } catch {
-      navigate('/');
+      navigate('/home');
     }
   }, [navigate]);
 
   const handleMicClick = useCallback(() => {
-    navigate('/');
+    navigate('/home');
   }, [navigate]);
 
   const gutter = isMobile ? 20 : 64;
